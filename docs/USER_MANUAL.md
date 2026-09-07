@@ -547,8 +547,37 @@ The repository already contains everything Streamlit Community Cloud needs.
 
 `packages.txt` is not optional if you want PyVista or Gmsh. Both are compiled
 against OpenGL and X11 even when rendering off-screen, so without those shared
-objects the import fails with a bare `libGL.so.1: cannot open shared object
-file`. Streamlit Cloud reads the file automatically and runs apt before pip.
+objects the import fails with `libGL.so.1: cannot open shared object file`.
+Streamlit Cloud reads the file automatically and runs apt before pip.
+
+> ### ⚠️ `packages.txt` must contain nothing but package names
+>
+> **Streamlit Cloud's parser has no comment support.** It splits the file on
+> whitespace and hands every token to `apt-get install`, so one explanatory
+> comment produces a wall of errors and fails the whole deployment:
+>
+> ```
+> E: Unable to locate package OpenGL,
+> E: Unable to locate package needed
+> E: Unable to locate package by
+> E: Unable to locate package VTK
+> ❗️ installer returned a non-zero exit code
+> ```
+>
+> One package name per line. No comments, no blank lines, no trailing
+> whitespace, no CRLF. `tests/test_deployment.py` enforces all four, because
+> this file is never read by Python and nothing else would catch it — the
+> failure only appears minutes later in a build log.
+
+The twelve libraries and what each is for:
+
+| Package | Why |
+|---|---|
+| `libgl1`, `libglu1-mesa` | OpenGL — VTK (inside PyVista) and Gmsh's renderer |
+| `libxrender1`, `libxext6`, `libsm6`, `libice6` | X11 client libraries both link against |
+| `libxcursor1`, `libxinerama1`, `libxft2`, `libfontconfig1` | Gmsh's GUI toolkit dependencies, needed even headless |
+| `libgomp1` | OpenMP runtime, used by scikit-image and SciPy |
+| `xvfb` | virtual framebuffer, so PyVista can render with no display. Call `pyvista.start_xvfb()` once before rendering on a headless host. |
 
 ### Step by step
 
@@ -806,6 +835,15 @@ sorts into stripes, not two outlets. Use `f = c_SAW / (2 × width)`.
 
 **The Streamlit app is killed on the free tier**
 Lower `fem_resolution` and the cell count. See [§9](#9-publishing-your-own-copy-on-streamlit).
+
+**Deployment fails with `E: Unable to locate package <an English word>`**
+There is a comment in `packages.txt`. The parser has no comment support and is
+reading your prose as package names. Strip it to bare package names, one per
+line — `pytest tests/test_deployment.py` checks this.
+
+**Deployment fails with `libGL.so.1: cannot open shared object file`**
+The opposite problem: `packages.txt` is missing or does not list `libgl1`.
+PyVista and Gmsh link against OpenGL even when rendering off-screen.
 
 **Tests fail after I changed something**
 Read *which* test. They check relationships (force ∝ r³, Φ > 0 for cells, no

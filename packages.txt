@@ -1,15 +1,5 @@
-# System libraries, installed with apt before requirements.txt.
-# Streamlit Community Cloud reads this file automatically; Debian bookworm names.
-#
-# VTK (which PyVista wraps) and Gmsh are compiled against OpenGL and X11 even
-# when they render off-screen, so the shared objects must be present or the
-# import fails with a bare "libGL.so.1: cannot open shared object file".
-
-# OpenGL, needed by VTK and by Gmsh's renderer
 libgl1
 libglu1-mesa
-
-# X11 client libraries the two link against
 libxrender1
 libxext6
 libsm6
@@ -18,10 +8,5 @@ libxcursor1
 libxinerama1
 libxft2
 libfontconfig1
-
-# OpenMP runtime, used by scikit-image and SciPy
 libgomp1
-
-# Virtual framebuffer, so PyVista can render with no display attached.
-# Call pyvista.start_xvfb() once before rendering on a headless host.
 xvfb
