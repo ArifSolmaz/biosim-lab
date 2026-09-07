@@ -77,11 +77,19 @@ Aynı dosya Streamlit Community Cloud'a olduğu gibi dağıtılabilir — depoyu
 GitHub'a itin, giriş noktası olarak `streamlit_app.py` seçin. Adım adım anlatım:
 [USER\_MANUAL.md §9](docs/USER_MANUAL.md#9-publishing-your-own-copy-on-streamlit).
 
-`requirements.txt` bilerek `pyproject.toml`'dan **daha küçüktür**: PyVista/VTK,
-Gmsh, Napari, Panel ve NetCDF yazıcıları dışarıda bırakılmıştır. Çekirdek
-bunlarsız da eksiksiz çalışır (yapılandırılmış ağ yedeğine düşer, sonuçlar CSV
-iner) ve uygulamanın *Environment* sayfası neyin eksik olduğunu ve neyi
-kaçırdığınızı tek tek sayar.
+`requirements.txt` yönetilen bir sunucuda **gerçekten çalışan her şeyi** içerir
+(Gmsh, PyVista, Panel, NetCDF, Parquet dahil); `packages.txt` ise apt ile
+kurulması gereken sistem kütüphanelerini (OpenGL, X11, xvfb) listeler. Bu küme,
+Streamlit Cloud'un çalıştırdığı platformun aynısı olan `linux/amd64` Debian
+bookworm konteynerinde kurulup ağ üretilerek, render alınarak, NetCDF yazılarak
+ve tüm test paketi çalıştırılarak doğrulanmıştır.
+
+Üçü bilerek dışarıdadır ve `requirements.txt`'e eklemek işe yaramaz: **Napari**
+(Qt ve ekran ister), **OpenFOAM/Elmer** (Python paketi değil, harici ikili
+dosya), **Cellpose/StarDist** (varsayılan PyTorch tekerleği ~2.5 GB CUDA taşır;
+CPU sürümü için `requirements.txt` sonundaki dört satırı açın). Uygulamanın
+*Environment* sayfası bunları *kurulu*, *eksik ama eklenebilir* ve *burada
+çalışamaz* diye ayırarak canlı raporlar.
 
 ![Streamlit arayüzü](assets/streamlit_saw_sorter.png)
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import tempfile
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -59,6 +60,26 @@ class MeshBundle:
         )
 
 
+def _gmsh_initialize(gmsh: Any) -> None:
+    """Start Gmsh in a way that also works off the main thread.
+
+    ``gmsh.initialize()`` installs a SIGINT handler so that a long mesh can be
+    interrupted with Ctrl-C. Python only permits that from the main thread, so
+    the default call raises ``signal only works in main thread of the main
+    interpreter`` inside anything that runs user code on a worker: a Streamlit
+    script thread, a Jupyter kernel, a Dask worker, a web request handler.
+
+    ``interruptible=False`` skips the handler. The only thing lost is Ctrl-C
+    during meshing, which is meaningless in those contexts anyway, so it is used
+    whenever we are not on the main thread.
+    """
+    on_main_thread = threading.current_thread() is threading.main_thread()
+    if on_main_thread:
+        gmsh.initialize()
+    else:
+        gmsh.initialize(interruptible=False)
+
+
 def gmsh_available() -> tuple[bool, str]:
     """Return ``(usable, reason)`` for the Gmsh Python API."""
     gmsh = optional_import("gmsh")
@@ -68,7 +89,7 @@ def gmsh_available() -> tuple[bool, str]:
             "the structured-mesh fallback covers the straight-channel template"
         )
     try:
-        gmsh.initialize()
+        _gmsh_initialize(gmsh)
         version = gmsh.option.getString("General.Version")
         gmsh.finalize()
     except Exception as exc:  # noqa: BLE001
@@ -82,7 +103,7 @@ def _gmsh_session(name: str, verbosity: int = 0):
     gmsh = optional_import("gmsh")
     if gmsh is None:
         raise RuntimeError("gmsh is not installed")
-    gmsh.initialize()
+    _gmsh_initialize(gmsh)
     try:
         gmsh.option.setNumber("General.Terminal", 0)
         gmsh.option.setNumber("General.Verbosity", verbosity)

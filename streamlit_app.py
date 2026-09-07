@@ -25,6 +25,7 @@ Deployment notes (see docs/USER_MANUAL.md for the full walkthrough)
 from __future__ import annotations
 
 import io
+import json
 import warnings
 from typing import Any
 
@@ -608,15 +609,13 @@ def page_sorter() -> None:
 
     with tabs[9]:
         st.dataframe(out["cells"].head(200), use_container_width=True, hide_index=True)
-        download_frame(out["cells"], "saw_sorter_cells.csv", "Download all cells (CSV)")
-        st.download_button(
-            "Download the configuration (YAML)",
-            _params_to_yaml(out["params"]).encode("utf-8"),
-            file_name="saw_sorter_config.yaml", mime="text/yaml",
-        )
+        _download_row(out)
         note(
             "The YAML runs unchanged on the command line: "
-            "<code>biosim run saw_sorter_config.yaml</code>"
+            "<code>biosim run saw_sorter_config.yaml</code>. The NetCDF holds the "
+            "full trajectory array, which the CSV cannot: it is "
+            "<code>position(particle, time, axis)</code>, readable with "
+            "<code>xarray.open_dataset</code>."
         )
 
 
@@ -709,6 +708,69 @@ def _cell_safety_panel(metrics: dict[str, Any], diagnostics: dict[str, Any]) -> 
         "trustworthy than that of live ones.",
         icon="🔬",
     )
+
+
+def _download_row(out: dict[str, Any]) -> None:
+    """Offer every export format the deployment actually has a writer for.
+
+    Which buttons appear depends on what is installed: NetCDF needs an HDF5
+    stack and Parquet needs pyarrow, and both are optional. Rather than failing
+    at click time, the buttons are only built when the writer is importable, and
+    the Environment page explains any that are absent.
+    """
+    from biosim_lab.core.plugin import optional_import
+
+    cols = st.columns(4)
+    with cols[0]:
+        st.download_button(
+            "Cells (CSV)", out["cells"].to_csv(index=False).encode("utf-8"),
+            file_name="saw_sorter_cells.csv", mime="text/csv",
+        )
+    with cols[1]:
+        st.download_button(
+            "Configuration (YAML)", _params_to_yaml(out["params"]).encode("utf-8"),
+            file_name="saw_sorter_config.yaml", mime="text/yaml",
+        )
+    with cols[2]:
+        if optional_import("pyarrow") is not None:
+            buffer = io.BytesIO()
+            out["cells"].to_parquet(buffer, index=False)
+            st.download_button(
+                "Cells (Parquet)", buffer.getvalue(),
+                file_name="saw_sorter_cells.parquet", mime="application/octet-stream",
+            )
+        else:
+            st.caption("Parquet needs pyarrow")
+    with cols[3]:
+        payload = _netcdf_bytes(out)
+        if payload is not None:
+            st.download_button(
+                "Trajectories (NetCDF)", payload,
+                file_name="saw_sorter_trajectories.nc",
+                mime="application/x-netcdf",
+            )
+        else:
+            st.caption("NetCDF needs h5netcdf or netCDF4")
+
+
+def _netcdf_bytes(out: dict[str, Any]) -> bytes | None:
+    """Serialise the trajectory Dataset to NetCDF in memory, or None if unavailable."""
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+
+    try:
+        from biosim_lab.core.io import save_dataset
+    except Exception:  # noqa: BLE001
+        return None
+    dataset = out["trajectories"].copy()
+    dataset.attrs["biosim_metrics"] = json.dumps(out["metrics"], default=str)
+    dataset.attrs["biosim_params"] = json.dumps(out["params"], default=str)
+    try:
+        with TemporaryDirectory() as tmp:
+            path = save_dataset(dataset, Path(tmp) / "trajectories.nc")
+            return path.read_bytes()
+    except Exception:  # noqa: BLE001 - no writer installed, or a driver problem
+        return None
 
 
 def _params_to_yaml(params: dict[str, Any]) -> str:
@@ -1190,67 +1252,141 @@ def page_materials() -> None:
 
 def page_environment() -> None:
     st.title("Environment")
-    note("What is installed here, what is not, and what that costs you.")
+    note(
+        "What is installed here, what is not, and — the part that usually gets "
+        "left out — which of the missing pieces <b>could not work in a hosted "
+        "container even if they were installed</b>."
+    )
 
     from biosim_lab.core.geometry import gmsh_available
     from biosim_lab.core.plugin import optional_import
     from biosim_lab.core.solver import solver_report
     from biosim_lab.instruments.cell_counter.segmentation import available_backends
 
-    st.metric("biosim-lab version", __version__)
-    st.caption(f"Instruments found via {discovery_source()}")
+    left, right = st.columns([1, 2])
+    left.metric("biosim-lab version", __version__)
+    right.caption(f"Instruments found via {discovery_source()}")
+
+    # (module, what it unlocks, whether it can function in a headless container)
+    components: list[tuple[str, str, str]] = [
+        ("numpy", "core numerics", "yes"),
+        ("scipy", "core numerics", "yes"),
+        ("xarray", "gridded results", "yes"),
+        ("pandas", "tables", "yes"),
+        ("pydantic", "configuration validation", "yes"),
+        ("pint", "unit checking", "yes"),
+        ("skfem", "built-in Helmholtz / Stokes / electro solvers", "yes"),
+        ("plotly", "every figure in this app", "yes"),
+        ("skimage", "segmentation", "yes"),
+        ("trackpy", "track linking", "yes"),
+        ("streamlit", "this interface", "yes"),
+        ("gmsh", "the PDMS-wall mesh template (the built-in single-material "
+                  "Helmholtz solver does not consume it yet)", "yes"),
+        ("meshio", "importing Gmsh meshes", "yes"),
+        ("pyvista", "3-D field rendering (off-screen)", "yes"),
+        ("imageio", "reading and writing image stacks", "yes"),
+        ("matplotlib", "colour maps used by scikit-image", "yes"),
+        ("h5py", "HDF5 back-end for NetCDF", "yes"),
+        ("h5netcdf", "NetCDF result files", "yes"),
+        ("netCDF4", "NetCDF result files (alternative back-end)", "yes"),
+        ("pyarrow", "Parquet result files", "yes"),
+        ("panel", "the desktop dashboards (this app replaces them)", "yes"),
+        ("bokeh", "Panel's rendering back-end", "yes"),
+        ("typer", "the command-line interface", "yes"),
+        ("rich", "command-line formatting", "yes"),
+        ("kaleido", "exporting figures as static PNG", "yes"),
+        ("napari", "interactive image review",
+         "no — needs Qt and a display, which a hosted container has neither of"),
+        ("cellpose", "deep-learning segmentation",
+         "only with a CPU-only PyTorch build; the default wheel pulls ~2.5 GB of CUDA"),
+        ("stardist", "star-convex segmentation",
+         "only with TensorFlow (~600 MB); heavy for a 1 GB tier"),
+    ]
 
     rows = []
-    for module, unlocks in (
-        ("numpy", "core"), ("scipy", "core"), ("xarray", "core"),
-        ("pandas", "core"), ("pydantic", "configuration validation"),
-        ("pint", "unit checking"), ("skfem", "built-in FEM solvers"),
-        ("plotly", "figures"), ("skimage", "segmentation"),
-        ("trackpy", "track linking"), ("streamlit", "this interface"),
-        ("meshio", "Gmsh mesh import (optional)"),
-        ("pyvista", "3-D field rendering (optional, omitted from this deployment)"),
-        ("panel", "the desktop dashboards (optional)"),
-        ("napari", "interactive image review (optional)"),
-        ("pyarrow", "Parquet output (optional)"),
-        ("h5netcdf", "NetCDF output (optional)"),
-    ):
-        mod = optional_import(module)
+    for module, unlocks, hosted in components:
+        installed = optional_import(module) is not None
         rows.append({
             "component": module,
-            "status": "installed" if mod is not None else "missing",
+            "status": "installed" if installed else "not installed",
+            "usable here": hosted,
             "what it unlocks": unlocks,
         })
 
     ok, why = gmsh_available()
-    rows.append({"component": "gmsh", "status": "installed" if ok else "missing",
-                 "what it unlocks": why})
+    rows.append({"component": "gmsh (runtime check)",
+                 "status": "working" if ok else "not working",
+                 "usable here": "yes", "what it unlocks": why})
     for name, (avail, detail) in available_backends().items():
         rows.append({"component": f"segmentation: {name}",
-                     "status": "installed" if avail else "missing",
+                     "status": "installed" if avail else "not installed",
+                     "usable here": "yes" if name == "classical" else "see above",
                      "what it unlocks": detail})
     for row in solver_report():
-        rows.append({"component": f"solver: {row['name']}",
-                     "status": "available" if row["available"] else "missing",
-                     "what it unlocks": f"{row['kind']} — {row['detail']}"})
+        rows.append({
+            "component": f"solver: {row['name']}",
+            "status": "available" if row["available"] else "not available",
+            "usable here": "yes" if row["name"].startswith("builtin")
+            else "no — needs an external binary that is not installable on a "
+                 "managed host",
+            "what it unlocks": f"{row['kind']} — {row['detail']}",
+        })
 
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, height=520)
+    table = pd.DataFrame(rows)
+    missing_but_usable = table[
+        (table["status"].isin(["not installed", "not working", "not available"]))
+        & (table["usable here"] == "yes")
+    ]
+    cols = st.columns(3)
+    cols[0].metric("Installed", int((table["status"].isin(
+        ["installed", "working", "available"])).sum()))
+    cols[1].metric("Missing but fixable", len(missing_but_usable))
+    cols[2].metric("Cannot work here", int((table["usable here"] != "yes").sum()))
 
-    st.subheader("What is deliberately absent from this deployment")
+    if len(missing_but_usable) == 0:
+        st.success(
+            "Everything that can work in a hosted container is installed. The "
+            "remaining rows are not oversights — they are things a managed host "
+            "cannot provide.", icon="✅",
+        )
+    else:
+        st.warning(
+            "These are installable and are not present: "
+            + ", ".join(missing_but_usable["component"])
+            + ". Add them to `requirements.txt` and redeploy.",
+            icon="⚠️",
+        )
+
+    st.dataframe(table, use_container_width=True, hide_index=True, height=560)
+
+    st.subheader("Why some things cannot be installed here")
     st.markdown(
         """
-- **PyVista / VTK** — 3-D field rendering and trajectory movies. Left out because
-  it is large and needs OpenGL; the Plotly figures here show the same fields in 2-D.
-- **Gmsh** — only needed to mesh a PDMS wall layer. Without it the straight-channel
-  template falls back to an exact structured triangulation, which is what every
-  simulation on this site uses anyway.
-- **Panel / Bokeh** — the desktop dashboards. This *is* the dashboard.
-- **NetCDF and Parquet writers** — results download as CSV instead.
-- **OpenFOAM and Elmer** — the heavy external solvers. Without them acoustic
-  streaming is not modelled and the analytic Rayleigh approximation is used, and
-  the piezoelectric problem is replaced by the documented voltage calibration.
+Three of the optional components are not missing by accident, and adding them to
+`requirements.txt` would not help:
 
-None of these change any number you see. They change what you could *additionally*
-compute if you ran the project locally.
+- **Napari** needs Qt and a display server. It would install, report itself
+  present, and still be unable to open a viewer. Use it locally instead —
+  `pip install -e ".[imaging]"`, then `instrument.view_napari()`.
+- **OpenFOAM** and **Elmer** are external binaries, not Python packages. They
+  come from apt repositories a managed host does not carry. Their absence means
+  acoustic streaming is not modelled and the analytic Rayleigh approximation is
+  used instead, and the piezoelectric problem is replaced by the documented
+  voltage calibration. Stages 1–3 are complete without them; the project ships
+  `docker/Dockerfile.openfoam` and `docker/Dockerfile.elmer` for when you need
+  them.
+- **Cellpose** and **StarDist** are installable but pull a deep-learning
+  runtime. The default PyTorch wheel bundles CUDA and is roughly 2.5 GB. To use
+  Cellpose on a free tier you would need the CPU-only build:
+
+  ```
+  --extra-index-url https://download.pytorch.org/whl/cpu
+  torch
+  cellpose>=3.0
+  ```
+
+  The classical watershed back-end needs none of this and is what every figure
+  in this app uses.
 """
     )
 

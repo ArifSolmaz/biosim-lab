@@ -541,8 +541,14 @@ The repository already contains everything Streamlit Community Cloud needs.
 | File | Role |
 |---|---|
 | `streamlit_app.py` | the entry point, at the repository root |
-| `requirements.txt` | the slim dependency set (no PyVista, Gmsh, Panel, NetCDF) |
+| `requirements.txt` | the Python dependencies — **the full set that works on a managed host** |
+| `packages.txt` | the system libraries apt must install first (OpenGL, X11, xvfb) |
 | `.streamlit/config.toml` | theme matching the figure palette, upload limit |
+
+`packages.txt` is not optional if you want PyVista or Gmsh. Both are compiled
+against OpenGL and X11 even when rendering off-screen, so without those shared
+objects the import fails with a bare `libGL.so.1: cannot open shared object
+file`. Streamlit Cloud reads the file automatically and runs apt before pip.
 
 ### Step by step
 
@@ -586,22 +592,69 @@ but does not `pip install` the project itself, so entry-point metadata is
 absent; `biosim_lab.registry` falls back to importing the built-in instruments
 directly. Everything works; only third-party plugins would be missed.
 
+### What is installed, and what cannot be
+
+`requirements.txt` carries everything that genuinely functions on a managed
+host, verified by installing it in a `linux/amd64` Debian bookworm container —
+the same platform Streamlit Cloud runs — and then meshing, rendering, writing
+NetCDF and running the full test suite inside it.
+
+Three things are absent on purpose, and adding them to `requirements.txt` would
+not help:
+
+| Absent | Why adding it would not help |
+|---|---|
+| **Napari** | needs Qt and a display server. It would install, report itself present, and still be unable to open a viewer. Use it locally: `pip install -e ".[imaging]"`, then `instrument.view_napari()`. |
+| **OpenFOAM, Elmer** | external binaries, not Python packages, from apt repositories a managed host does not carry. Their absence means acoustic streaming is not modelled and the analytic Rayleigh approximation is used, and the piezoelectric problem is replaced by the documented voltage calibration. Use `docker/Dockerfile.openfoam` and `docker/Dockerfile.elmer`. |
+| **Cellpose, StarDist** | installable, but they pull a deep-learning runtime. The default PyTorch wheel bundles CUDA at roughly 2.5 GB, which will not fit a free tier. |
+
+To enable Cellpose anyway on CPU, uncomment the four lines at the bottom of
+`requirements.txt`:
+
+```
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
+cellpose>=3.0
+```
+
+That is about 250 MB and inference is slow without a GPU. The classical
+watershed back-end needs none of it and is what every figure in the app uses.
+
+The app's **Environment** page reports all of this live, split into *installed*,
+*missing but fixable* and *cannot work here* — so you never have to guess which
+kind of absence you are looking at.
+
 ### Staying inside the free tier
 
-The free tier gives roughly 1 GB of RAM. The app is built for it:
+The free tier gives roughly 1 GB of RAM.
 
-- **`requirements.txt` deliberately omits** PyVista/VTK (~150 MB and needs
-  OpenGL), Gmsh, Napari, Panel/Bokeh and the NetCDF stack.
 - **Every simulation is cached** on its parameters (`st.cache_data`), so
-  returning to a previous slider position is instant.
+  returning to a previous slider position is instant and the host is not asked
+  to recompute the same thing twice.
 - **The sliders are capped**: 600 cells per population, mesh resolution 64,
   30 tracker frames, 512-pixel images. Raise them in `streamlit_app.py` if you
   are hosting somewhere larger.
-- **Downloads are CSV**, not NetCDF or Parquet, so no HDF5 or Arrow writer is
-  needed.
+- **PyVista is the heaviest import.** It is present and works off-screen, but
+  importing VTK costs a few hundred megabytes of resident memory. If the app is
+  being killed, dropping `pyvista` from `requirements.txt` is the single biggest
+  saving; nothing in the current pages depends on it.
 
-If the app is killed for memory, the usual cause is the FEM mode at high mesh
+If the app is killed for memory, the other usual cause is FEM mode at high mesh
 resolution combined with a large cell count. Lower `fem_resolution` first.
+
+### One trap worth knowing about
+
+Streamlit runs your script on a **worker thread**, not the main thread. Gmsh
+installs a SIGINT handler on `initialize()`, and Python only permits that from
+the main thread, so a naive `gmsh.initialize()` inside a Streamlit app fails
+with `signal only works in main thread of the main interpreter` — and Gmsh looks
+permanently broken even though it is installed correctly.
+
+`biosim_lab.core.geometry` handles this: it detects the thread and passes
+`interruptible=False` when it is not on the main one. The only thing lost is
+Ctrl-C during meshing, which is meaningless in a web app. The same fix makes
+Gmsh work inside Jupyter kernels, Dask workers and web request handlers.
 
 ### Running the web app locally instead
 

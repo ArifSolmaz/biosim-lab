@@ -88,3 +88,34 @@ def test_unsupported_plate_format_is_rejected():
     with pytest.raises(ValueError, match="unsupported plate format"):
         well_plate(42)
     assert set(WELL_PLATE_FORMATS) >= {6, 24, 96, 384}
+
+
+@requires_gmsh
+def test_gmsh_works_off_the_main_thread():
+    """Gmsh must initialise inside a worker thread.
+
+    ``gmsh.initialize()`` installs a SIGINT handler, which Python only allows on
+    the main thread. Anything that runs user code on a worker — a Streamlit
+    script thread, a Jupyter kernel, a Dask worker, a web request handler —
+    would otherwise get ``signal only works in main thread of the main
+    interpreter`` and see Gmsh as permanently unavailable.
+    """
+    import threading
+
+    captured: dict[str, object] = {}
+
+    def work() -> None:
+        captured["available"] = gmsh_available()
+        bundle = straight_channel_2d(
+            300e-6, 50e-6, resolution=12, wall_thickness=40e-6
+        )
+        captured["subdomains"] = sorted(bundle.subdomains)
+        captured["elements"] = int(bundle.mesh.t.shape[1])
+
+    thread = threading.Thread(target=work)
+    thread.start()
+    thread.join(timeout=120)
+
+    assert captured["available"][0] is True, captured["available"]
+    assert captured["subdomains"] == ["fluid", "pdms"]
+    assert captured["elements"] > 0

@@ -1,37 +1,74 @@
-# Dependencies for the hosted Streamlit app (Streamlit Community Cloud reads
-# this file automatically).
+# Dependencies for the hosted Streamlit app.
+# Streamlit Community Cloud installs this file automatically, together with the
+# system libraries listed in packages.txt.
 #
-# This list is deliberately SMALLER than the one in pyproject.toml. Left out on
-# purpose, because the core degrades gracefully without them and they would
-# blow the memory budget of a free hosting tier:
+# This is the FULL set of everything that genuinely works on a managed host.
+# Verified by installing it in a linux/amd64 Debian bookworm container — the
+# same platform Streamlit Cloud runs — and importing, meshing, rendering and
+# running the whole test suite there.
 #
-#   pyvista, vtk   3-D field rendering and trajectory movies (needs OpenGL, ~150 MB)
-#   gmsh, meshio   only required to mesh a PDMS wall layer; core.geometry falls
-#                  back to an exact structured triangulation, and gmsh publishes
-#                  no wheel for linux/arm64 anyway
-#   panel, bokeh   the desktop dashboards — this app replaces them
-#   napari         interactive image review (needs Qt and a display)
-#   netCDF4, h5py  NetCDF output — the app offers CSV downloads instead
-#   typer, rich    the command-line interface, unused here
+# Three optional components are deliberately absent because installing them
+# would not help; the app's Environment page explains each:
 #
-# The Environment page inside the app lists exactly what is present and what
-# each absent component would have unlocked.
+#   napari              needs Qt and a display server. It would install, report
+#                       itself present, and still be unable to open a viewer.
+#   openfoam, elmer     external binaries, not Python packages. They come from
+#                       apt repositories a managed host does not carry.
+#   cellpose, stardist  installable, but they pull a deep-learning runtime. The
+#                       default PyTorch wheel bundles CUDA at roughly 2.5 GB,
+#                       which will not fit a free tier. See the bottom of this
+#                       file for the CPU-only opt-in.
 #
-# For the full local install use:  pip install -e ".[mesh]"
+# For a full local install use:  pip install -e ".[mesh,imaging]"
 
+# --- core: numerics, units, validation, IO ---------------------------------
 numpy>=1.26
 scipy>=1.11
 pandas>=2.2
 xarray>=2024.1
-
 pint>=0.23
 pydantic>=2.6
 pyyaml>=6
 
-scikit-fem>=9.0        # the built-in Helmholtz / Stokes / electro solvers
+# --- solvers and meshing ---------------------------------------------------
+scikit-fem>=9.0        # built-in Helmholtz / Stokes / electro-quasistatic
+gmsh>=4.12             # PDMS-wall mesh template
+meshio>=5.3            # reading Gmsh output into scikit-fem
+
+# --- image analysis --------------------------------------------------------
 scikit-image>=0.22     # segmentation
 trackpy>=0.6           # track linking
+imageio>=2.34          # image and TIFF stacks
+imageio-ffmpeg>=0.4.9  # MP4 export
+matplotlib>=3.8        # colour maps used internally by scikit-image
+
+# --- visualisation ---------------------------------------------------------
+plotly>=5.20           # every figure in this app
+kaleido                # static PNG export of those figures
+pyvista>=0.43          # off-screen 3-D field rendering (needs xvfb, see packages.txt)
+panel>=1.4             # the desktop dashboards, importable here for completeness
+bokeh>=3.4             # Panel's rendering back-end
+
+# --- result files ----------------------------------------------------------
+pyarrow>=15            # Parquet
+h5py>=3.10             # HDF5, required by h5netcdf at write time
+h5netcdf>=1.3          # NetCDF
+netCDF4>=1.6           # NetCDF, alternative back-end
 openpyxl>=3.1          # reading uploaded .xlsx instrument exports
 
-plotly>=5.20
+# --- command line ----------------------------------------------------------
+typer>=0.12
+rich>=13
+
+# --- interface -------------------------------------------------------------
 streamlit>=1.40
+
+# --- optional: deep-learning segmentation ----------------------------------
+# Uncomment ALL FOUR lines to enable the Cellpose back-end on CPU. This adds
+# roughly 250 MB and inference is slow without a GPU; the classical watershed
+# back-end needs none of it and is what every figure in this app uses.
+#
+# --extra-index-url https://download.pytorch.org/whl/cpu
+# torch
+# torchvision
+# cellpose>=3.0
