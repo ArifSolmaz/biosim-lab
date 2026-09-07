@@ -309,6 +309,16 @@ için `pressure_amplitude` değerini ölçüp doğrudan verin.
 
 ---
 
+## Uzman olmayanlar için / For non-experts
+
+Fiziği, matematiği ve hesaplamayı sıfırdan anlatan 29 sayfalık bir belge:
+[`docs/explainer/biosim-lab-explained.pdf`](docs/explainer/). Beşte biri
+modelin **yanlış yaptığı** şeylere ayrılmıştır, çünkü okuyucunun geri kalanına
+güvenip güvenmeyeceğine karar vermesi için gereken kısım odur.
+
+A 29-page walk through the biology, physics, mathematics and computation
+behind the project, assuming none of them.
+
 ## Katkı / Contributing
 
 Yeni bir cihaz eklemek **10 adımdır** ve çekirdekte hiçbir değişiklik

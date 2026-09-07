@@ -8,3 +8,4 @@
 | [physics.md](physics.md) | Kullanılan tüm formüller, kaynakları ve geçerlilik sınırları |
 | [instruments.md](instruments.md) | Her cihazın parametreleri, çıktıları ve kapsamı |
 | [validation.md](validation.md) | Ne doğrulandı, neye karşı, hangi toleransla |
+| [explainer/biosim-lab-explained.pdf](explainer/) | **Uzman olmayanlar için 29 sayfalık anlatım** — biyoloji, fizik, matematik ve hesaplama, sıfırdan (İngilizce) |
