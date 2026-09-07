@@ -43,9 +43,11 @@ from biosim_lab.core.config import (
     Frequency,
     Length,
     Pressure,
+    Temperature,
     Voltage,
     VolumeFlow,
 )
+from biosim_lab.core.environment import KELVIN, fluid_at, thermal_budget
 from biosim_lab.core.materials import get_cell, get_fluid, get_substrate
 from biosim_lab.core.particles import (
     ForceRegistry,
@@ -55,6 +57,7 @@ from biosim_lab.core.particles import (
     make_state,
 )
 from biosim_lab.core.plugin import RegimeWarning
+from biosim_lab.instruments.saw_sorter import viability as viability_model
 from biosim_lab.instruments.saw_sorter.fem_model import SAWFieldModel, pressure_from_voltage
 from biosim_lab.instruments.saw_sorter.flow import RectangularPoiseuille
 from biosim_lab.instruments.saw_sorter.physics.acoustics import (
@@ -103,6 +106,27 @@ class SAWSorterParams(BaseConfigModel):
     substrate: str = "linbo3_128yx"
     node_offset: Length | None = Field(
         None, description="pressure-node position along x; defaults to the channel centre"
+    )
+
+    # -- environment
+    temperature: Temperature = Field(
+        298.15,
+        description="fluid temperature; accepts '37 degC'. Changes viscosity and "
+        "therefore migration speed by tens of percent",
+    )
+    rf_power: float | None = Field(
+        None,
+        description="applied RF power [W], used only for the flagged transducer-"
+        "heating estimate; None omits it",
+    )
+
+    # -- viability
+    inlet_viability: float = Field(
+        0.95, ge=0.0, le=1.0,
+        description="fraction of the sample already alive before the device",
+    )
+    track_viability: bool = Field(
+        True, description="compute thermal, shear and cavitation damage per cell"
     )
 
     # -- geometry and flow
@@ -177,6 +201,7 @@ class SortingOutcome:
     metrics: dict[str, Any]
     field: xr.Dataset | None
     diagnostics: dict[str, Any] = field(default_factory=dict)
+    viability: viability_model.ViabilityReport | None = None
 
 
 class SAWSorterSimulation:
@@ -184,7 +209,12 @@ class SAWSorterSimulation:
 
     def __init__(self, params: SAWSorterParams) -> None:
         self.params = params
-        self.fluid = get_fluid(params.fluid)
+        self.tabulated_fluid = get_fluid(params.fluid)
+        self.temperature_c = params.temperature - KELVIN
+        # Every downstream calculation uses the fluid AT THE RUN TEMPERATURE.
+        # Viscosity alone changes by 22 % between the bench and an incubator, and
+        # migration speed is inversely proportional to it.
+        self.fluid = fluid_at(self.tabulated_fluid, self.temperature_c)
         self.substrate = get_substrate(params.substrate)
         self.rng = np.random.default_rng(params.seed)
 
@@ -484,9 +514,44 @@ class SAWSorterSimulation:
         tracks = tracker.run(state, (0.0, t_max), t_eval=t_eval)
 
         cells = self._cells_at_outlet(tracks, state)
+
+        viability = None
+        if p.track_viability:
+            viability = self._assess_viability(cells, tracks)
+            cells["alive_at_inlet"] = viability.alive_at_inlet
+            cells["alive"] = viability.alive_at_outlet
+            cells["survival_probability"] = viability.survival_probability
+            cells["thermal_dose_cem43"] = viability.thermal_dose_cem43
+            cells["shear_stress_Pa"] = viability.shear_stress_pa
+        else:
+            cells["alive_at_inlet"] = True
+            cells["alive"] = True
+
         metrics = self.compute_metrics(cells)
         metrics.update(regime)
+        if viability is not None:
+            metrics.update(
+                viability_in_percent=viability.viability_in_percent,
+                viability_out_percent=viability.viability_out_percent,
+                killed_by_device_percent=viability.killed_by_device_percent,
+                **{k: v for k, v in viability.indicators.items()
+                   if not isinstance(v, str)},
+            )
         diagnostics = {
+            "temperature_C": self.temperature_c,
+            "viscosity_Pa_s": self.fluid.mu,
+            "sound_speed_m_s": self.fluid.c,
+            "density_kg_m3": self.fluid.rho,
+            "thermal_budget": thermal_budget(
+                pressure_amplitude=p.p0,
+                frequency=p.frequency,
+                fluid=self.fluid,
+                channel_width=p.channel_width,
+                channel_height=p.channel_height,
+                channel_length=p.channel_length,
+                flow_rate=p.flow_rate,
+                rf_power=p.rf_power,
+            ),
             "saw_wavelength_m": self.wavelength,
             "node_spacing_m": 0.5 * self.wavelength,
             "node_positions_m": node_positions(
@@ -520,7 +585,7 @@ class SAWSorterSimulation:
 
         return SortingOutcome(
             tracks=tracks, cells=cells, metrics=metrics, field=field_ds,
-            diagnostics=diagnostics,
+            diagnostics=diagnostics, viability=viability,
         )
 
     def _warn_if_multinode(self) -> None:
@@ -576,6 +641,32 @@ class SAWSorterSimulation:
         )
         return df
 
+    def _assess_viability(
+        self, cells: pd.DataFrame, tracks: TrackResult
+    ) -> viability_model.ViabilityReport:
+        """Decide which cells arrive alive, from the exposure each one actually had.
+
+        Shear is sampled along the whole trajectory rather than at the outlet,
+        because a cell that spent the first millimetre against a wall took its
+        damage there even if it finished in the middle.
+        """
+        pos = tracks.trajectories["position"].values  # (n, t, 3)
+        shear_along_path = np.array([
+            viability_model.shear_at(self.flow, pos[i, :, 0], pos[i, :, 1]).max()
+            for i in range(pos.shape[0])
+        ])
+        residence = cells["residence_time_s"].to_numpy(dtype=float)
+        return viability_model.assess(
+            temperature_c=self.temperature_c,
+            residence_time_s=residence,
+            shear_stress_pa=shear_along_path,
+            pressure_amplitude=self.params.p0,
+            frequency=self.params.frequency,
+            fluid=self.fluid,
+            inlet_viability=self.params.inlet_viability,
+            rng=self.rng,
+        )
+
     # -- metrics ----------------------------------------------------------
     def compute_metrics(self, cells: pd.DataFrame) -> dict[str, Any]:
         """Efficiency, purity, enrichment and per-population outlet statistics."""
@@ -583,9 +674,13 @@ class SAWSorterSimulation:
         target = cells["is_target"]
         collected = cells["outlet"] == "collect"
 
+        alive = cells["alive"] if "alive" in cells else pd.Series(True, index=cells.index)
+
         n_target = int(target.sum())
         n_collected = int(collected.sum())
         n_target_collected = int((target & collected).sum())
+        n_live_target_collected = int((target & collected & alive).sum())
+        n_live_collected = int((collected & alive).sum())
 
         efficiency = n_target_collected / n_target if n_target else float("nan")
         purity = n_target_collected / n_collected if n_collected else float("nan")
@@ -607,14 +702,30 @@ class SAWSorterSimulation:
                 "std_outlet_x_um": float(group["x_outlet_m"].std() * 1e6),
                 "mean_radius_um": float(group["radius_m"].mean() * 1e6),
                 "exited_fraction": float(group["exited"].mean()),
+                "viable_fraction": float(group["alive"].mean())
+                if "alive" in group else 1.0,
             }
+
+        # A collected cell that is dead is of no use to the assay downstream, so
+        # the live-cell figures are the ones a real workflow is judged on.
+        n_live_target = int((target & alive).sum())
+        live_efficiency = (
+            n_live_target_collected / n_live_target if n_live_target else float("nan")
+        )
+        live_purity = (
+            n_live_target_collected / n_live_collected if n_live_collected else float("nan")
+        )
 
         return {
             "n_cells": n_total,
             "n_target": n_target,
             "n_collected": n_collected,
+            "n_alive_collected": n_live_collected,
+            "n_live_target_collected": n_live_target_collected,
             "efficiency_percent": 100.0 * efficiency,
             "purity_percent": 100.0 * purity,
+            "live_efficiency_percent": 100.0 * live_efficiency,
+            "live_purity_percent": 100.0 * live_purity,
             "enrichment_fold": enrichment,
             "input_target_fraction_percent": 100.0 * input_ratio,
             "all_cells_exited": bool(cells["exited"].all()),

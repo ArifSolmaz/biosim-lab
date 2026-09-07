@@ -88,10 +88,15 @@ class HelmholtzSolver(Solver):
         Fluid properties [kg/m^3], [m/s].
     damping:
         Dimensionless loss factor ``eta``; the wave number becomes
-        ``k = omega / c * (1 + i*eta/2)``.  Classical thermoviscous absorption in
-        water at 20 MHz over a 300 um channel is negligible (alpha ~ 0.09 Np/m
-        at 20 MHz, doi:10.1121/1.1907120), so the default is 0 and any non-zero
-        value should be justified as an effective device loss.
+        ``k = omega / c * (1 + i*eta/2)``.
+
+        Absorption in water itself is negligible here:
+        :func:`~biosim_lab.core.environment.absorption_coefficient` gives
+        ``alpha = 1.1 Np/m`` at 6.6 MHz and ``10 Np/m`` at 20 MHz, so a wave
+        loses 0.03 % of its amplitude crossing a 300 um channel. Any value you
+        set here therefore represents **device** loss --- radiation into the
+        walls and the substrate --- not the liquid, and should be justified by a
+        measured quality factor rather than by a textbook absorption figure.
     element_order:
         1 (P1) or 2 (P2).  P2 is the default because the Gor'kov force needs a
         differentiable pressure field.

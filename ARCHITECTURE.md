@@ -54,6 +54,7 @@ cihaz eklentisini `import` etmez; cihazlar birbirini `import` etmez.
 biosim_lab/
   core/
     units.py       # pint UnitRegistry (tek örnek), Q_ kısayolu, SI dönüşüm yardımcıları
+    environment.py # sıcaklığa bağlı su özellikleri, soğurma, ısı bütçesi
     config.py      # pydantic v2 deney tanımı; YAML ↔ nesne; ExperimentConfig
     materials.py   # Fluid / CellType / Substrate kütüphanesi + DOI + ASSUMPTION etiketleri
     geometry.py    # Gmsh sarmalayıcı: straight_channel, idt_electrodes, well_plate
@@ -72,6 +73,7 @@ biosim_lab/
     plugin.py      # Instrument(ABC), optional_import, discover_instruments
   instruments/
     saw_sorter/    # AŞAMA 1 — tam
+      viability.py            # CEM43 termal doz, kayma, kavitasyon; canlı/ölü
       physics/acoustics.py    # Gor'kov, ARF, kontrast faktörü, SAW alanı
       physics/drag.py         # Stokes sürüklenme, Re denetimi
       physics/secondary.py    # Bjerknes, yerçekimi/kaldırma, duvar itme (varsayılan kapalı)
@@ -264,7 +266,19 @@ Bunların hepsi kodda da belgelidir; buradaki liste tam kümedir.
    parametredir. Endpoint IC50 maruziyet süresine bağlıdır ve varsayılan senaryoda ekilen
    değerin altında okur — bu gerçek bir endpoint deneyinin davranışıdır.
 
-9. **Gmsh opsiyoneldir** (`pip install biosim-lab[mesh]`). Kurulu değilse düz kanal
+9. **IDT ısınması hesaplanmaz.** Suyun sesi soğurmasından gelen ısı ilk
+   ilkelerden hesaplanır ve varsayılan noktada 0.006 K çıkar — ihmal edilebilir,
+   ve artık bunu *görebiliyorsunuz*. Gerçek cihazlardaki birkaç ila onlarca
+   kelvinlik ısınma IDT'deki dirençsel ve tabandaki viskoelastik kayıplardan
+   gelir; bunu hesaplamak Aşama 4'ün piezoelektrik çözümünü gerektirir.
+   `TRANSDUCER_HEATING_K_PER_W` açıkça varsayım etiketlidir.
+
+10. **Sonoporasyon ve ölü hücre akustiği modellenmez.** Liziz eşiğinin
+    altındaki membran gözeneklenmesi tripan mavisi okumasını bozabilir; ölü
+    hücreler canlı hücre yoğunluğu ve sıkıştırılabilirliğiyle taşınır, bu yüzden
+    varış yerleri canlılarınkinden daha az güvenilirdir.
+
+11. **Gmsh opsiyoneldir** (`pip install biosim-lab[mesh]`). Kurulu değilse düz kanal
    şablonu tam olarak eşdeğer bir yapılandırılmış üçgenlemeye düşer; yalnızca PDMS duvar
    katmanı Gmsh gerektirir. Bazı platformlarda (linux/arm64) Gmsh wheel'i yoktur, bu
    yüzden çekirdek bağımlılığı değildir.

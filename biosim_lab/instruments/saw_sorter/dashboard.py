@@ -16,7 +16,10 @@ import pandas as pd
 
 from biosim_lab.core.plugin import RegimeWarning
 from biosim_lab.core.viz.curves import (
+    cross_section_figure,
+    cumulative_count_figure,
     force_profile_figure,
+    live_view_figure,
     outlet_histogram_figure,
     size_distribution_figure,
     trajectory_figure,
@@ -31,6 +34,8 @@ from biosim_lab.instruments.saw_sorter.simulate import SAWSorterParams, SAWSorte
 _TILE_FORMATS = {
     "efficiency_percent": "{:.1f} %",
     "purity_percent": "{:.1f} %",
+    "live_purity_percent": "{:.1f} %",
+    "viability_out_percent": "{:.1f} %",
     "enrichment_fold": "{:.2f}×",
     "n_collected": "{:d}",
     "n_cells": "{:d}",
@@ -84,12 +89,16 @@ def build_dashboard(params: SAWSorterParams) -> Any:
         name="cells per population", start=50, end=1000, step=50,
         value=params.populations[0].count,
     )
+    temperature = pn.widgets.FloatSlider(
+        name="temperature (°C)", start=4.0, end=45.0, step=0.5,
+        value=params.temperature - 273.15,
+    )
     collection = pn.widgets.FloatSlider(
         name="collection outlet width (fraction)", start=0.05, end=0.9, step=0.05,
         value=params.collection_fraction,
     )
 
-    def _simulate(f_mhz, v_pp, q_ul_min, l_mm, n, frac):
+    def _simulate(f_mhz, v_pp, q_ul_min, l_mm, n, frac, temp_c):
         updated = params.model_dump()
         updated.update(
             frequency=f_mhz * 1e6,
@@ -98,6 +107,7 @@ def build_dashboard(params: SAWSorterParams) -> Any:
             flow_rate=q_ul_min / 6e10,
             channel_length=l_mm * 1e-3,
             collection_fraction=frac,
+            temperature=temp_c + 273.15,
             populations=[{**p, "count": int(n)} for p in updated["populations"]],
         )
         new = SAWSorterParams.model_validate(updated)
@@ -106,15 +116,66 @@ def build_dashboard(params: SAWSorterParams) -> Any:
             sim = SAWSorterSimulation(new)
             return sim, sim.run()
 
-    bound = pn.bind(_simulate, freq, voltage, flow, length, count, collection)
+    bound = pn.bind(_simulate, freq, voltage, flow, length, count, collection, temperature)
 
     def _tiles(result):
         _, outcome = result
         return metric_tiles(
             outcome.metrics,
-            ["efficiency_percent", "purity_percent", "enrichment_fold",
-             "n_collected", "n_cells"],
+            ["efficiency_percent", "purity_percent", "live_purity_percent",
+             "enrichment_fold", "viability_out_percent", "n_collected"],
             _TILE_FORMATS,
+        )
+
+    def _live_view(result):
+        sim, outcome = result
+        half = 0.5 * sim.params.collection_fraction * sim.params.channel_width
+        return pn.pane.Plotly(
+            live_view_figure(
+                outcome.tracks.trajectories,
+                channel_width=sim.params.channel_width,
+                channel_length=sim.params.channel_length,
+                node_positions=node_positions(
+                    sim.params.channel_width, sim.wavelength, node_offset=sim.node_offset
+                ),
+                alive=outcome.cells["alive"].to_numpy(),
+                collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+            ),
+            config={"displayModeBar": False},
+            sizing_mode="stretch_width",
+            height=580,
+        )
+
+    def _cross_section(result):
+        sim, outcome = result
+        return pn.pane.Plotly(
+            cross_section_figure(
+                outcome.tracks.trajectories,
+                channel_width=sim.params.channel_width,
+                channel_height=sim.params.channel_height,
+                channel_length=sim.params.channel_length,
+                alive=outcome.cells["alive"].to_numpy(),
+                node_positions=node_positions(
+                    sim.params.channel_width, sim.wavelength, node_offset=sim.node_offset
+                ),
+            ),
+            config={"displayModeBar": False},
+            sizing_mode="stretch_width",
+            height=320,
+        )
+
+    def _live_count(result):
+        sim, outcome = result
+        half = 0.5 * sim.params.collection_fraction * sim.params.channel_width
+        return pn.pane.Plotly(
+            cumulative_count_figure(
+                outcome.tracks.trajectories, outcome.cells,
+                channel_length=sim.params.channel_length,
+                collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+            ),
+            config={"displayModeBar": False},
+            sizing_mode="stretch_width",
+            height=420,
         )
 
     def _trajectories(result):
@@ -197,6 +258,8 @@ def build_dashboard(params: SAWSorterParams) -> Any:
               SAW wavelength <b>{d['saw_wavelength_m'] * 1e6:.1f} µm</b> ·
               node spacing <b>{d['node_spacing_m'] * 1e6:.1f} µm</b> ·
               nodes at x = <b>{nodes} µm</b><br>
+              <b>{d['temperature_C']:.1f} °C</b> ·
+              viscosity <b>{d['viscosity_Pa_s'] * 1e3:.3f} mPa·s</b> ·
               p₀ = <b>{d['pressure_amplitude_Pa'] / 1e6:.3f} MPa</b> ·
               mean flow <b>{d['mean_velocity_m_s'] * 1e3:.2f} mm/s</b> ·
               transit <b>{d['transit_time_s']:.2f} s</b> ·
@@ -214,11 +277,15 @@ def build_dashboard(params: SAWSorterParams) -> Any:
             pn.Column(freq, voltage),
             pn.Column(flow, length),
             pn.Column(count, collection),
+            pn.Column(temperature),
         ],
         tiles=pn.Column(
             pn.bind(_tiles, bound), pn.bind(_diagnostics, bound), sizing_mode="stretch_width"
         ),
         tabs=[
+            ("Live view", pn.bind(_live_view, bound)),
+            ("Cross-section", pn.bind(_cross_section, bound)),
+            ("Live count", pn.bind(_live_count, bound)),
             ("Trajectories", pn.bind(_trajectories, bound)),
             ("Outlet histogram", pn.bind(_histogram, bound)),
             ("Force profile", pn.bind(_forces, bound)),

@@ -28,7 +28,7 @@ measured instrument data.
 - [Hızlı başlangıç / Quick start](#hızlı-başlangıç--quick-start)
 - [Cihazlar / Instruments](#cihazlar--instruments)
 - [Fizik / Physics](#fizik--physics)
-- [Bilmeniz gereken üç sonuç / Three findings you should know](#bilmeniz-gereken-üç-sonuç--three-findings-you-should-know)
+- [Bilmeniz gereken dört sonuç / Four findings you should know](#bilmeniz-gereken-dört-sonuç--four-findings-you-should-know)
 - [Örnekler / Examples](#örnekler--examples)
 - [Komut satırı / CLI](#komut-satırı--cli)
 - [Docker](#docker)
@@ -84,6 +84,12 @@ iner) ve uygulamanın *Environment* sayfası neyin eksik olduğunu ve neyi
 kaçırdığınızı tek tek sayar.
 
 ![Streamlit arayüzü](assets/streamlit_saw_sorter.png)
+
+Panoda **canlı görünüm** sekmesi hücreleri tek tek, gerçek yarıçaplarıyla,
+kanal boyunca hareket ederken gösterir (oynat düğmesi ve zaman kaydırıcısı ile);
+ölü hücreler içi boş gri işaretlerdir. **Kesit** sekmesi kanalı ölçekli keser,
+**canlı sayım** çıkışta biriken sayacı, **hücre güvenliği** ise üç hasar
+mekanizmasının yayımlanmış eşiklere olan marjını verir.
 
 ## Hızlı başlangıç / Quick start
 
@@ -176,7 +182,7 @@ Helmholtz çözümünden **kendiliğinden çıkar**.
 
 ---
 
-## Bilmeniz gereken üç sonuç / Three findings you should know
+## Bilmeniz gereken dört sonuç / Four findings you should know
 
 Bunlar geliştirme sırasında ortaya çıktı ve tasarımınızı doğrudan etkiler.
 
@@ -212,7 +218,27 @@ Gor'kov potansiyeline koyunca **monopol terimi değişmez, dipol terimi
 MHz'de: Φ = 0.2371 → Φ_etkin = 0.1787 (%25 azalma). Doğrulama testi bu terimi
 tam bir Helmholtz çözümüne karşı 1e-3 bağıl RMS ile eşleştirir.
 
-### 3. 1-B analitik model en iyi durumdur, FEM gerçekçi olandır
+### 3. Sıcaklık her şeyi değiştirir ve önceden sessizce yok sayılıyordu
+
+Suyun viskozitesi 25 °C'de 0.890, 37 °C'de 0.691 mPa·s'tir — **%22 düşüş**.
+Akustoforetik hız `F/(6πμr)` olduğundan hücreler inkübatörde tezgâhtakinden
+**%25 daha hızlı** göç eder. Tezgâhta ayarlanıp inkübatörde çalıştırılan bir
+cihaz aynı cihaz değildir.
+
+Yönü de sezgiye aykırıdır: ısıtmak saflığı **düşürür**, çünkü arka plan
+popülasyonu da hızlanır ve daha fazlası toplama çıkışına ulaşır.
+
+| Sıcaklık | Viskozite | Göç hızı | Referans koşuda saflık |
+|---|---|---|---|
+| 4 °C | 1.568 mPa·s | 0.55× | %97.6 |
+| 25 °C | 0.890 mPa·s | 1.00× | %95.2 |
+| 37 °C | 0.691 mPa·s | 1.25× | %93.0 |
+
+Korelasyonlar Kell (1975), Marczak (1997) ve Kestin ve ark. (1978)'dendir ve
+üçü de 25 °C'de kütüphane değerlerini dört anlamlı basamağa kadar geri verir.
+Ayrıca suyun 4 °C yoğunluk anomalisi testle doğrulanır.
+
+### 4. 1-B analitik model en iyi durumdur, FEM gerçekçi olandır
 
 Kapalı form kuvveti **her yükseklikte taban düzlemi genliğiyle** uygular. Gerçek
 sızıntılı SAW alanı ise yükseklikle zayıflar: 50 µm kanalda yanal kuvvet tavanda

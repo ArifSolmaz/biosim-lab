@@ -39,8 +39,11 @@ from biosim_lab.core.plugin import MissingBackendWarning, RegimeWarning
 from biosim_lab.core.viz.curves import (
     bode_magnitude_figure,
     bode_phase_figure,
+    cross_section_figure,
+    cumulative_count_figure,
     dose_response_figure,
     force_profile_figure,
+    live_view_figure,
     nyquist_figure,
     outlet_histogram_figure,
     size_distribution_figure,
@@ -122,6 +125,9 @@ def run_sorter(
     target: str,
     background: str,
     fem_resolution: int,
+    temperature_c: float,
+    inlet_viability: float,
+    rf_power: float,
     seed: int,
 ) -> dict[str, Any]:
     """Run one sorter experiment. Arguments are primitives so caching works."""
@@ -133,6 +139,9 @@ def run_sorter(
     params = SAWSorterParams(
         frequency=frequency_mhz * 1e6,
         voltage_pp=voltage_pp,
+        temperature=temperature_c + 273.15,
+        inlet_viability=inlet_viability,
+        rf_power=rf_power or None,
         channel_width=width_um * 1e-6,
         channel_height=height_um * 1e-6,
         channel_length=length_mm * 1e-3,
@@ -158,6 +167,7 @@ def run_sorter(
         "cells": outcome.cells,
         "trajectories": outcome.tracks.trajectories,
         "diagnostics": outcome.diagnostics,
+        "alive": outcome.cells["alive"].to_numpy(),
         "wavelength": sim.wavelength,
         "node_offset": sim.node_offset,
         "kappa_f": sim.fluid.kappa,
@@ -364,7 +374,23 @@ def page_sorter() -> None:
         voltage_pp = st.slider("Drive voltage (Vpp)", 1.0, 40.0, 15.0, 0.5)
         flow_ul_min = st.slider("Flow rate (µL/min)", 0.5, 60.0, 5.0, 0.5)
 
+        st.subheader("Environment")
+        temperature_c = st.slider(
+            "Temperature (°C)", 4.0, 45.0, 25.0, 0.5,
+            help="Changes viscosity by tens of percent, and migration speed is "
+                 "inversely proportional to it. 25 °C is a bench, 37 °C an incubator.",
+        )
+        rf_power = st.slider(
+            "Applied RF power (W)", 0.0, 2.0, 0.0, 0.05,
+            help="Used only for the flagged transducer-heating estimate. 0 omits it.",
+        )
+
         st.subheader("Sample and outlets")
+        inlet_viability = st.slider(
+            "Viability of the incoming sample", 0.50, 1.0, 0.95, 0.01,
+            help="A freshly prepared suspension is typically 90-97 % viable, "
+                 "so the honest baseline is not 100 %.",
+        )
         inlet = st.selectbox(
             "Inlet focusing", ["sheath_sides", "uniform", "centre"], index=0
         )
@@ -387,19 +413,25 @@ def page_sorter() -> None:
     out = run_sorter(
         frequency_mhz, voltage_pp, flow_ul_min, width_um, height_um, length_mm,
         n_cells, collection_fraction, inlet, mode, target, background,
-        fem_resolution, int(seed),
+        fem_resolution, temperature_c, inlet_viability, rf_power, int(seed),
     )
     m, d = out["metrics"], out["diagnostics"]
 
-    cols = st.columns(5)
+    cols = st.columns(6)
     cols[0].metric("Recovery", f"{m['efficiency_percent']:.1f} %",
                    help="fraction of target cells that reached the collection outlet")
     cols[1].metric("Purity", f"{m['purity_percent']:.1f} %",
                    help="fraction of the collected cells that are targets")
-    cols[2].metric("Enrichment", f"{m['enrichment_fold']:.2f}×",
+    cols[2].metric("Live purity", f"{m['live_purity_percent']:.1f} %",
+                   help="of the LIVE cells collected, the fraction that are targets — "
+                        "a collected dead cell is of no use downstream")
+    cols[3].metric("Enrichment", f"{m['enrichment_fold']:.2f}×",
                    help="how much richer the output is than the input")
-    cols[3].metric("Collected", f"{m['n_collected']}")
-    cols[4].metric("Cells simulated", f"{m['n_cells']}")
+    viability_delta = m["viability_out_percent"] - m["viability_in_percent"]
+    cols[4].metric("Viability out", f"{m['viability_out_percent']:.1f} %",
+                   delta=f"{viability_delta:+.1f} pt through the device")
+    cols[5].metric("Collected", f"{m['n_collected']}",
+                   help=f"{m['n_alive_collected']} of them alive")
 
     for w in out["warnings"]:
         if w["category"] == "RegimeWarning":
@@ -414,6 +446,14 @@ def page_sorter() -> None:
         )
 
     nodes = d["node_positions_m"]
+    tb = d["thermal_budget"]
+    st.markdown(
+        f"**{d['temperature_C']:.1f} °C** &nbsp;·&nbsp; "
+        f"viscosity **{d['viscosity_Pa_s'] * 1e3:.3f} mPa·s** &nbsp;·&nbsp; "
+        f"sound speed **{d['sound_speed_m_s']:.0f} m/s** &nbsp;·&nbsp; "
+        f"heating **+{tb['total_rise_K']:.3f} K** "
+        f"(water absorbs {tb['bulk_absorption_K']:.4f} K of it)"
+    )
     st.markdown(
         f"SAW wavelength **{d['saw_wavelength_m'] * 1e6:.1f} µm** &nbsp;·&nbsp; "
         f"node spacing **{d['node_spacing_m'] * 1e6:.1f} µm** &nbsp;·&nbsp; "
@@ -425,12 +465,66 @@ def page_sorter() -> None:
     )
 
     tabs = st.tabs(
-        ["Trajectories", "Outlet histogram", "Force profile", "Size distribution",
-         "Per-population", "Data"]
+        ["Live view", "Cross-section", "Live count", "Cell safety", "Trajectories",
+         "Outlet histogram", "Force profile", "Size distribution", "Per-population",
+         "Data"]
     )
     half = 0.5 * collection_fraction * width_um * 1e-6
+    bounds = (out["node_offset"] - half, out["node_offset"] + half)
 
     with tabs[0]:
+        st.plotly_chart(
+            live_view_figure(
+                out["trajectories"], channel_width=width_um * 1e-6,
+                channel_length=length_mm * 1e-3, node_positions=nodes,
+                alive=out["alive"], collection_bounds=bounds,
+            ),
+            use_container_width=True,
+            config={"displayModeBar": False, "responsive": True},
+        )
+        note(
+            "Every dot is one cell, seen from above, moving left to right down the "
+            "channel. Marker size follows the real radius; hollow grey markers are "
+            "dead cells. Press <b>Play</b>, or drag the time slider to step through "
+            "the run. This is the view a microscope over the chip would give you."
+        )
+
+    with tabs[1]:
+        st.plotly_chart(
+            cross_section_figure(
+                out["trajectories"], channel_width=width_um * 1e-6,
+                channel_height=height_um * 1e-6, channel_length=length_mm * 1e-3,
+                alive=out["alive"], node_positions=nodes,
+            ),
+            use_container_width=True, config=PLOTLY_CONFIG,
+        )
+        note(
+            "The channel sliced across, at the moment the cells reach the outlet. "
+            "The dots are drawn <b>to scale</b> — that visible size difference is "
+            "the entire basis of the separation, because the acoustic force grows "
+            "with the cube of the radius while the drag grows only with the radius."
+        )
+
+    with tabs[2]:
+        st.plotly_chart(
+            cumulative_count_figure(
+                out["trajectories"], out["cells"],
+                channel_length=length_mm * 1e-3, collection_bounds=bounds,
+            ),
+            use_container_width=True, config=PLOTLY_CONFIG,
+        )
+        note(
+            "A running tally at the outlet, as an instrument's counter would show "
+            "it. The slope is throughput in cells per second. Focused target cells "
+            "sit in the fast centre of the flow and arrive in a tight burst; the "
+            "background is spread across the channel, including the slow region "
+            "near the walls, so it dribbles out over a much longer window."
+        )
+
+    with tabs[3]:
+        _cell_safety_panel(m, d)
+
+    with tabs[4]:
         st.plotly_chart(
             trajectory_figure(
                 out["trajectories"], node_positions=nodes,
@@ -445,11 +539,11 @@ def page_sorter() -> None:
             "right-hand edge of the plot, which is the end of the channel."
         )
 
-    with tabs[1]:
+    with tabs[5]:
         st.plotly_chart(
             outlet_histogram_figure(
                 out["cells"], channel_width=width_um * 1e-6,
-                collection_bounds=(out["node_offset"] - half, out["node_offset"] + half),
+                collection_bounds=bounds,
             ),
             use_container_width=True, config=PLOTLY_CONFIG,
         )
@@ -458,7 +552,7 @@ def page_sorter() -> None:
             "outlet; overlap inside it is what limits purity."
         )
 
-    with tabs[2]:
+    with tabs[6]:
         from biosim_lab.instruments.saw_sorter.physics.acoustics import (
             primary_radiation_force_1d,
         )
@@ -483,7 +577,7 @@ def page_sorter() -> None:
             "cube of the radius."
         )
 
-    with tabs[3]:
+    with tabs[7]:
         st.plotly_chart(
             size_distribution_figure(out["cells"]),
             use_container_width=True, config=PLOTLY_CONFIG,
@@ -494,7 +588,7 @@ def page_sorter() -> None:
             "purity is never 100 %."
         )
 
-    with tabs[4]:
+    with tabs[8]:
         rows = [{"population": k, **v} for k, v in m["per_population"].items()]
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         st.markdown("**Acoustic contrast factors**")
@@ -512,7 +606,7 @@ def page_sorter() -> None:
             "wave device the sound does not travel straight across the channel."
         )
 
-    with tabs[5]:
+    with tabs[9]:
         st.dataframe(out["cells"].head(200), use_container_width=True, hide_index=True)
         download_frame(out["cells"], "saw_sorter_cells.csv", "Download all cells (CSV)")
         st.download_button(
@@ -524,6 +618,97 @@ def page_sorter() -> None:
             "The YAML runs unchanged on the command line: "
             "<code>biosim run saw_sorter_config.yaml</code>"
         )
+
+
+def _format_margin(value: float) -> str:
+    """Safety margins span twelve orders of magnitude; don't print all of them."""
+    if not np.isfinite(value):
+        return "∞"
+    if value >= 1e4:
+        return "> 10 000×"
+    if value >= 10:
+        return f"{value:,.0f}×"
+    return f"{value:.1f}×"
+
+
+def _cell_safety_panel(metrics: dict[str, Any], diagnostics: dict[str, Any]) -> None:
+    """Are the cells harmed by the device? Three mechanisms, each with a margin."""
+    st.markdown("#### Is the device gentle?")
+    note(
+        "<b>Gentle</b> is a claim, so it is computed. Each row is a published damage "
+        "threshold and how far the current operating point sits from it. A margin "
+        "below 1 means the threshold has been crossed."
+    )
+
+    rows = [
+        {
+            "mechanism": "Heat",
+            "indicator": f"{metrics['thermal_dose_cem43_max']:.3g} CEM43 min",
+            "threshold": f"{metrics['thermal_dose_threshold_cem43']:.0f} CEM43 min",
+            "margin": metrics["thermal_margin"],
+            "reference": "Sapareto & Dewey, doi:10.1016/0360-3016(84)90379-1",
+        },
+        {
+            "mechanism": "Shear",
+            "indicator": f"{metrics['peak_shear_on_a_cell_Pa']:.2f} Pa",
+            "threshold": f"{metrics['shear_lysis_threshold_Pa']:.0f} Pa",
+            "margin": metrics["shear_margin"],
+            "reference": "Leverett et al., doi:10.1016/S0006-3495(72)86085-5",
+        },
+        {
+            "mechanism": "Cavitation",
+            "indicator": f"MI = {metrics['mechanical_index']:.3f}",
+            "threshold": f"MI = {metrics['mechanical_index_limit']:.1f}",
+            "margin": metrics["cavitation_margin"],
+            "reference": "Apfel & Holland, doi:10.1016/0301-5629(91)90125-Q",
+        },
+    ]
+    table = pd.DataFrame(rows)
+    table["margin"] = table["margin"].map(_format_margin)
+    st.dataframe(table, use_container_width=True, hide_index=True)
+
+    worst = min(
+        metrics["thermal_margin"], metrics["shear_margin"], metrics["cavitation_margin"]
+    )
+    if worst < 1:
+        st.error(
+            "At least one damage threshold has been exceeded. The viability figures "
+            "above are the model's estimate of the consequence, but a device run "
+            "here would be doing real harm.", icon="🚫",
+        )
+    elif worst < 3:
+        st.warning(
+            f"The narrowest safety margin is {worst:.1f}×. That is not comfortable — "
+            "small errors in the assumed pressure calibration could cross it.",
+            icon="⚠️",
+        )
+    else:
+        st.success(
+            f"The narrowest safety margin is {_format_margin(worst)}. The dominant reason is "
+            "exposure time: cells are in the field for "
+            f"{diagnostics['transit_time_s']:.2f} s. A trap that held them for "
+            "minutes at the same intensity would be a different proposition.",
+            icon="✅",
+        )
+
+    cols = st.columns(3)
+    cols[0].metric("Acoustic intensity", f"{metrics['acoustic_intensity_W_cm2']:.2f} W/cm²")
+    tb = diagnostics["thermal_budget"]
+    cols[1].metric("Heating from absorption", f"+{tb['bulk_absorption_K']:.4f} K",
+                   help="computed from first principles — the water barely absorbs")
+    cols[2].metric("Heating from the transducer", f"+{tb['transducer_K']:.2f} K",
+                   help="ESTIMATED from an assumed coefficient; this project cannot "
+                        "compute it, and in a real chip it is the dominant term")
+
+    st.info(
+        "**What is not modelled.** Membrane poration below the lysis threshold, "
+        "which can let trypan blue in without killing the cell and therefore "
+        "corrupts a viability readout; and any change in a cell's acoustic "
+        "properties once it dies — dead cells are propagated with live-cell "
+        "density and compressibility, so their predicted destination is less "
+        "trustworthy than that of live ones.",
+        icon="🔬",
+    )
 
 
 def _params_to_yaml(params: dict[str, Any]) -> str:

@@ -117,6 +117,294 @@ def trajectory_figure(
     )
 
 
+def live_view_figure(
+    trajectories: xr.Dataset,
+    *,
+    channel_width: float,
+    channel_length: float,
+    node_positions: Sequence[float] = (),
+    alive: np.ndarray | None = None,
+    collection_bounds: tuple[float, float] | None = None,
+    max_cells: int = 400,
+    n_frames: int = 40,
+    frame_ms: int = 90,
+    dark: bool = False,
+    title: str = "Live view — cells moving through the channel",
+) -> go.Figure:
+    """An animated top view of the individual cells, as a microscope would see them.
+
+    A trajectory plot answers "where did the cells end up". This answers "what
+    does the device look like while it is running": every cell is a dot, sized by
+    its actual radius, moving left to right down the channel and drifting
+    towards the pressure node. Press play.
+
+    Parameters
+    ----------
+    alive:
+        Optional boolean array, one entry per cell. Dead cells are drawn hollow
+        and grey, so it is visible at a glance whether the collection outlet is
+        being contaminated by debris.
+    collection_bounds:
+        ``(lo, hi)`` in metres; shaded to show which cells are being collected.
+    max_cells, n_frames:
+        Animation frames are sent to the browser in full, so both are capped to
+        keep the figure a sensible size.
+    """
+    pos = trajectories["position"].values
+    labels = np.asarray(trajectories["label"].values, dtype=str)
+    radii = np.asarray(trajectories["radius"].values, dtype=float)
+    times = np.asarray(trajectories["time"].values, dtype=float)
+
+    if pos.shape[0] > max_cells:
+        keep = np.linspace(0, pos.shape[0] - 1, max_cells).astype(int)
+        pos, labels, radii = pos[keep], labels[keep], radii[keep]
+        alive = None if alive is None else np.asarray(alive)[keep]
+    if alive is None:
+        alive = np.ones(pos.shape[0], dtype=bool)
+    alive = np.asarray(alive, dtype=bool)
+
+    # Only animate while the cells are still inside the device.
+    inside = np.flatnonzero(times <= _exit_time(pos, channel_length, times))
+    frame_idx = np.unique(
+        np.linspace(0, (inside[-1] if inside.size else len(times) - 1),
+                    min(n_frames, len(times))).astype(int)
+    )
+
+    populations = sorted(set(labels))
+    # Marker area should track cell volume the way the eye reads area, so the
+    # size is proportional to radius, not to r^3 — a 9 um cell must not appear
+    # 34 times bigger than a 2.8 um one.
+    sizes = 4.0 + 22.0 * (radii / radii.max())
+
+    def traces_at(k: int) -> list[go.Scatter]:
+        out = []
+        for label in populations:
+            for state, opacity, name in ((True, 0.9, label), (False, 0.55, f"{label} (dead)")):
+                sel = (labels == label) & (alive == state)
+                if not sel.any():
+                    continue
+                out.append(go.Scatter(
+                    x=pos[sel, k, 2] * 1e3,
+                    y=pos[sel, k, 0] * UM,
+                    mode="markers",
+                    name=name,
+                    legendgroup=name,
+                    marker={
+                        "size": sizes[sel],
+                        "color": color_for(label, dark=dark) if state else "#B9B7B0",
+                        "opacity": opacity,
+                        "line": {"width": 1.2,
+                                 "color": "#fcfcfb" if not dark else "#1a1a19"},
+                        "symbol": "circle" if state else "circle-open",
+                    },
+                    customdata=np.column_stack([radii[sel] * UM,
+                                                pos[sel, k, 1] * UM]),
+                    hovertemplate=(f"<b>{name}</b><br>z %{{x:.2f}} mm"
+                                   "<br>x %{y:.1f} µm<br>depth %{customdata[1]:.1f} µm"
+                                   "<br>radius %{customdata[0]:.2f} µm<extra></extra>"),
+                ))
+        return out
+
+    fig = go.Figure(
+        data=traces_at(frame_idx[0]),
+        frames=[
+            go.Frame(data=traces_at(k), name=f"{times[k]:.3f}")
+            for k in frame_idx
+        ],
+    )
+
+    if collection_bounds is not None:
+        lo, hi = collection_bounds
+        fig.add_hrect(y0=lo * UM, y1=hi * UM, fillcolor="#2a78d6", opacity=0.07,
+                      line_width=0, layer="below",
+                      annotation_text="collection outlet",
+                      annotation_position="top left", annotation_font_size=10)
+    for node in node_positions:
+        fig.add_hline(y=node * UM, line={"color": "#52514e" if not dark else "#c3c2b7",
+                                         "width": 1, "dash": "dot"})
+
+    fig.update_xaxes(range=[0, channel_length * 1e3])
+    fig.update_yaxes(range=[0, channel_width * UM])
+    fig.update_layout(
+        updatemenus=[{
+            "type": "buttons", "direction": "left", "x": 0, "y": -0.30,
+            "xanchor": "left", "yanchor": "top", "pad": {"r": 8, "t": 0},
+            "showactive": False,
+            "buttons": [
+                {"label": "▶ Play", "method": "animate",
+                 "args": [None, {"frame": {"duration": frame_ms, "redraw": True},
+                                 "fromcurrent": True,
+                                 "transition": {"duration": 0}}]},
+                {"label": "❚❚ Pause", "method": "animate",
+                 "args": [[None], {"frame": {"duration": 0, "redraw": False},
+                                   "mode": "immediate"}]},
+            ],
+        }],
+        sliders=[{
+            "active": 0, "x": 0.17, "len": 0.83, "y": -0.24,
+            "xanchor": "left", "yanchor": "top",
+            "currentvalue": {"prefix": "t = ", "suffix": " s", "font": {"size": 12},
+                             "xanchor": "right"},
+            "pad": {"t": 0, "b": 0},
+            "steps": [
+                {"label": f"{times[k]:.2f}", "method": "animate",
+                 "args": [[f"{times[k]:.3f}"],
+                          {"frame": {"duration": 0, "redraw": True},
+                           "mode": "immediate"}]}
+                for k in frame_idx
+            ],
+        }],
+    )
+    out = _finish(
+        fig, title=title, xaxis_title="axial position z (mm)",
+        yaxis_title="lateral position x (µm)", dark=dark, height=560,
+    )
+    # Leave room for the play controls and the time slider underneath.
+    out.update_layout(margin={"l": 64, "r": 20, "t": 56, "b": 130})
+    return out
+
+
+def _exit_time(pos: np.ndarray, channel_length: float, times: np.ndarray) -> float:
+    """Time by which the median cell has left the device."""
+    z = pos[:, :, 2]
+    reached = np.array([
+        np.interp(channel_length, z[i], times) if z[i, -1] >= channel_length else times[-1]
+        for i in range(z.shape[0])
+    ])
+    return float(np.percentile(reached, 90))
+
+
+def cross_section_figure(
+    trajectories: xr.Dataset,
+    *,
+    channel_width: float,
+    channel_height: float,
+    channel_length: float | None = None,
+    frame: int | None = None,
+    alive: np.ndarray | None = None,
+    node_positions: Sequence[float] = (),
+    max_cells: int = 500,
+    dark: bool = False,
+    title: str = "Looking down the channel",
+) -> go.Figure:
+    """The channel cross-section at one instant, cells drawn to scale.
+
+    This is the view you would get by cutting the chip and looking along it:
+    lateral position across, depth up. The dots are drawn **to scale** --- their
+    diameter is the cell's real diameter in the same units as the axes --- so the
+    size difference that drives the whole separation is visible directly.
+
+    Parameters
+    ----------
+    channel_length:
+        When given, the snapshot is taken at the moment the median cell reaches
+        the outlet rather than at the end of the integration window. Those are
+        very different pictures: integration runs on until the slowest
+        wall-hugging cell escapes, by which time even the background population
+        has drifted onto the node, which is not what leaves the device.
+    frame:
+        Explicit time index, overriding *channel_length*.
+    """
+    pos = trajectories["position"].values
+    labels = np.asarray(trajectories["label"].values, dtype=str)
+    radii = np.asarray(trajectories["radius"].values, dtype=float)
+    times = np.asarray(trajectories["time"].values, dtype=float)
+    if frame is None:
+        if channel_length is None:
+            frame = -1
+        else:
+            t_exit = _exit_time(pos, channel_length, times)
+            frame = int(np.argmin(np.abs(times - np.median([t_exit]))))
+    if pos.shape[0] > max_cells:
+        keep = np.linspace(0, pos.shape[0] - 1, max_cells).astype(int)
+        pos, labels, radii = pos[keep], labels[keep], radii[keep]
+        alive = None if alive is None else np.asarray(alive)[keep]
+    if alive is None:
+        alive = np.ones(pos.shape[0], dtype=bool)
+    alive = np.asarray(alive, dtype=bool)
+
+    fig = go.Figure()
+    for label in sorted(set(labels)):
+        for state, name in ((True, label), (False, f"{label} (dead)")):
+            sel = (labels == label) & (alive == state)
+            if not sel.any():
+                continue
+            fig.add_trace(go.Scatter(
+                x=pos[sel, frame, 0] * UM,
+                y=pos[sel, frame, 1] * UM,
+                mode="markers",
+                name=name,
+                marker={
+                    # Diameter in data units -> the dots really are to scale.
+                    "size": 2 * radii[sel] * UM,
+                    "sizemode": "diameter",
+                    "color": color_for(label, dark=dark) if state else "#B9B7B0",
+                    "opacity": 0.85 if state else 0.5,
+                    "line": {"width": 1, "color": "#fcfcfb" if not dark else "#1a1a19"},
+                    "symbol": "circle" if state else "circle-open",
+                },
+                customdata=radii[sel] * UM,
+                hovertemplate=(f"<b>{name}</b><br>x %{{x:.1f}} µm<br>depth %{{y:.1f}} µm"
+                               "<br>radius %{customdata:.2f} µm<extra></extra>"),
+            ))
+    for node in node_positions:
+        fig.add_vline(x=node * UM,
+                      line={"color": "#52514e" if not dark else "#c3c2b7",
+                            "width": 1, "dash": "dot"})
+    # constrain="domain" shrinks the plot box to honour equal scaling, instead of
+    # widening the y range and leaving the channel floating in empty space.
+    fig.update_xaxes(range=[0, channel_width * UM], constrain="domain")
+    fig.update_yaxes(range=[0, channel_height * UM], scaleanchor="x", scaleratio=1,
+                     constrain="domain")
+    return _finish(fig, title=title, xaxis_title="lateral position x (µm)",
+                   yaxis_title="depth y (µm)", dark=dark, height=300)
+
+
+def cumulative_count_figure(
+    trajectories: xr.Dataset,
+    cells: pd.DataFrame,
+    *,
+    channel_length: float,
+    collection_bounds: tuple[float, float],
+    dark: bool = False,
+    title: str = "Live outlet count",
+) -> go.Figure:
+    """Running tally of cells leaving each outlet, as an instrument would show it.
+
+    Each cell is counted at the moment it crosses the outlet plane, so the slope
+    of these lines is the throughput in cells per second — the number that
+    decides whether a device is fast enough to process a clinical sample.
+    """
+    lo, hi = collection_bounds
+    crossed = cells["residence_time_s"].to_numpy(dtype=float)
+    collected = ((cells["x_outlet_m"] >= lo) & (cells["x_outlet_m"] <= hi)).to_numpy()
+    labels = cells["label"].to_numpy(dtype=str)
+    alive = (cells["alive"].to_numpy(dtype=bool) if "alive" in cells
+             else np.ones(len(cells), dtype=bool))
+
+    fig = go.Figure()
+    for label in sorted(set(labels)):
+        for outlet, dash in (("collect", "solid"), ("waste", "dot")):
+            sel = (labels == label) & (collected if outlet == "collect" else ~collected)
+            sel = sel & alive
+            if not sel.any():
+                continue
+            t_cross = np.sort(crossed[sel][np.isfinite(crossed[sel])])
+            counts = np.arange(1, t_cross.size + 1)
+            fig.add_trace(go.Scatter(
+                x=np.concatenate([[0.0], t_cross]),
+                y=np.concatenate([[0], counts]),
+                mode="lines",
+                line={"color": color_for(label, dark=dark), "width": 2, "dash": dash},
+                name=f"{label} → {outlet}",
+                hovertemplate=(f"<b>{label} → {outlet}</b><br>t %{{x:.3f}} s"
+                               "<br>%{y} cells<extra></extra>"),
+            ))
+    fig.update_layout(hovermode="x unified")
+    return _finish(fig, title=title, xaxis_title="time (s)",
+                   yaxis_title="live cells counted", dark=dark)
+
+
 def outlet_histogram_figure(
     cells: pd.DataFrame,
     *,
@@ -503,6 +791,9 @@ def dose_response_figure(
 
 __all__ = [
     "trajectory_figure",
+    "live_view_figure",
+    "cross_section_figure",
+    "cumulative_count_figure",
     "outlet_histogram_figure",
     "force_profile_figure",
     "field_heatmap_figure",

@@ -15,6 +15,7 @@ registries cannot be combined and ``pint`` raises at the worst possible moment.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pint
@@ -54,14 +55,40 @@ def to_si(value: Any, expected: str) -> float:
     """
     target = ureg.Unit(expected)
     if isinstance(value, str):
-        value = ureg.Quantity(value)
+        value = _parse(value)
     if isinstance(value, ureg.Quantity):
         if value.dimensionality != target.dimensionality:
             raise pint.DimensionalityError(
                 value.units, target, extra_msg=f" (expected something like {expected})"
             )
+        # Offset units (degC, degF) cannot go through to_base_units(): pint
+        # refuses the ambiguous multiplicative conversion. Temperatures are
+        # converted explicitly to kelvin instead, so "37 degC" works — which is
+        # what anyone configuring an incubator will actually write.
+        if value.dimensionality == ureg.kelvin.dimensionality:
+            return float(value.to("kelvin").magnitude)
         return float(value.to_base_units().magnitude)
     return float(value)
+
+
+_NUMBER_THEN_UNIT = re.compile(r"^\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)\s*(.+?)\s*$")
+
+
+def _parse(text: str) -> pint.Quantity:
+    """Parse a quantity string, including offset units such as ``"37 degC"``.
+
+    pint's expression parser reads ``"37 degC"`` as ``37 * degC`` and refuses it,
+    because multiplying an offset unit is genuinely ambiguous. Splitting the
+    magnitude from the unit and using the two-argument constructor is
+    unambiguous and is what the user meant.
+    """
+    try:
+        return ureg.Quantity(text)
+    except pint.OffsetUnitCalculusError:
+        match = _NUMBER_THEN_UNIT.match(text)
+        if match is None:
+            raise
+        return ureg.Quantity(float(match.group(1)), match.group(2))
 
 
 def si_unit_of(expected: str) -> str:

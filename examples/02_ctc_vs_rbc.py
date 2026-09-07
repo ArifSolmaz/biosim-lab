@@ -26,7 +26,10 @@ from biosim_lab.core.io import save_result
 from biosim_lab.core.materials import get_cell
 from biosim_lab.core.plugin import InstrumentResult, RegimeWarning
 from biosim_lab.core.viz.curves import (
+    cross_section_figure,
+    cumulative_count_figure,
     force_profile_figure,
+    live_view_figure,
     outlet_histogram_figure,
     size_distribution_figure,
     trajectory_figure,
@@ -81,9 +84,23 @@ def main() -> None:
     print(f"  transit time        {d['transit_time_s']:8.2f} s")
     print(f"  channel Reynolds    {m['channel_reynolds']:8.3g}")
     print()
+    print(f"  temperature         {d['temperature_C']:8.1f} C")
+    print(f"  viscosity           {d['viscosity_Pa_s'] * 1e3:8.3f} mPa.s")
+    print(f"  heating             {d['thermal_budget']['total_rise_K']:8.4f} K "
+          f"(water absorbs {d['thermal_budget']['bulk_absorption_K']:.5f} K)")
+    print()
     print(f"  recovery (efficiency) {m['efficiency_percent']:6.1f} %")
     print(f"  purity                {m['purity_percent']:6.1f} %")
+    print(f"  live purity           {m['live_purity_percent']:6.1f} %")
     print(f"  enrichment            {m['enrichment_fold']:6.2f} x")
+    print(f"  viability in -> out   {m['viability_in_percent']:6.1f} -> "
+          f"{m['viability_out_percent']:.1f} %")
+    print()
+    print("  cell safety margins (how far from each published damage threshold):")
+    print(f"    thermal    {m['thermal_margin']:11.3g} x")
+    print(f"    shear      {m['shear_margin']:11.0f} x")
+    print(f"    cavitation {m['cavitation_margin']:11.1f} x   "
+          f"(MI = {m['mechanical_index']:.3f}, limit {m['mechanical_index_limit']})")
     print()
     header = f"  {'population':10s} {'n':>5s} {'collected':>10s} {'|dx| (um)':>11s} " \
              f"{'to node (um)':>13s}"
@@ -119,7 +136,25 @@ def main() -> None:
         for pop in params.populations
     }
 
+    alive = outcome.cells["alive"].to_numpy()
     figures = {
+        "02_live_view": live_view_figure(
+            outcome.tracks.trajectories, channel_width=params.channel_width,
+            channel_length=params.channel_length, node_positions=nodes,
+            alive=alive,
+            collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+        ),
+        "02_cross_section": cross_section_figure(
+            outcome.tracks.trajectories, channel_width=params.channel_width,
+            channel_height=params.channel_height,
+            channel_length=params.channel_length, alive=alive,
+            node_positions=nodes,
+        ),
+        "02_live_count": cumulative_count_figure(
+            outcome.tracks.trajectories, outcome.cells,
+            channel_length=params.channel_length,
+            collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+        ),
         "02_trajectories": trajectory_figure(
             outcome.tracks.trajectories, node_positions=nodes,
             channel_width=params.channel_width,

@@ -138,6 +138,8 @@ The flagship. Every sidebar control re-runs the simulation.
 | Flow rate | sets how long cells spend in the field | raise it and recovery always falls |
 | Active length | same effect as flow rate, inversely | this is the IDT aperture in a real chip |
 | Force field: analytic / FEM | closed form vs solving the wave equation | FEM is slower and **less optimistic** — see [§11](#11-reading-results-honestly) |
+| Temperature | viscosity, and migration speed is inversely proportional to it | 25 → 37 °C makes every cell move ~25 % faster, which *lowers* purity because the background moves too |
+| Sample viability | how much of the input was alive to begin with | a fresh suspension is 90–97 % viable, not 100 % |
 
 **Reading the numbers**
 
@@ -146,9 +148,25 @@ The flagship. Every sidebar control re-runs the simulation.
 - **Enrichment** — purity divided by the input fraction. The number a rare-cell
   assay is actually judged on. Recovery and purity trade off; enrichment does not
   lie about the trade.
+- **Live purity** — of the *live* cells collected, the fraction that are targets.
+  A collected dead cell is of no use to whatever comes next, so this is usually
+  the honest figure to quote.
+- **Viability out** — with the delta showing how many percentage points the
+  device itself cost. In this regime it should be zero; if it is not, look at
+  the *Cell safety* tab to see which threshold was crossed.
 
 **Tabs**
 
+- *Live view* — **every cell as a moving dot**, seen from above, with a play
+  button and a time slider. Marker size follows the real radius; hollow grey
+  markers are dead cells. This is the microscope view of the device running.
+- *Cross-section* — the channel sliced across at the outlet, cells drawn **to
+  scale**. The size difference that drives the whole separation is visible
+  directly.
+- *Live count* — a running tally at each outlet, as an instrument's counter
+  would show it. The slope is throughput in cells per second.
+- *Cell safety* — the three damage mechanisms with their published thresholds
+  and how far the operating point sits from each.
 - *Trajectories* — one line per cell, seen from above.
 - *Outlet histogram* — where each cell was when it left. Overlap inside the
   shaded band is what limits purity.
@@ -367,6 +385,10 @@ Unit-bearing values are written as strings and checked with `pint`. Writing
 | `channel_length` | `2 mm` | the acoustically active length (IDT aperture) |
 | `flow_rate` | `5 uL/min` | what a syringe pump controls |
 | `fluid` | `water` | `water`, `pbs`, `dmem` |
+| `temperature` | `298.15 K` | accepts `"37 degC"`. **Changes migration speed by ~25 % between bench and incubator** |
+| `rf_power` | `null` | applied RF power [W], used only for the flagged transducer-heating estimate |
+| `inlet_viability` | `0.95` | fraction of the sample already alive before the device |
+| `track_viability` | `true` | compute thermal, shear and cavitation damage per cell |
 | `populations` | MCF-7 + RBC | list of `{cell_type, count, target}` |
 | `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre` |
 | `inlet_band` | `0.15` | inlet stream width, as a fraction of the channel |
@@ -471,6 +493,34 @@ numbered images.
 > **Set `pixel_size` correctly or every physical number is wrong.** It converts
 > pixels to metres, so it propagates into diameter, concentration and speed. Get
 > it from a stage micrometer, not from the objective's nominal magnification.
+
+### Temperature
+
+Everything in the platform used to assume 25 °C silently. It no longer does, and
+the difference is large enough to matter:
+
+```yaml
+params:
+  temperature: 37 degC        # or "310.15 K", or "98.6 degF"
+```
+
+| Temperature | Viscosity | Migration speed | Purity in the reference run |
+|---|---|---|---|
+| 4 °C | 1.568 mPa·s | 0.55× | 97.6 % |
+| 25 °C | 0.890 mPa·s | 1.00× | 95.2 % |
+| 37 °C | 0.691 mPa·s | 1.25× | 93.0 % |
+
+Note the direction: warming makes cells migrate faster, which **lowers** purity,
+because the background population migrates faster too and more of it reaches the
+collection outlet. Cooling is a purity knob. That is not obvious from the
+equations and is exactly the kind of thing the simulation is for.
+
+If you know the RF power going into the transducer, `rf_power` adds a flagged
+estimate of the resulting temperature rise. The heat the *water* absorbs is
+computed from first principles and is negligible (0.006 K at the reference
+point); the transducer term is an assumption and is the one that dominates in a
+real chip. Measure your device and set `temperature` directly rather than
+relying on it.
 
 ### Measured acoustic pressure
 
@@ -628,6 +678,24 @@ If you turn it on, **check `all_cells_exited` in the metrics.** If it is `False`
 the recovery and purity numbers are meaningless. The web app shows a red banner
 in this case.
 
+### Viability is not free of assumptions either
+
+The *Cell safety* tab computes three published damage indicators and how far the
+operating point sits from each. At the reference point all three margins are
+comfortable, and the dominant reason is exposure time — cells are in the field
+for 0.36 s. **A trap that held them for minutes at the same intensity would be a
+completely different proposition**, and the same code will tell you so.
+
+What is *not* modelled: membrane poration below the lysis threshold, which can
+let trypan blue into a cell without killing it and therefore corrupts a
+viability readout; and any change in a cell's acoustic properties once it dies.
+Dead cells are propagated with live-cell density and compressibility, so their
+predicted destination is less trustworthy than that of live ones.
+
+`inlet_viability` defaults to 0.95, not 1.0, because a real suspension is never
+fully viable. If you compare against an experiment, set it to what your
+haemocytometer actually said.
+
 ### Check the provenance before quoting a number
 
 ```bash
@@ -669,6 +737,11 @@ is available — which is what every shipped configuration uses.
 Almost always `mode: fem` with a high `fem_resolution`. Start at 32. If the
 *analytic* mode is slow, check `all_cells_exited`: cells stuck against a wall
 extend the integration window enormously.
+
+**Results changed after I set a temperature**
+They should have. Viscosity falls 22 % between 25 °C and 37 °C and migration
+speed is inversely proportional to it. Before, everything was implicitly at
+25 °C. If you want the old numbers, set `temperature: 25 degC` explicitly.
 
 **`DimensionalityError`**
 A unit in the YAML has the wrong dimension — e.g. `frequency: 300 um`. This is

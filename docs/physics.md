@@ -219,6 +219,109 @@ Sabit faz elemanı `Z = 1/(Q(iω)^n)`, `n ≈ 0.85–0.95` (yüzey pürüzlülü
 
 ---
 
+## 3b. Sıcaklık ve hücre hasarı / Temperature and cell damage
+
+### 3b.1 Sıcaklığa bağlı su özellikleri
+
+Malzeme kütüphanesindeki değerler tek bir sıcaklıkta (sulu ortamlar için 25 °C)
+verilmiştir. Bu bir çizelge için yeterli, bir simülasyon için yanlıştır:
+
+| Özellik | 25 °C | 37 °C | değişim |
+|---|---|---|---|
+| viskozite `μ` | 0.890 mPa·s | 0.691 mPa·s | **−22 %** |
+| ses hızı `c` | 1496.7 m/s | 1523.6 m/s | +1.8 % |
+| yoğunluk `ρ` | 997.0 kg/m³ | 993.3 kg/m³ | −0.4 % |
+
+Akustoforetik hız `F/(6πμr)` olduğundan, tek başına viskozite düşüşü hücreleri
+tezgâhtakinden **%25 daha hızlı** hareket ettirir (sıkıştırılabilirlik değişimi
+kısmen dengeler). Tezgâhta ayarlanıp inkübatörde çalıştırılan bir cihaz aynı
+cihaz değildir.
+
+**Korelasyonlar** (üçü de 25 °C'de kütüphane değerlerini dört anlamlı basamağa
+kadar geri verir — `tests/test_environment.py` bunu denetler):
+
+* yoğunluk: Kell (1975), `doi:10.1021/je60064a005`
+* ses hızı: Marczak (1997), `doi:10.1121/1.420332`
+* viskozite: Swindells/CRC bağıntısı, Kestin ve ark. (1978) ile uyumlu,
+  `doi:10.1063/1.555581`
+
+Suyun 4 °C'deki yoğunluk anomalisi testle doğrulanır — polinomun doğru
+aktarıldığının güçlü bir göstergesidir.
+
+**Uygulama:** `core/environment.py::fluid_at`.
+
+### 3b.2 Soğurma ve ısınma
+
+Suda basınç soğurma katsayısı `α = 2.2×10⁻³ (f/MHz)² dB/cm`
+(Pinkerton 1949, `doi:10.1088/0370-1301/62/2/307`):
+
+| f | α | 300 µm'de kayıp |
+|---|---|---|
+| 6.632 MHz | 1.1 Np/m | %0.03 |
+| 20 MHz | 10.1 Np/m | %0.3 |
+
+Yani **sıvı pratik olarak kayıpsızdır**; Helmholtz çözücüsündeki sönüm
+parametresi suyun değil *cihazın* kalite faktörünün karşılığıdır.
+
+Duran dalgada birim hacimde ısı: `q = α p₀²/(2ρc)`. Varsayılan çalışma
+noktasında bu 72 kW/m³ olur ama kanal hacmi 3×10⁻¹¹ m³ olduğundan toplam güç
+2.2 µW'tır ve akan sıvı bunu **0.006 K** ısıtır — ihmal edilebilir, ve bu artık
+*varsayılmıyor, hesaplanıyor*.
+
+Gerçek cihazlardaki ısınma sudan değil, IDT parmaklarındaki dirençsel ve
+tabandaki viskoelastik kayıplardan gelir. Bu proje onu hesaplayamaz (Aşama 4
+piezoelektrik çözümü gerekir), bu yüzden `TRANSDUCER_HEATING_K_PER_W = 12 K/W`
+açıkça **ASSUMPTION** etiketlidir. Kendi çipinizi termoçiftle ölçüp
+`temperature` değerini doğrudan verin.
+
+### 3b.3 Hücre hasarı — üç mekanizma
+
+Akustik ayrımın satış argümanı nazik olmasıdır. "Nazik" bir iddiadır ve iddia
+hesaplanabilir bir şeydir.
+
+**Isı — CEM43 termal dozu.** Hasar sıcaklıkla doğrusal değil birikir; standart
+para birimi 43 °C'deki eşdeğer dakikadır:
+
+```
+CEM43 = Σ R^(43−T) · Δt      R = 0.25 (T < 43 °C), 0.5 (T ≥ 43 °C)
+```
+
+Sapareto & Dewey (1984), `doi:10.1016/0360-3016(84)90379-1`; eşik derlemesi
+van Rhoon ve ark. (2013), `doi:10.1007/s00330-013-2825-y`.
+
+**Kayma gerilmesi.** Akış zarı çeker. Eritrositler ~150 Pa sürekli kayma
+üzerinde hemoliz olur — Leverett ve ark. (1972),
+`doi:10.1016/S0006-3495(72)86085-5`. Varsayılan kanalda tepe duvar kayması
+**0.66 Pa**'dır; üstelik odaklanmış hücre kanalın en nazik yeri olan merkezde
+oturur.
+
+**Kavitasyon.** Mekanik indeks `MI = p_negatif[MPa]/√(f[MHz])`; tanısal
+ultrasonda üst sınır 1.9 — Apfel & Holland (1991),
+`doi:10.1016/0301-5629(91)90125-Q`. Varsayılan noktada **MI = 0.175**.
+
+**Varsayılan çalışma noktasındaki marjlar:**
+
+| Mekanizma | Gösterge | Eşik | Marj |
+|---|---|---|---|
+| Isı | 3.5×10⁻¹³ CEM43 dk | 15 CEM43 dk | > 10⁴× |
+| Kayma | 0.59 Pa | 150 Pa | 254× |
+| Kavitasyon | MI 0.175 | MI 1.9 | 10.9× |
+
+Baskın neden **maruziyet süresidir**: hücreler alanda 0.36 saniye kalır.
+Aynı şiddette dakikalarca tutan bir tuzak bambaşka bir meseledir — test paketi
+bunu açıkça karşılaştırır.
+
+**Modellenmeyen:** liziz eşiğinin altındaki membran gözeneklenmesi
+(sonoporasyon) — tripan mavisini öldürmeden içeri alabilir ve canlılık okumasını
+bozar; ve ölü bir hücrenin akustik özelliklerinin değişmesi. Ölü hücreler canlı
+hücre yoğunluğu ve sıkıştırılabilirliğiyle taşınır (açıkça etiketli varsayım),
+bu yüzden ölü hücrelerin nereye gittiği tahmini canlılarınkinden daha az
+güvenilirdir.
+
+**Uygulama:** `instruments/saw_sorter/viability.py`.
+
+---
+
 ## 4. Görüntü analizi / Image analysis
 
 ### 4.1 Watershed segmentasyon
