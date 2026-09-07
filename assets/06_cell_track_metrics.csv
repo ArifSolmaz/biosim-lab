@@ -1,0 +1,2 @@
+n_frames,n_detections,n_tracks,mean_track_length_frames,mean_speed_um_per_min,median_persistence,msd_alpha,diffusion_coefficient_m2_s,segmentation_backend,ground_truth_n_tracks,track_recovery_ratio,ground_truth_speed_um_per_min
+24,1227,67,17.925373134328357,0.1445839050482555,0.9652499255123743,1.886026230251241,3.3762628352979843e-18,classical,60,1.1166666666666667,0.14300000000000002

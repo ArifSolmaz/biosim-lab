@@ -1,0 +1,82 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  biosim-lab OpenFOAM case template — cloud properties wiring the custom
+  acousticRadiationForce model into DPMFoam.
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      kinematicCloudProperties;
+}
+
+solution
+{
+    active          true;
+    coupled         false;          // one-way coupling: cells do not disturb the flow
+    transient       yes;
+    cellValueSourceCorrection off;
+
+    interpolationSchemes
+    {
+        rho             cell;
+        U               cellPoint;
+        mu              cell;
+        FacousticPerVolume cellPoint;
+    }
+
+    integrationSchemes { U Euler; }
+}
+
+constantProperties
+{
+    rho0            ${RHO_PARTICLE};   // kg/m^3
+}
+
+subModels
+{
+    particleForces
+    {
+        sphereDrag;                     // Stokes/Schiller-Naumann drag
+        gravity;                        // enable only if sedimentation matters
+
+        acousticRadiation               // biosim-lab custom force model
+        {
+            pRe             pAcousticRe;
+            pIm             pAcousticIm;
+            rhoFluid        ${RHO_FLUID};      // kg/m^3
+            cFluid          ${C_FLUID};        // m/s
+            rhoParticle     ${RHO_PARTICLE};   // kg/m^3
+            kappaParticle   ${KAPPA_PARTICLE}; // 1/Pa
+            omega           ${OMEGA};          // rad/s
+        }
+    }
+
+    injectionModels
+    {
+        inletInjection
+        {
+            type            patchInjection;
+            patch           inlet;
+            massTotal       ${MASS_TOTAL};
+            SOI             0;
+            parcelBasisType fixed;
+            nParticle       1;
+            duration        ${END_TIME};
+            sizeDistribution
+            {
+                // Cell radii are log-normal; biosim-lab writes the fitted
+                // parameters here from core.materials.CellType.
+                type            general;
+                generalDistribution { distribution ( ${SIZE_DISTRIBUTION} ); }
+            }
+        }
+    }
+
+    dispersionModel none;
+    patchInteractionModel standardWallInteraction;
+    standardWallInteractionCoeffs { type escape; }
+    surfaceFilmModel none;
+    stochasticCollisionModel none;
+    collisionModel none;
+}

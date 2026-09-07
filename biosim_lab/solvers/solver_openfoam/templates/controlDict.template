@@ -1,0 +1,74 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  biosim-lab OpenFOAM case template — controlDict
+  Substituted fields are written as ${NAME} and filled by
+  biosim_lab.solvers.solver_openfoam (Stage 4).
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      controlDict;
+}
+
+application     DPMFoam;
+
+startFrom       startTime;
+startTime       0;
+
+stopAt          endTime;
+endTime         ${END_TIME};          // s — set to a few channel transit times
+
+deltaT          ${DELTA_T};           // s — keep the particle Courant number < 0.3
+
+writeControl    adjustableRunTime;
+writeInterval   ${WRITE_INTERVAL};
+
+purgeWrite      0;
+writeFormat     binary;
+writePrecision  8;
+timeFormat      general;
+timePrecision   8;
+runTimeModifiable true;
+
+adjustTimeStep  yes;
+maxCo           0.4;
+
+functions
+{
+    // Steady acoustic streaming is a *second-order* quantity: it is obtained by
+    // time-averaging the first-order solution, so the average must span an
+    // integer number of acoustic periods.
+    streamingAverage
+    {
+        type            fieldAverage;
+        libs            ("libfieldFunctionObjects.so");
+        writeControl    writeTime;
+        timeStart       ${AVERAGE_START};
+        fields
+        (
+            U { mean on; prime2Mean off; base time; }
+            p { mean on; prime2Mean off; base time; }
+        );
+    }
+
+    // Nyborg boundary-layer source term for Rayleigh streaming.
+    // Reference: Nyborg (1953), Acoustic streaming due to attenuated plane waves,
+    // JASA 25:68, doi:10.1121/1.1907010.
+    // The slip velocity u_slip = -(3/8) * u1^2 / c is applied on the walls
+    // through the boundary condition in 0/U rather than as a volume source; the
+    // codedSource below is the alternative volumetric form.
+    nyborgStreamingSource
+    {
+        type            vectorCodedSource;
+        libs            ("libutilityFunctionObjects.so");
+        name            nyborgSource;
+        selectionMode   all;
+        fields          (U);
+        codeAddSup
+        #{
+            // F = -rho_f * < (u1 . grad) u1 >   (Reynolds stress of the first-order field)
+            // biosim-lab writes u1Re/u1Im into the case; see the Stage 4 bridge.
+        #};
+    }
+}

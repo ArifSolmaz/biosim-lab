@@ -1,0 +1,35 @@
+# A more realistic blood background: erythrocytes, leukocytes and platelets
+# against a rare tumour-cell population, at the 1-in-100 ratio a CTC assay
+# actually faces.
+name: ctc_from_blood
+instrument: saw_sorter
+seed: 4242
+output_dir: results
+description: >-
+  MCF-7 spiked at ~1 % into a three-component blood background. Reports the
+  enrichment fold, which is the number a CTC assay is judged on.
+params:
+  frequency: 6.632 MHz
+  voltage_pp: 20 V
+  channel_width: 300 um
+  channel_height: 50 um
+  channel_length: 2 mm
+  flow_rate: 5 uL/min
+  fluid: pbs
+  substrate: linbo3_128yx
+  inlet: sheath_sides
+  collection_fraction: 0.25
+  mode: analytic
+  populations:
+    - cell_type: mcf7
+      count: 20
+      target: true
+    - cell_type: rbc
+      count: 1200
+      target: false
+    - cell_type: wbc
+      count: 400
+      target: false
+    - cell_type: platelet
+      count: 400
+      target: false

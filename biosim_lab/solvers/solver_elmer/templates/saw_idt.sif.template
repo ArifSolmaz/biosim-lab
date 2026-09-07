@@ -1,0 +1,121 @@
+! ---------------------------------------------------------------------------
+! biosim-lab — Elmer solver input file (.sif) template, Stage 4
+!
+! Coupled piezoelectric problem for an interdigital transducer on
+! 128 deg Y-cut X-propagating lithium niobate.
+!
+! Substituted fields are written ${NAME} and filled by
+! biosim_lab.solvers.solver_elmer (not implemented yet — this file defines
+! the contract).
+!
+! Material constants: Warner, Onoe & Coquin (1967), JASA 42:1223,
+! doi:10.1121/1.1910709, rotated into the 128 deg YX device frame.
+! ---------------------------------------------------------------------------
+
+Header
+  CHECK KEYWORDS Warn
+  Mesh DB "." "${MESH_NAME}"
+End
+
+Simulation
+  Coordinate System = "Cartesian 3D"
+  Simulation Type = "Harmonic"          ! time-harmonic at the drive frequency
+  Frequency = Real ${FREQUENCY}         ! Hz
+  Steady State Max Iterations = 1
+  Output Intervals = 1
+  Post File = "saw_idt.vtu"
+End
+
+Constants
+  Permittivity Of Vacuum = 8.8541878128e-12
+End
+
+! --- bodies ----------------------------------------------------------------
+Body 1
+  Name = "LiNbO3 substrate"
+  Equation = 1
+  Material = 1
+End
+
+! --- equation --------------------------------------------------------------
+Equation 1
+  Name = "Piezoelectric"
+  Active Solvers(1) = 1
+End
+
+Solver 1
+  Equation = "Elasticity + Electrostatics"
+  Procedure = "StressSolve" "StressSolver"
+  Variable = -dofs 4 Displacement        ! ux, uy, uz, electric potential
+  Calculate Stresses = True
+  Harmonic Analysis = True
+
+  Linear System Solver = "Iterative"
+  Linear System Iterative Method = "BiCGStabl"
+  Linear System Preconditioning = "ILU1"
+  Linear System Max Iterations = 2000
+  Linear System Convergence Tolerance = 1.0e-9
+  Steady State Convergence Tolerance = 1.0e-7
+End
+
+! --- material: 128 deg YX LiNbO3 -------------------------------------------
+Material 1
+  Name = "LiNbO3 128YX"
+  Density = 4640.0                       ! kg/m^3
+
+  ! Stiffness at constant electric field, c^E [Pa], Voigt notation,
+  ! rotated to the 128 deg YX device frame. The values below are the
+  ! crystal-frame constants; ${C_ROTATED} is filled with the rotated tensor
+  ! by the Python bridge so the rotation is done once, explicitly, and is
+  ! testable.
+  Elastic Modulus = Variable Coordinate
+    Real MATC "${C_ROTATED}"
+
+  ! Piezoelectric stress constants e [C/m^2]
+  Piezo Material Coefficients(3,6) = Real ${E_PIEZO}
+
+  ! Permittivity at constant strain, eps^S / eps_0
+  Relative Permittivity(3,3) = Real ${EPS_S}
+End
+
+! --- boundary conditions ---------------------------------------------------
+! Alternating IDT fingers: the two terminals of the transducer.
+Boundary Condition 1
+  Name = "IDT fingers A"
+  Target Boundaries = 1
+  Potential = Real ${VOLTAGE_AMPLITUDE}    ! V, half the peak-to-peak drive
+End
+
+Boundary Condition 2
+  Name = "IDT fingers B"
+  Target Boundaries = 2
+  Potential = Real ${VOLTAGE_AMPLITUDE_NEG}
+End
+
+! Free surface between and beyond the fingers: traction-free, charge-free.
+Boundary Condition 3
+  Name = "Free surface"
+  Target Boundaries = 3
+End
+
+! Absorbing bottom so the substrate does not act as a resonator. A perfectly
+! matched layer is preferable; a damped region is the simple stand-in.
+Boundary Condition 4
+  Name = "Substrate bottom (absorbing)"
+  Target Boundaries = 4
+  Displacement 1 = Real 0.0
+  Displacement 2 = Real 0.0
+  Displacement 3 = Real 0.0
+End
+
+! --- output the surface displacement biosim-lab needs ----------------------
+! The Stage 1 fluid model consumes u_y(x) on the substrate surface; the bridge
+! reads it from the .vtu and hands it to
+! solver_elmer.surface_displacement_to_bc().
+Solver 2
+  Exec Solver = "After Simulation"
+  Equation = "SaveSurfaceDisplacement"
+  Procedure = "SaveData" "SaveLine"
+  Filename = "surface_displacement.dat"
+  Polyline Coordinates(2,3) = Real ${LINE_START} ${LINE_END}
+End

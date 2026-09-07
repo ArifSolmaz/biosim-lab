@@ -1,0 +1,22 @@
+# biosim-lab Elmer back-end (Stage 4).
+#
+# Separate image on purpose. Provides ElmerSolver and ElmerGrid so that
+# `biosim doctor` reports the piezoelectric back-end as available; the case
+# generator itself is not implemented yet and raises a NotImplementedError that
+# points at the .sif template.
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        elmerfem-csc \
+        python3 python3-pip python3-venv \
+        libgl1 libglu1-mesa libgomp1 \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY . .
+RUN python3 -m venv /opt/biosim && \
+    /opt/biosim/bin/pip install --no-cache-dir -e .
+ENV PATH="/opt/biosim/bin:${PATH}"
+
+CMD ["biosim", "doctor"]

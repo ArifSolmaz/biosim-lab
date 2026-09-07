@@ -1,0 +1,75 @@
+cff-version: 1.2.0
+message: "If you use biosim-lab in your research, please cite it as below."
+title: "biosim-lab: an open-source, plugin-based virtual laboratory instrument platform"
+abstract: >-
+  biosim-lab simulates the analyses performed by commercial bio-instruments —
+  impedance-based real-time cell analysis, standing-surface-acoustic-wave cell
+  sorting, automated cell counting and live-cell tracking — using only free and
+  open-source Python tooling, and runs the same analyses on measured instrument
+  data. Every physical constant carries either a DOI or an explicit ASSUMPTION
+  label, and heavy external solvers (OpenFOAM, Elmer) are optional plugins that
+  the core works completely without.
+type: software
+version: 0.1.0
+date-released: "2026-09-07"
+license: MIT
+repository-code: "https://github.com/biosim-lab/biosim-lab"
+keywords:
+  - acoustofluidics
+  - microfluidics
+  - finite element method
+  - circulating tumor cells
+  - impedance spectroscopy
+  - cell tracking
+  - open source
+authors:
+  - name: "The biosim-lab contributors"
+references:
+  - type: article
+    title: "Acoustofluidics 7: The acoustic radiation force on small particles"
+    authors:
+      - family-names: Bruus
+        given-names: Henrik
+    doi: "10.1039/c2lc21068a"
+    journal: "Lab on a Chip"
+    volume: 12
+    start: 1014
+    year: 2012
+    notes: "Gor'kov potential and the acoustic contrast factor used by saw_sorter."
+  - type: article
+    title: "Focusing microparticles in a microfluidic channel with standing surface acoustic waves (SSAW)"
+    authors:
+      - family-names: Shi
+        given-names: Jinjie
+    doi: "10.1039/b910595f"
+    journal: "Lab on a Chip"
+    volume: 9
+    start: 3354
+    year: 2009
+    notes: "Establishes that the SSAW pressure-node spacing is lambda_SAW/2."
+  - type: article
+    title: "Micromotion of mammalian cells measured electrically"
+    authors:
+      - family-names: Giaever
+        given-names: Ivar
+      - family-names: Keese
+        given-names: Charles R.
+    doi: "10.1073/pnas.88.17.7896"
+    journal: "Proceedings of the National Academy of Sciences"
+    volume: 88
+    start: 7896
+    year: 1991
+    notes: "Electrode impedance model used by impedance_rtca."
+  - type: article
+    title: "Methods of digital video microscopy for colloidal studies"
+    authors:
+      - family-names: Crocker
+        given-names: John C.
+      - family-names: Grier
+        given-names: David G.
+    doi: "10.1006/jcis.1996.0217"
+    journal: "Journal of Colloid and Interface Science"
+    volume: 179
+    start: 298
+    year: 1996
+    notes: "Linking algorithm behind cell_tracker (via trackpy)."

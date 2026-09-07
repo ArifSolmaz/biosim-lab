@@ -1,0 +1,21 @@
+name: rtca_ic50
+instrument: impedance_rtca
+seed: 7
+output_dir: results
+description: 48 h impedance growth curve with a drug dose-response at 24 h.
+params:
+  frequency: 10 kHz
+  duration: 48 h
+  treatment_time: 24 h
+  n_wells: 96
+  true_ic50: 1.0
+  concentrations:
+  - 0.01
+  - 0.03
+  - 0.1
+  - 0.3
+  - 1.0
+  - 3.0
+  - 10.0
+  - 30.0
+  replicates: 3

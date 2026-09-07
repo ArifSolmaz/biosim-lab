@@ -1,0 +1,25 @@
+name: ctc_vs_rbc
+instrument: saw_sorter
+seed: 12345
+output_dir: results
+description: MCF-7 breast cancer cells separated from erythrocytes by a single-node
+  standing SAW at 6.63 MHz.
+params:
+  frequency: 6.632 MHz
+  voltage_pp: 15 V
+  channel_width: 300 um
+  channel_height: 50 um
+  channel_length: 2 mm
+  flow_rate: 5 uL/min
+  fluid: water
+  substrate: linbo3_128yx
+  inlet: sheath_sides
+  collection_fraction: 0.3333333333333333
+  mode: analytic
+  populations:
+  - cell_type: mcf7
+    count: 300
+    target: true
+  - cell_type: rbc
+    count: 300
+    target: false

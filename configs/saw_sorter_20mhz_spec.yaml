@@ -1,0 +1,38 @@
+# The operating point named in the original specification: 20 MHz, 15 Vpp,
+# 5 uL/min, 300 x 50 um channel.
+#
+# Run it and the platform will warn you why it does not sort into two outlets:
+# on 128 deg YX LiNbO3 a 20 MHz SAW has a wavelength of 199 um, so the pressure
+# nodes sit 99.5 um apart and THREE of them fall inside a 300 um channel. Cells
+# collect at whichever node they start nearest, and the outlet histogram is
+# trimodal instead of bimodal.
+#
+# For single-node operation at this width use configs/ctc_vs_rbc.yaml
+# (f = c_SAW / 2W = 6.632 MHz), or keep 20 MHz and narrow the channel to
+# ~99.5 um. This file exists to make that trade-off visible and reproducible.
+name: saw_sorter_20mhz_spec
+instrument: saw_sorter
+seed: 12345
+output_dir: results
+description: >-
+  Specification operating point (20 MHz, 300 um channel). Demonstrates the
+  multi-node regime and the warning the platform raises for it.
+params:
+  frequency: 20 MHz
+  voltage_pp: 15 V
+  channel_width: 300 um
+  channel_height: 50 um
+  channel_length: 2 mm
+  flow_rate: 5 uL/min
+  fluid: water
+  substrate: linbo3_128yx
+  inlet: sheath_sides
+  collection_fraction: 0.3333333333333333
+  mode: analytic
+  populations:
+    - cell_type: mcf7
+      count: 300
+      target: true
+    - cell_type: rbc
+      count: 300
+      target: false

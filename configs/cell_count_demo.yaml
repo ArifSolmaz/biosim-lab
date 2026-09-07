@@ -1,0 +1,12 @@
+name: cell_count_demo
+instrument: cell_counter
+seed: 0
+output_dir: results
+description: Synthetic brightfield field of view with trypan-blue viability.
+params:
+  pixel_size: 0.65 um
+  chamber_depth: 100 um
+  dilution_factor: 2.0
+  n_cells: 150
+  dead_fraction: 0.15
+  backend: classical

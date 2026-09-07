@@ -1,0 +1,77 @@
+# biosim-lab — development and demo stack.
+#
+#   docker compose up biosim                 dashboard on http://localhost:5006
+#   docker compose run --rm tests            the test suite
+#   docker compose run --rm examples         run every example, write assets/
+#   docker compose run --rm cli biosim doctor
+#
+# The heavy solver back-ends sit behind the `solvers` profile so that a plain
+# `docker compose up` never builds them:
+#
+#   docker compose --profile solvers run --rm openfoam
+services:
+  biosim:
+    build: .
+    image: biosim-lab:latest
+    container_name: biosim-lab
+    ports:
+      - "5006:5006"
+    volumes:
+      - ./configs:/app/configs
+      - ./results:/app/results
+      - ./assets:/app/assets
+    environment:
+      BOKEH_ALLOW_WS_ORIGIN: "localhost:5006,127.0.0.1:5006"
+    command: >-
+      biosim dashboard configs/ctc_vs_rbc.yaml
+      --port 5006 --address 0.0.0.0 --no-show
+
+  tests:
+    build: .
+    image: biosim-lab:latest
+    profiles: ["dev"]
+    # The suite must pass with no optional back-end present, which is exactly
+    # what this image provides.
+    command: pytest
+
+  examples:
+    build: .
+    image: biosim-lab:latest
+    profiles: ["dev"]
+    volumes:
+      - ./assets:/app/assets
+    command: >-
+      bash -lc "python examples/01_single_cell.py &&
+                python examples/02_ctc_vs_rbc.py &&
+                python examples/03_parameter_sweep.py --quick &&
+                python examples/04_validate_analytic_vs_fem.py &&
+                python examples/05_impedance_rtca.py &&
+                python examples/06_imaging_demo.py"
+
+  cli:
+    build: .
+    image: biosim-lab:latest
+    profiles: ["dev"]
+    volumes:
+      - ./configs:/app/configs
+      - ./results:/app/results
+    entrypoint: []
+    command: biosim doctor
+
+  openfoam:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.openfoam
+    image: biosim-lab-openfoam:latest
+    profiles: ["solvers"]
+    volumes:
+      - ./results:/app/results
+
+  elmer:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.elmer
+    image: biosim-lab-elmer:latest
+    profiles: ["solvers"]
+    volumes:
+      - ./results:/app/results

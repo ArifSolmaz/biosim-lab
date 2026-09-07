@@ -1,0 +1,2 @@
+n_total,n_live,n_dead,viability_percent,concentration_per_ml,live_concentration_per_ml,sampled_volume_ml,mean_diameter_um,median_diameter_um,cv_diameter_percent,counting_relative_uncertainty,segmentation_backend,ground_truth_n,detection_recall,ground_truth_viability_percent
+126,100,26,79.36507936507937,22752750.55473373,18057738.53550296,1.1075583999999999e-05,11.788669713301273,11.538529865092372,20.545835717754898,0.0890870806374748,classical,150,0.84,88.66666666666667
