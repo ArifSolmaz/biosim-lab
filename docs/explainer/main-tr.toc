@@ -1,0 +1,40 @@
+\xpg@aux {}{turkish}
+\contentsline {part}{I. Bölüm --- Sorun, ve bu bir biyoloji sorunu}{4}{part*.2}%
+\contentsline {section}{\numberline {1}Beş milyar hücre arasında bir hücre bulmak}{4}{section.1}%
+\contentsline {section}{\numberline {2}Bir fizikçi için hücre nedir}{4}{section.2}%
+\contentsline {part}{II. Bölüm --- Hile, ve bu bir fizik}{6}{part*.5}%
+\contentsline {section}{\numberline {3}Ses sıkıştırmaktır}{6}{section.3}%
+\contentsline {section}{\numberline {4}Duran dalgalar: hiçbir şeyin kımıldamadığı yer}{6}{section.4}%
+\contentsline {section}{\numberline {5}Duran dalga neden bir şeyi iter}{7}{section.5}%
+\contentsline {section}{\numberline {6}Kontrast faktörü: iki soru, tek sayı}{7}{section.6}%
+\contentsline {section}{\numberline {7}Bütün cihazın üzerine kurulduğu tek denklem}{8}{section.7}%
+\contentsline {section}{\numberline {8}Boyut neden kazanır: $r^2$ yasası}{9}{section.8}%
+\contentsline {section}{\numberline {9}Ses nereden geliyor: çip üzerinde bir deprem}{9}{section.9}%
+\contentsline {section}{\numberline {10}Ders kitabı formülünün burada yanlış yaptığı iki şey}{11}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Cetvel kristaldir, su değil}{11}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Ses kanalı dümdüz kesip geçmiyor}{11}{subsection.10.2}%
+\contentsline {section}{\numberline {11}Düşük Reynolds sayısında yaşam: su baldır}{12}{section.11}%
+\contentsline {section}{\numberline {12}Sıvı nasıl akıyor: parabol}{12}{section.12}%
+\contentsline {section}{\numberline {13}Sıcaklık: sessizce yok sayılan değişken}{13}{section.13}%
+\contentsline {section}{\numberline {14}Hücreler bu işlemden sağ çıkıyor mu?}{14}{section.14}%
+\contentsline {part}{III. Bölüm --- Hücreleri elektrikle saymak}{15}{part*.10}%
+\contentsline {section}{\numberline {15}Hücre küçücük bir yalıtkandır}{15}{section.15}%
+\contentsline {section}{\numberline {16}Empedansı büyüme eğrisine çevirmek}{15}{section.16}%
+\contentsline {section}{\numberline {17}IC50: bir ilacın kendisiyle yargılandığı sayı}{16}{section.17}%
+\contentsline {part}{IV. Bölüm --- Resimlere bakmak}{18}{part*.14}%
+\contentsline {section}{\numberline {18}Bir görüntüde hücre bulmak}{18}{section.18}%
+\contentsline {section}{\numberline {19}Saymak, ve 100 hücrenin neden $\pm \%10$ demek olduğu}{18}{section.19}%
+\contentsline {section}{\numberline {20}Hücreleri zaman içinde izlemek}{19}{section.20}%
+\contentsline {part}{V. Bölüm --- Bilgisayar bunu nasıl çözüyor}{20}{part*.16}%
+\contentsline {section}{\numberline {21}Bunu neden kalemle yapamazsınız}{20}{section.21}%
+\contentsline {section}{\numberline {22}Sonlu elemanlar: üçgenlere böl}{20}{section.22}%
+\contentsline {section}{\numberline {23}Hücreleri hareket ettirmek}{21}{section.23}%
+\contentsline {section}{\numberline {24}Kodun doğru olduğunu nereden biliyorsunuz?}{22}{section.24}%
+\contentsline {section}{\numberline {25}Bir sayıya ne kadar güvenmeli}{23}{section.25}%
+\contentsline {part}{VI. Bölüm --- Sayılar ve sınırlamalar}{25}{part*.23}%
+\contentsline {section}{\numberline {26}Varsayılan deneydeki her sayı}{25}{section.26}%
+\contentsline {section}{\numberline {27}Neler varsayıldı, neler yanlış}{26}{section.27}%
+\contentsline {section}{\numberline {28}Her şey tek sayfada}{29}{section.28}%
+\contentsline {section}{\numberline {A}Tek çizelgede bütün simgeler}{30}{appendix.A}%
+\contentsline {section}{\numberline {B}Birimlerle düşünmeyenler için}{30}{appendix.B}%
+\contentsline {section}{\numberline {C}Her fikir nereden geldi}{30}{appendix.C}%

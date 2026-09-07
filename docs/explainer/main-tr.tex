@@ -78,7 +78,9 @@
 \newtcolorbox{keybox}[1][]{
   enhanced, breakable, colback=surface, colframe=ink, boxrule=1pt,
   arc=2pt, left=8pt, right=8pt, top=7pt, bottom=7pt,
-  fonttitle=\sffamily\bfseries\small, coltitle=ink,
+  % coltitle must contrast with colframe: the title sits ON the frame bar, so
+  % ink-on-ink rendered as a solid black stripe with the heading invisible.
+  fonttitle=\sffamily\bfseries\small, coltitle=surface,
   title={Asıl önemli olan denklem}, #1}
 
 \newcommand{\sym}[2]{\textcolor{ink}{$#1$} & #2 \\}
@@ -668,3 +670,1353 @@ Bu açıyı simülasyona biz koymuyoruz. Bilgisayara kristal yüzeyinin ne yapt�
 söylüyor, sudaki ses denklemini çözmesini istiyoruz ve $22^\circ$ kendiliğinden
 çıkıyor. Bu, fiziğin varsayılmak yerine çözüldüğünün küçük ama gerçek bir
 göstergesidir.
+
+% ============================================================================
+\clearpage
+\section{Ders kitabı formülünün burada yanlış yaptığı iki şey}
+
+Bu yazılımı geliştirirken standart denklemleri olduğu gibi uygulamanın yanlış
+yanıt verdiği iki yer ortaya çıktı. İkisi de artık açıkça ele alınıyor ve ikisi
+de bir cihaz tasarımını sessizce mahvedebilecek türden.
+
+\subsection{Cetvel kristaldir, su değil}
+\label{sec:ruler}
+
+Akla ilk gelen varsayım, kanaldaki sesin sudaki ses dalga boyuna sahip
+olmasıdır: $\lambda_{\text{su}} = c_{\text{su}}/f$. \SI{20}{\mega\hertz}'de bu
+\SI{75}{\micro\meter} eder, yani her \SI{37}{\micro\meter}'de bir düğüm.
+
+Bu yanlış. Sıvıdaki örüntüyü altındaki kristal damgalar, dolayısıyla örüntü
+suyunkini değil kristalin aralığını devralır:
+
+\begin{equation}
+\lambda_{\text{SAW}} = \frac{c_{\text{SAW}}}{f},
+\qquad
+\text{düğüm aralığı} = \frac{\lambda_{\text{SAW}}}{2}
+\end{equation}
+
+\SI{20}{\mega\hertz}'de $\lambda_{\text{SAW}} = 3979/20\times10^{6} =
+\SI{199}{\micro\meter}$, yani düğümler her \SI{99,5}{\micro\meter}'de bir ---
+saf yanıtın neredeyse üç katı aralıkta.
+
+\begin{center}\small
+\begin{tabular}{rrrr}
+\toprule
+\textbf{Frekans} & \textbf{$\lambda_{\text{SAW}}$} & \textbf{Düğüm aralığı} &
+\textbf{\SI{300}{\micro\meter} kanaldaki düğüm} \\
+\midrule
+\SI{6,632}{\mega\hertz} & \SI{600}{\micro\meter} & \SI{300}{\micro\meter} & \textbf{1} \\
+\SI{13,26}{\mega\hertz} & \SI{300}{\micro\meter} & \SI{150}{\micro\meter} & 2 \\
+\SI{20}{\mega\hertz}    & \SI{199}{\micro\meter} & \SI{99,5}{\micro\meter} & 3 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{warnbox}
+Bu bir ayrıntı değil. Kanalında \textbf{tek} düğüm olan bir ayırıcı her şeyi
+ortaya toplar ve siz orta çıkışı alırsınız. \textbf{Üç} düğümü olan bir ayırıcı
+hücreleri üç ayrı şeride toplar; her hücre başladığı yere en yakın şeride
+gider. Çıkış histogramı üç tepeli olur ve iki çıkışlı tasarım çalışmaz.
+
+Bu projenin özgün şartnamesi \SI{300}{\micro\meter} kanalda
+\SI{20}{\mega\hertz} istiyordu. O bileşimde üç düğüm var. Yazılım bunu artık
+saptıyor ve tek düğüm veren frekansı yazdırıyor:
+\[
+f = \frac{c_{\text{SAW}}}{2W} = \frac{3979}{2\times300\times10^{-6}}
+  = \SI{6,632}{\mega\hertz}
+\]
+Bu da gönderilen yapılandırmadaki varsayılan değerdir.
+\end{warnbox}
+
+\subsection{Ses kanalı dümdüz kesip geçmiyor}
+
+İkinci düzeltme daha incedir. Standart kuvvet formülü, denklem
+\eqref{eq:force}, dalganın kanalı yalnızca \emph{enine} geçtiğini sessizce
+varsayar. Bu cihazda öyle değil: yanal aralığı kristal belirler ve sudaki ses
+yasaları dalgayı bir de yukarı doğru bileşene zorlar. O yukarı bileşen tam
+olarak $22^\circ$'lik sızıntıdır.
+
+Yanal dalga sayısına $k_x$ (kristalin belirlediği), sudaki sesin sahip olacağı
+değere $k_f$ dersek, Pisagor'la bağlıdırlar:
+
+\begin{equation}
+k_x^2 + k_y^2 = k_f^2,
+\qquad k_x = \frac{2\pi}{\lambda_{\text{SAW}}},
+\qquad k_f = \frac{2\pi f}{c_{\text{su}}}
+\end{equation}
+
+Gor'kov hesabını eğim dahil yeniden yapınca değiştirilmiş bir kontrast faktörü
+çıkar:
+
+\begin{equation}
+\boxed{\;\Phi_{\text{etkin}} = f_1 + \tfrac{3}{2}f_2\left(\frac{k_x}{k_f}\right)^{\!2}\;}
+\label{eq:phieff}
+\end{equation}
+
+Sıkışma terimi dokunulmadan kalır; çalkalanma terimi küçülür, çünkü su bir
+ölçüde yana değil aşağı yukarı çalkalanmaktadır ve yanal kuvvete yalnızca yana
+olan kısım katkı verir. $k_x = k_f$ olduğunda --- yani gerçekten enine giden bir
+dalgada --- düzeltme yok olur ve ders kitabı formülü birebir geri gelir.
+
+\begin{center}\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Hücre} & $\Phi$ \textbf{(ders kitabı)} & $\Phi_{\text{etkin}}$ \textbf{(bu cihaz)} & \textbf{Değişim} \\
+\midrule
+MCF-7 & 0,2371 & 0,1787 & $-\%25$ \\
+alyuvar & 0,3341 & 0,2519 & $-\%25$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Kuvvette \%25 hata, her hücrenin ne kadar yol aldığında \%25 hatadır ve bir
+toplama çıkışının kenarına yakın yerde bu, çalışan bir cihazla bozuk bir cihaz
+arasındaki farktır. Düzeltme, test paketinde dalga denkleminin tam bir
+çözümünden kuvveti sayısal olarak hesaplayıp karşılaştırarak doğrulanır: milyonda
+yedi mertebesinde uyuşurlar.
+
+\section{Düşük Reynolds sayısında yaşam: su baldır}
+\label{sec:lowre}
+
+Bir hücrenin ölçeğinde su, sezginizin söylediği gibi davranmaz. Belirleyici
+büyüklük, birimi olmayan saf bir oran olan \textbf{Reynolds sayısıdır}:
+
+\begin{equation}
+\mathrm{Re} = \frac{\rho\, U\, L}{\mu}
+= \frac{\text{akışkanın devam etme isteği}}{\text{durma isteği}}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{lr>{\raggedright\arraybackslash}p{7.1cm}}
+\toprule
+\textbf{Durum} & $\mathrm{Re}$ & \textbf{Nasıl hissettirir} \\
+\midrule
+Yüzen bir insan & $10^{6}$ & kulaç atmayı bırakınca süzülürsünüz \\
+Bir japon balığı & $10^{4}$ & yine süzülür \\
+\textbf{Bizim kanalımız} & $\mathbf{0{,}53}$ & hiç süzülme yok \\
+\textbf{Kanalımızdaki bir hücre} & $\mathbf{0{,}15}$ & --- \\
+Yüzen bir bakteri & $10^{-5}$ & katranda yüzmek gibi \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{analogy}
+Bir hücreyi itmeyi bırakın, süzülmez. Yaklaşık \SI{50}{\nano\meter} içinde ---
+kendi çapının yüzde birinden az --- ve yaklaşık \SI{20}{\micro\second}'de durur.
+Momentum yok, sürüklenme yok, aşma yok. Hücrenin hızını tümüyle \emph{o anda}
+üzerine etkiyen kuvvetler belirler.
+\end{analogy}
+
+Bu son derece kullanışlıdır. Newton'un ikinci yasası $F = ma$, ivmeyi içeren bir
+diferansiyel denklemdir ve iki başlangıç koşulu ister. Ama anlamlı bir ivme
+yoksa neredeyse kafadan yapabileceğiniz bir şeye çöker:
+
+\begin{equation}
+\underbrace{v}_{\text{hücre hızı}}
+= \underbrace{u_f}_{\text{suyun hızı}}
++ \underbrace{\frac{F}{6\pi\mu r}}_{\text{itmeden gelen ek hız}}
+\label{eq:overdamped}
+\end{equation}
+
+Simülasyon varsayılan olarak bunu kullanır. Tam $F=ma$ sürümünü de uygular ve
+test paketi ikisinin uyuştuğunu denetler --- yaklaşıklığın burada yalnızca
+kullanışlı değil, güvenli olduğunu böyle biliyoruz.
+
+\begin{warnbox}
+Bu, akış yeterince hızlıysa ya da parçacıklar yeterince büyükse ve
+$\mathrm{Re}$ 1'e yaklaşıyorsa bozulur. Yazılım her koşuda iki Reynolds sayısını
+da hesaplar ve biri 1'i aşarsa uyarı basar; sessizce iyi görünen ve yanlış olan
+bir sayı üretmez.
+\end{warnbox}
+
+\section{Sıvı nasıl akıyor: parabol}
+
+Hücreleri kanal boyunca bir şırınga pompasının ittiği sıvı taşır. Bu akış
+düzgün değildir: duvarlara yapışır (``kaymama'' koşulu --- tozlu bir yüzeye
+üflemenin onu asla tam temizlememesinin nedeni) ve ortada en hızlı akar.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \fill[blue1!5] (0,0) rectangle (9,2.6);
+  \draw[ink,thick] (0,0)--(9,0);
+  \draw[ink,thick] (0,2.6)--(9,2.6);
+  \node[font=\scriptsize\sffamily,color=muted,below] at (4.5,-0.1) {kanal duvarı (kaymama)};
+  \node[font=\scriptsize\sffamily,color=muted,above] at (4.5,2.7) {kanal duvarı (kaymama)};
+  \foreach \y in {0.2,0.5,0.8,1.1,1.3,1.5,1.8,2.1,2.4}{
+    \pgfmathsetmacro\L{3.6*(1-((\y-1.3)/1.3)^2)}
+    \draw[-{Stealth[length=4pt]},blue1,thick] (1,\y) -- (1+\L,\y);
+  }
+  \draw[orange1,very thick,domain=0:2.6,samples=60,smooth]
+        plot ({1+3.6*(1-((\x-1.3)/1.3)^2)},\x);
+  \node[font=\scriptsize\sffamily,color=orange1] at (6.6,1.3) {hız profili};
+  \draw[|-|,muted] (0.6,0)--(0.6,2.6)
+       node[midway,left,font=\scriptsize\sffamily,color=muted,rotate=90,yshift=8pt] {50 µm};
+\end{tikzpicture}
+\caption{Basınçla sürülen kanal akışı. Duvarlarda sıfır, ortada en hızlı.
+Duvara yakın bir hücre kanalı geçmek için ortadakinden çok daha uzun süre
+harcar --- simülasyonun ortalama hücre için değil, \emph{en yavaş} hücre için
+yetecek kadar uzun integre etmesi gerekmesinin nedeni budur.}
+\end{figure}
+
+Dikdörtgen bir kanal için sonsuz toplam biçiminde yazılan tam bir yanıt vardır:
+
+\begin{equation}
+u_z(x,y)=\frac{16 b^2 G}{\mu\pi^3}\sum_{n=1,3,5,\dots}
+\frac{(-1)^{(n-1)/2}}{n^3}
+\left[1-\frac{\cosh\!\big(\tfrac{n\pi x}{2b}\big)}{\cosh\!\big(\tfrac{n\pi a}{2b}\big)}\right]
+\cos\!\left(\frac{n\pi y}{2b}\right)
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{ll}
+\sym{u_z}{sıvının $(x,y)$ noktasında kanal boyunca ne kadar hızlı aktığı}
+\sym{a,b}{kanal genişliğinin ve yüksekliğinin yarısı}
+\sym{G}{sıvıyı süren, metre başına basınç düşüşü}
+\sym{n}{toplam indisi; her terim bir öncekinden küçük bir düzeltmedir}
+\end{tabular}
+\end{center}
+
+\begin{plain}
+Bu ürkütücü görünüyor ve değil. Bir tariftir: azalan ağırlıklarla birkaç dalgalı
+biçimi toplayın, şekildeki parabole benzer profili elde edersiniz. Otuz terim
+altı basamak doğruluk için yeter. Yazılım akışı sayısal çözmek yerine tam toplamı
+kullanır, çünkü tam yanıt hem daha hızlı hem daha doğrudur.
+\end{plain}
+
+Standart çalışma noktası için --- \SI{300}{}$\times$\SI{50}{\micro\meter}
+kanaldan \SI{5}{\micro\liter\per\minute} --- bu şunu verir:
+
+\begin{center}\small
+\begin{tabular}{lr}
+\toprule
+ortalama hız & \SI{5,56}{\milli\meter\per\second} \\
+tepe hız (merkez) & \SI{9,31}{\milli\meter\per\second} \\
+\SI{2}{\milli\meter}'lik etkin bölgeyi geçme süresi & \SI{0,36}{\second} \\
+gereken basınç & \SI{26,5}{\kilo\pascal\per\meter} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{O \SI{0,36}{\second} bütçenin tamamıdır.} Toplamak istediğiniz her
+hücrenin 0,36 saniyede kanalın ortasına ulaşması, atmak istediğiniz her hücrenin
+de ulaşamaması gerekir. Tasarımdaki her şey --- frekans, voltaj, debi, uzunluk
+--- bu tek yarışın hizmetindedir.
+
+\section{Sıcaklık: sessizce yok sayılan değişken}
+\label{sec:temperature}
+
+Malzeme kütüphanesindeki her sabit tek bir sıcaklıkta verilmiştir. Bir çizelge
+için bu yeterli; bir simülasyon için yanlıştır.
+
+\begin{center}\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Özellik} & \textbf{25 °C} & \textbf{37 °C} & \textbf{Değişim} \\
+\midrule
+viskozite $\mu$ & \SI{0,890}{} mPa·s & \SI{0,691}{} mPa·s & $\mathbf{-\%22}$ \\
+ses hızı $c$ & \SI{1496,7}{\meter\per\second} & \SI{1523,6}{\meter\per\second} & $+\%1{,}8$ \\
+yoğunluk $\rho$ & \SI{997,0}{} kg/m³ & \SI{993,3}{} kg/m³ & $-\%0{,}4$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Akustoforetik hız $F/(6\pi\mu r)$ olduğundan, tek başına o viskozite düşüşü
+hücreleri vücut sıcaklığında tezgâhtakinden \textbf{\%25 daha hızlı} hareket
+ettirir. Birinde ayarlanan bir cihaz öbüründe aynı cihaz değildir.
+
+\begin{plain}
+Yönü sezgiye aykırıdır: ısıtmak saflığı \textbf{düşürür}. Çünkü arka plan
+popülasyonu da hızlanır ve daha fazlası toplama çıkışına ulaşır. Soğutmak bir
+saflık düğmesidir --- ve bu denklemlere bakarak görülmez.
+\end{plain}
+
+\begin{center}\small
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Sıcaklık} & \textbf{Viskozite} & \textbf{Göç hızı} & \textbf{Referans koşuda saflık} \\
+\midrule
+4 °C & \SI{1,568}{} mPa·s & 0,55× & \%97,6 \\
+25 °C & \SI{0,890}{} mPa·s & 1,00× & \%95,2 \\
+37 °C & \SI{0,691}{} mPa·s & 1,25× & \%93,0 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Hücreler bu işlemden sağ çıkıyor mu?}
+\label{sec:viability}
+
+Akustik ayrımın satış argümanı nazik olmasıdır: antikor yok, etiket yok, temas
+yok. ``Nazik'' bir iddiadır ve iddia hesaplanabilir bir şeydir. Bu cihazın bir
+hücreye zarar verebileceği üç yol var ve yazılım üçünü de yayımlanmış eşiklere
+karşı hesaplar.
+
+\begin{center}\small
+\begin{tabular}{lp{3.6cm}rr}
+\toprule
+\textbf{Mekanizma} & \textbf{Gösterge} & \textbf{Eşik} & \textbf{Marj} \\
+\midrule
+Isı (CEM43 termal dozu) & $3{,}5\times10^{-13}$ dk & 15 dk & $>10^4\times$ \\
+Kayma gerilmesi & 0,59 Pa & 150 Pa & $254\times$ \\
+Kavitasyon (mekanik indeks) & MI 0,175 & MI 1,9 & $10{,}9\times$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{plain}
+Her şeyin sağ çıkmasının baskın nedeni \textbf{maruziyet süresidir}: hücreler
+alanda 0,36 saniye kalır. Aynı şiddette onları dakikalarca tutan bir tuzak
+bambaşka bir meseledir --- ve aynı kod bunu size söyler.
+\end{plain}
+
+Isı için para birimi 43 °C'deki eşdeğer dakikadır, çünkü hasar sıcaklıkla
+doğrusal değil birikir:
+
+\begin{equation}
+\mathrm{CEM43} = \sum R^{(43-T)}\,\Delta t,
+\qquad R = 0{,}25\ (T<43\,^\circ\text{C}),\quad R = 0{,}5\ (T\ge 43\,^\circ\text{C})
+\end{equation}
+
+Hücreler ayrıca cihaza girmeden önce de ölmüş olabilir. Taze hazırlanmış bir
+süspansiyon tipik olarak \%90--97 canlıdır, dolayısıyla dürüst başlangıç noktası
+\%100 değildir; yazılımın varsayılanı \%95'tir ve ölü hücreler cihaz boyunca ayrı
+izlenir, böylece ``ölü hücreler toplama çıkışımı kirletiyor mu?'' sorusu
+sorulabilir.
+
+% ============================================================================
+\clearpage
+\part*{III. Bölüm --- İkinci cihaz: hücreleri elektrikle saymak}
+\addcontentsline{toc}{part}{III. Bölüm --- Hücreleri elektrikle saymak}
+
+\section{Hücre küçücük bir yalıtkandır}
+
+Ayırıcı ``bunlar hangi hücreler?'' sorusunu yanıtlıyor. Bir laboratuvarın
+sürekli sorduğu başka bir soru ise ``kaç hücre var ve hâlâ canlılar mı?''
+--- örneğin bir ilacın onları öldürüp öldürmediğini iki gün boyunca saat başı
+izlerken.
+
+Kabı her saat fotoğraflayıp gözle saymak yavaştır ve hücreleri rahatsız eder.
+Çok daha iyi bir yol var ve hücre zarlarına dair bir olguya dayanıyor:
+
+\begin{plain}
+Bir hücreyi saran zar, yaklaşık \SI{5}{\nano\meter} kalınlığında çift katlı bir
+yağ tabakasıdır. Yağ elektriği iletmez. Yani hücre, ilk yaklaşıklıkla, yalıtkan
+bir deri içine sarılmış --- ve iyi ileten --- tuzlu su torbasıdır.
+\end{plain}
+
+Kabın dibine altın elektrotlar koyup küçük bir alternatif akım geçirin. Kap
+boşken akım tuzlu besiyerinden serbestçe akar. Hücreler çökelip elektrotların
+üzerine yayıldıkça yolu tıkarlar: akımın hücreler arasındaki dar boşluklardan ve
+altlarındaki daha da dar aralıktan sıkışarak geçmesi gerekir.
+
+\begin{analogy}
+Bir derenin dibindeki tel örgünün üstüne streç film sermek gibidir. Suyun
+kenarlardan dolanması gerekir. Ne kadar çok film, o kadar çok engel --- ve bu
+engel, suya dokunmadan dışarıdan ölçebileceğiniz bir şeydir.
+\end{analogy}
+
+Daha çok hücre $\Rightarrow$ daha çok engel $\Rightarrow$ daha yüksek
+\textbf{empedans}. Empedans, alternatif akım için elektriksel dirençtir; tek
+farkı bir büyüklüğü \emph{ve} bir zamanlama kaymasının olmasıdır, bu yüzden
+karmaşık sayı $Z$ olarak yazılır.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,font=\scriptsize\sffamily]
+  \fill[orange1!70] (0,0) rectangle (9,0.28);
+  \node[left,color=muted] at (-0.15,0.14) {altın elektrot};
+  \fill[blue1!7] (0,0.28) rectangle (9,3);
+  \node[color=muted] at (7.4,2.6) {tuzlu besiyeri};
+  \foreach \x in {1.2,2.6,4.0,5.4}{
+    \draw[fill=aqua1!25,draw=aqua1,thick]
+      (\x,0.34) .. controls (\x-0.55,1.35) and (\x+0.55,1.35) .. (\x,0.34) -- cycle;
+    \draw[fill=aqua1!55,draw=aqua1] (\x,0.75) circle (0.16);
+  }
+  \node[color=aqua1] at (3.3,1.6) {yapışık hücreler};
+  \draw[-{Stealth[length=4pt]},ink,thick] (7.2,2.2) -- (7.2,0.4);
+  \node[right,color=ink] at (7.3,1.3) {serbest yol};
+  \draw[-{Stealth[length=4pt]},red1,thick]
+       (1.9,2.2) -- (1.9,1.2) .. controls (1.9,0.7) and (1.95,0.45) .. (2.0,0.36);
+  \node[right,color=red1,align=left] at (2.1,2.0) {hücreler arasından\\sıkışarak};
+  \draw[-{Stealth[length=4pt]},red1,thick] (4.6,0.42) -- (5.0,0.42);
+  \node[below,color=red1] at (4.8,0.32) {ve altlarından};
+\end{tikzpicture}
+\caption{Hücre--taban empedans algılaması. Akım elektrotun çıplak olduğu yerden
+kolay yolu seçer, hücrelerin oturduğu yerde ise boşluklardan sıkışarak geçmek
+zorundadır. Ölçülen empedans böylece elektrotun ne kadarının kaplı olduğunu
+bildirir.}
+\end{figure}
+
+\section{Empedansı büyüme eğrisine çevirmek}
+
+Elektrotun ne kadar kaplı olduğuyla ölçüm cihazının okuduğu değer arasındaki tam
+ilişkiyi 1991'de Giaever ve Keese çıkardı. Güzel bir şey değil:
+
+\begin{equation}
+\frac{1}{Z_c}=\frac{1}{Z_n}\left[
+\frac{Z_n}{Z_n+Z_m}+\frac{Z_m/(Z_n+Z_m)}
+{\dfrac{\gamma I_0(\gamma)}{2 I_1(\gamma)}+R_b\!\left(\dfrac{1}{Z_n}+\dfrac{1}{Z_m}\right)}\right],
+\qquad
+\gamma=\alpha\sqrt{\frac{1}{Z_n}+\frac{1}{Z_m}}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{ll}
+\sym{Z_c}{hücreler varken ölçtüğünüz}
+\sym{Z_n}{elektrot çıplakken ölçtüğünüz}
+\sym{Z_m}{hücre zarlarının kendi direnci}
+\sym{R_b}{hücrelerin birbirine ne kadar sıkı yapıştığı --- ``sıkı bağlantılar''}
+\sym{\alpha}{hücrenin altıyla altın arasındaki aralığın ne kadar dar olduğu}
+\sym{I_0,I_1}{Bessel fonksiyonları --- bir noktadan ışınsal yayılan her şeyde
+ortaya çıkan standart matematiksel fonksiyonlar; yuvarlak bir hücrenin
+altındaki akımın yaptığı da tam olarak budur}
+\end{tabular}
+\end{center}
+
+\begin{plain}
+Formülü okumayın. İçine ne girdiğini okuyun: elektrot ne kadar çıplak, zarlar ne
+kadar yalıtkan, hücreler birbirine ne kadar sıkı yapışmış ve altlarındaki aralık
+ne kadar ince. Okumayı belirleyen bu dört şey. Denklem yalnızca muhasebedir.
+\end{plain}
+
+Laboratuvar cihazları bunun \textbf{Hücre İndeksi} adlı basitleştirilmiş,
+birimsiz bir sürümünü bildirir:
+
+\begin{equation}
+\mathrm{CI}(t)=\frac{|Z_{\text{hücreli}}(t)|-|Z_{\text{arka plan}}|}{Z_{\text{referans}}}
+\end{equation}
+
+Sıfır boş bir elektrot demektir. Hücreler yapışıp yayıldıkça ve bölündükçe
+yükselir. Öldüklerinde ve yuvarlaklaştıklarında düşer.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.86\textwidth]{../../assets/05_cell_index.png}
+\caption{48 saatlik simüle edilmiş Hücre İndeksi; her çizgi bir ilaç dozu. Tüm
+kuyular ilk 24 saat aynı büyür; ilaç 24. saatte eklenir ve eğriler doza göre
+ayrışır. Bu, gerçek bir cihazın ham çıktısıdır ve simülasyonun yeniden ürettiği
+şey de budur.}
+\end{figure}
+
+\section{IC50: bir ilacın kendisiyle yargılandığı sayı}
+
+Deneyin sonundaki Hücre İndeksini alıp ilaç derişimine karşı çizin; logaritmik
+eksende S biçiminde bir eğri elde edersiniz: düşük dozda etki yok, yüksek dozda
+her şey ölmüş, arada bir geçiş. Standart dört parametreli lojistikle uydurun:
+
+\begin{equation}
+y=y_{\min}+\frac{y_{\max}-y_{\min}}{1+\left(c/\mathrm{IC}_{50}\right)^{h}}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{ll}
+\sym{c}{ilaç derişimi}
+\sym{y}{geriye kalan hücre sinyali}
+\sym{\mathrm{IC}_{50}}{\textbf{yanıt}: yarısını öldüren derişim}
+\sym{h}{Hill eğimi --- ``canlı''dan ``ölü''ye geçişin ne kadar keskin olduğu}
+\end{tabular}
+\end{center}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.78\textwidth]{../../assets/05_dose_response.png}
+\caption{Simüle edilmiş plakadan doz--yanıt eğrisi, uydurulan eğri ve çıkarılan
+IC50 ile.}
+\end{figure}
+
+\begin{warnbox}
+\textbf{Simülasyonun yeniden ürettiği dürüst bir kırışıklık.} Simülasyona gerçek
+IC50 olarak 1,0 ekip sonra bunu bitiş noktasından ölçerseniz 0,75 elde edersiniz.
+Bu bir hata değil.
+
+İlaç, ikilenme süresi yaklaşık 20 saat olan hücrelere karşı 24 saat etki eder,
+dolayısıyla siz deneyi durdurduğunuzda popülasyon yanıt vermeyi bitirmemiştir.
+Ölçülen IC50, maruziyet uzadıkça gerçek değerine doğru kayar. Gerçek bitiş
+noktası deneyleri tam olarak bunu yapar --- yayımlanmış IC50 değerlerinin ekli
+maruziyet süresi olmadan anlamsız olmasının nedeni budur.
+\end{warnbox}
+
+% ============================================================================
+\clearpage
+\part*{IV. Bölüm --- Üçüncü ve dördüncü cihaz: resimlere bakmak}
+\addcontentsline{toc}{part}{IV. Bölüm --- Resimlere bakmak}
+
+\section{Bir görüntüde hücre bulmak}
+
+Mikroskop altında çekilmiş bir fotoğraf verildiğinde bilgisayar hücreleri nasıl
+sayar?
+
+Saf yanıt --- ``bir eşikten parlak olan her şey hücredir'' --- gerçek
+görüntülerde üç nedenle başarısız olur ve işlem hattının her adımı bunlardan
+birini gidermek için vardır:
+
+\begin{center}\small
+\begin{tabular}{p{4.4cm}p{4.9cm}p{4.9cm}}
+\toprule
+\textbf{Sorun} & \textbf{Neden olur} & \textbf{Çözüm} \\
+\midrule
+Görüntü ortada köşelerden parlak &
+lamba tam düzgün değil &
+görüntünün ağır bulanıklaştırılmış bir kopyasını kendisinden çıkar \\[4pt]
+Görüntü benekli &
+ışık ayrık fotonlar hâlinde gelir ve rastgele bir şeyi saymanın $\sqrt{N}$
+gürültüsü vardır &
+hafifçe bulanıklaştır \\[4pt]
+Değen hücreler tek lekeye kaynaşır &
+gerçekten değiyorlar &
+havza (watershed), aşağıda \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{analogy}
+\textbf{Havza dönüşümü.} Görüntüyü, parlaklığın yükseklik olduğu bir arazi gibi
+okuyun, sonra baş aşağı çevirin ki her hücre bir çukur olsun. Şimdi araziyi aynı
+anda her çukurun dibinden su bastırın. İki su birbirine kavuştuğu yerde bir duvar
+örün. O duvarlar, değen hücreler arasındaki sınırlardır.
+
+Ad harfi harfine doğrudur: bir coğrafyacının bir yağmur damlasının hangi nehre
+gideceğini bulmak için yaptığı hesabın aynısıdır.
+\end{analogy}
+
+Yazılım ayrıca doğru yanıtın tam olarak bilindiği kendi test görüntülerini de
+üretir, böylece işlem hattı hayranlıkla seyredilmek yerine \emph{puanlanabilir}.
+150 hücrelik sentetik bir alanda 126'sını bulur. Kaçırdığı 24 hücre, kareye
+değenler (bilerek atılır --- kenarın ikiye böldüğü bir hücrenin ölçülebilir
+boyutu yoktur) ve gerçekten kaynaşmış birkaç çifttir.
+
+\section{Saymak, ve 100 hücrenin neden $\pm\%10$ demek olduğu}
+
+Hücreler bulunduktan sonra derişim bir geometri işidir. Standart bir sayım
+odasında kapak camı tabandan tam \SI{0,1}{\milli\meter} yüksekte tutulur ve
+üzerine \SI{1}{\milli\meter}'lik bir ızgara çizilidir, dolayısıyla bir ızgara
+karesi tam \SI{0,1}{\micro\liter} tutar:
+
+\begin{equation}
+\text{derişim }\left[\frac{\text{hücre}}{\text{mL}}\right]
+=\frac{N}{\text{alan}\times\text{derinlik}}\times\text{seyreltme}
+\end{equation}
+
+Yazılımdaki hiçbir ayrıntıdan daha çok önem taşıyan istatistiksel bir tuzak var.
+Hücreler sayım karesine rastgele düşer, dolayısıyla sayım Poisson istatistiğine
+uyar ve kaçınılmaz bir belirsizlik taşır:
+
+\begin{equation}
+\frac{\text{belirsizlik}}{\text{sayım}}=\frac{1}{\sqrt{N}}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{rrl}
+\toprule
+\textbf{Sayılan hücre} & \textbf{Belirsizlik} & \\
+\midrule
+25 & $\pm\%20$ & \\
+100 & $\pm\%10$ & \emph{tipik bir hemositometre sayımı} \\
+400 & $\pm\%5$ & \\
+2500 & $\pm\%2$ & \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{plain}
+100 hücre sayarsanız ve meslektaşınız aynı tüpten 100 hücre sayarsa, ikiniz de
+her şeyi kusursuz yapsanız bile yaklaşık \%10 farklı bulmayı beklemelisiniz. Bu
+genellikle insanların saptamaya çalıştığı farktan büyüktür. Yazılım bu sayıyı her
+sayımın yanında bildirir, çünkü onu dışarıda bırakmak, insanların var olmayan
+farklara inanmasının yoludur.
+\end{plain}
+
+\subsection*{Canlı mı ölü mü}
+
+Tripan mavisi, sağlam bir zarın dışarıda tuttuğu, ölmüş bir zarın içeri aldığı
+bir boyadır. Ölü hücreler kararır. Yani canlılık, saptanan cisimlerin
+\emph{koyu olmayan} kesridir ve yazılım popülasyonu parlaklığa göre ayırır.
+
+\section{Hücreleri zaman içinde izlemek}
+
+Dört saat boyunca on dakikada bir fotoğraf çekin, hücrelerin süründüğünü
+izleyebilirsiniz. Burada iki hesaplama sorunu çıkar.
+
+\textbf{Birinci sorun: hangi hücre hangisi?} İki kare arasında her hücre yer
+değiştirmiştir. Bilgisayarın, 5. karedeki A konumundaki hücrenin 6. karedeki B
+konumundaki hücreyle aynı olduğuna karar vermesi gerekir. Standart yöntem her
+hücrenin belli bir mesafeden az hareket ettiğini varsayar ve toplam hareketi en
+küçükleyen eşleştirmeyi seçer.
+
+\begin{warnbox}
+Bu tek parametre --- izin verilen en büyük adım --- işin tamamıdır. Çok küçük
+ayarlarsanız hızlı hücreler yok olup yerlerine yenileri gelmiş gibi görünür. Çok
+büyük ayarlarsanız bilgisayar birbirinin yanından geçen hücrelerin kimliklerini
+takas etmeye başlar. Otomatik bir doğru yanıt yoktur; yazılım bunu bir tahminin
+arkasına saklamak yerine \texttt{search\_range\_px} olarak açıkta bırakır.
+\end{warnbox}
+
+\textbf{İkinci sorun: bir iz ne anlama gelir?} Kıvrımlı bir çizgi bir sonuç
+değildir. Standart özet, \textbf{ortalama karesel yer değiştirmedir}: $\tau$
+zaman aralığıyla ayrılmış her kare çifti için hücre ne kadar uzağa gitti?
+
+\begin{equation}
+\mathrm{MSD}(\tau)=\big\langle\,|r(t+\tau)-r(t)|^2\,\big\rangle = 4D\,\tau^{\alpha}
+\end{equation}
+
+Bilgilendirici kısım $\alpha$ üstelidir:
+
+\begin{center}\small
+\begin{tabular}{cll}
+\toprule
+$\alpha$ & \textbf{Anlamı} & \textbf{Günlük karşılığı} \\
+\midrule
+$\approx 1$ & rastgele difüzyon & sendeleyen bir sarhoş: mesafe$^2$ zamanla büyür \\
+$\approx 2$ & düz çizgi hareketi & bir yere yürüyen biri: mesafe zamanla büyür \\
+$<1$ & sıkışmış ya da kalabalık & küçük bir odada volta atmak \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{plain}
+Saniyede bir adımı rastgele bir yöne atan bir sarhoş, $N$ saniye sonra
+meyhaneden $\sqrt{N}$ adım uzakta olur --- yani mesafe$^2$ zamanla
+\emph{doğrusal} büyür, $\alpha=1$ verir. Gerçekten bir yere yürüyen biri $N$
+adımlık yol alır, yani mesafe$^2$ zamanın \emph{karesiyle} büyür, $\alpha=2$
+verir. $\alpha$'yı ölçmek hangi tür hücreye baktığınızı söyler --- ve kanser
+hücrelerinin daha yönlü hâle gelmesi, mikroskop altında invazyonun görünüşüdür.
+\end{plain}
+
+Sentetik test videosu bilinen bir persistansla kurulmuştur ve yazılım
+$\alpha = 1{,}89$ --- doğru biçimde ağırlıklı olarak yönlü hareket --- ve ekilen
+\SI{0,1430}{} değerine karşı \SI{0,1446}{\micro\meter\per\minute} hız geri verir:
+\%1 hata. Bu uyum, takip kodunun çalıştığının kanıtıdır.
+
+% ============================================================================
+\clearpage
+\part*{V. Bölüm --- Bilgisayar bunları gerçekte nasıl çözüyor}
+\addcontentsline{toc}{part}{V. Bölüm --- Bilgisayar bunu nasıl çözüyor}
+
+\section{Bunu neden kalemle yapamazsınız}
+
+Kanaldaki sesin denklemi şudur:
+
+\begin{equation}
+\nabla^2 p+k^2p=0
+\label{eq:helmholtz}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{ll}
+\sym{p}{basınç, kanaldaki her bir noktada}
+\sym{\nabla^2 p}{bir noktadaki basıncın komşularının ortalamasından ne kadar
+farklı olduğu --- bir eğrilik ölçüsü}
+\sym{k}{$2\pi/\lambda$, frekansın belirlediği}
+\end{tabular}
+\end{center}
+
+\begin{plain}
+Denklem~\eqref{eq:helmholtz} şunu söyler: \emph{her noktada basıncın eğriliği
+basıncın kendisiyle orantılı olmalı.} Bu, her yerde aynı anda geçerli olması
+gereken tek bir kuraldır --- ve ``her yer'' sonsuz sayıda yer demektir.
+Bilgisayar gerekmesinin nedeni budur.
+\end{plain}
+
+Düz bir dikdörtgen için elle çözebilirsiniz. Bir yanına kauçuk duvar, altına
+titreşen bir kristal, tam kare olmayan bir giriş ekleyin, çözemezsiniz.
+
+\section{Sonlu elemanlar: üçgenlere böl}
+
+Hile 80 yıllık ve şaşırtıcı derecede basit.
+
+\begin{analogy}
+Eğri bir yamacı tek bir denklemle tarif edemezsiniz. Ama onu binlerce küçük düz
+üçgenle kaplayabilirsiniz, her biri birazcık farklı eğimde. Uzaklaşın, üçgenler
+pürüzsüz bir tepe gibi görünür. Yakınlaşın, her biri apaçık basittir.
+
+Aynısını basınç alanına yapın. Kanalı üçgenlere bölün, her birinin içinde
+basıncın basitçe değiştiğini varsayın ve komşu üçgenlerin ortak kenarlarında
+birbirleriyle uyuşmasını isteyin.
+\end{analogy}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,scale=1]
+  \begin{scope}
+  \draw[muted,thick] (0,0) rectangle (5.6,1.5);
+  \foreach \i in {0,...,7}{
+    \pgfmathsetmacro\x{\i*0.7}
+    \draw[blue1!45] (\x,0)--(\x,1.5);
+    \draw[blue1!45] (\x,0)--(\x+0.7,0.75);
+    \draw[blue1!45] (\x,0.75)--(\x+0.7,1.5);
+    \draw[blue1!45] (\x,0.75)--(\x+0.7,0);
+    \draw[blue1!45] (\x,1.5)--(\x+0.7,0.75);
+  }
+  \draw[blue1!45] (0,0.75)--(5.6,0.75);
+  \node[below,font=\scriptsize\sffamily,color=muted] at (2.8,-0.15)
+       {kanal, üçgenlere kesilmiş (bir \emph{ağ})};
+  \end{scope}
+  \begin{scope}[xshift=7.2cm,yshift=-0.1cm]
+    \fill[blue1!18] (0,0)--(2,0.35)--(1.1,1.6)--cycle;
+    \draw[blue1,thick] (0,0)--(2,0.35)--(1.1,1.6)--cycle;
+    \foreach \p in {(0,0),(2,0.35),(1.1,1.6)}{
+      \node[circle,fill=ink,inner sep=1.6pt] at \p {};}
+    \node[below left,font=\scriptsize] at (0,0) {$p_1$};
+    \node[below right,font=\scriptsize] at (2,0.35) {$p_2$};
+    \node[above,font=\scriptsize] at (1.1,1.6) {$p_3$};
+    \node[below,font=\scriptsize\sffamily,color=muted,align=center]
+         at (1,-0.45) {bir üçgenin içinde basınç,\\üç köşe değerinin belirlediği\\
+         basit bir eğik yüzeydir};
+  \end{scope}
+\end{tikzpicture}
+\caption{Tek resimde sonlu eleman yöntemi. ``Her yerdeki basınç'' bilinmeyeni,
+``her köşedeki basınç'' bilinmeyenine dönüşür; bu da bir bilgisayarın
+çözebileceği sonlu bir sayı listesidir.}
+\end{figure}
+
+Bu, imkânsız bir kalkülüs problemini çok büyük ama sıradan bir cebir problemine
+çevirir:
+
+\begin{equation}
+\symbf{A}\,\symbf{p}=\symbf{b}
+\end{equation}
+
+\begin{center}\small
+\begin{tabular}{ll}
+\sym{\symbf{p}}{bilinmeyen basınçların listesi, köşe başına bir tane --- birkaç
+bin sayı}
+\sym{\symbf{A}}{``her köşe komşularıyla tutarlı olmalı'' kuralını kodlayan büyük
+bir çizelge}
+\sym{\symbf{b}}{sistemi süren şey --- burada alttaki titreşen kristal}
+\end{tabular}
+\end{center}
+
+Eşzamanlı denklem çözmek, bilgisayarların son derece iyi olduğu bir şeydir.
+Buradaki tipik bir koşuda yaklaşık 20\,000 bilinmeyen vardır ve bir saniyeden az
+sürer.
+
+\begin{plain}
+Dünyadaki her sonlu eleman paketi --- bu projedeki ücretsiz olanlar ve lisansı
+on binlerce dolar tutan ticari olanlar --- aynı şeyi yapar. Kolaylıkta, geometri
+işlemede ve destekte ayrışırlar; fikirde değil.
+\end{plain}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.9\textwidth]{../../assets/04_pressure_field.png}
+\caption{Kanal kesitinde hesaplanan basınç alanı. Koyu mavi basıncın en sert
+salındığı yer; ortadaki soluk dikey şerit ise hiç değişmediği düğüm --- hücrelerin
+toplandığı yer. Kanal \SI{300}{\micro\meter} geniş, \SI{50}{\micro\meter}
+yüksektir. Koyu bantların yukarı doğru soluklaştığına dikkat edin: ses tavandan
+sızıp gider ve bu soluklaşmanın çok önemi vardır (\S\ref{sec:limits}).}
+\end{figure}
+
+\section{Hücreleri hareket ettirmek}
+
+Kuvvet alanı bilindiğinde her hücre denklem~\eqref{eq:overdamped}'e uyar: hızı,
+suyun hızı artı akustik itmenin sürüklenmeye bölümüdür. Konumun zamanla nasıl
+değiştiğinin kuralı olarak yazılırsa:
+
+\begin{equation}
+\frac{d\symbf{x}}{dt}=\symbf{u}_f(\symbf{x})+\frac{\symbf{F}(\symbf{x})}{6\pi\mu r}
+\end{equation}
+
+Bu bir \textbf{adi diferansiyel denklemdir}: değişim hızının kuralı; bilgisayar
+bundan yolu geri kurar.
+
+\begin{analogy}
+Bu, parakete hesabıdır. Her an hızınızı ve rotanızı bilirsiniz; küçücük bir
+zaman adımı ilerleyin, yeniden hesaplayın, tekrarlayın. Tek hüner adım boyunu
+seçmektir --- doğru olacak kadar küçük, bitecek kadar büyük. Yazılım seçimi
+çözücüye uyarlamalı olarak bırakır: kuvvetin hızlı değiştiği yerde küçük adımlar,
+değişmediği yerde büyük.
+\end{analogy}
+
+Tüm hücreler tek tek değil tek bir sistem olarak integre edilir; 800 hücrenin bir
+saniyeden az sürmesinin nedeni budur.
+
+\subsection*{Gerçek hata ayıklama süresine mal olan bir incelik}
+
+Duvara ulaşan hücreler kanaldan çıkmamalıdır. Akla gelen çözüm, duvara doğru
+işaret eden her hızı sıfırlamaktır. Bunu yapmak simülasyonu kabaca yüz kat
+yavaşlattı.
+
+Nedeni şu: bu, hız kuralını duvarda süreksiz biçimde \emph{sıçratır}. Uyarlamalı
+çözücüler bir sıçramayı, onu çözmeye çalışarak gitgide küçülen adımlar atmakla
+saptar ve fiilen takılır. Çözüm, kuralı sürekli bırakıp kuvveti kanalın
+\emph{içindeki} en yakın noktada değerlendirmek, sonra da son yolu kırpmaktır.
+Aynı fiziksel yanıt, süreksizlik yok, tam hız.
+
+\begin{plain}
+Bilimsel hesaplamadaki işin çoğu aslında budur: fizik icat etmek değil,
+matematiksel olarak zararsız bir seçimin sayısal olarak felaket olduğunu fark
+etmek.
+\end{plain}
+
+\section{Kodun doğru olduğunu nereden biliyorsunuz?}
+
+Önemli olan soru budur ve dürüst tek bir yanıtı vardır: \textbf{yanıtı zaten
+bildiğiniz durumlarla karşılaştırın.} Hiçbir şeye karşı denetlenmemiş bir
+simülasyon bir sonuç değil, bir resimdir.
+
+\subsection*{Doğrulama: bilinen yanıtlarla karşılaştırma}
+
+\begin{center}\small
+\begin{tabular}{p{5.1cm}p{4.9cm}r}
+\toprule
+\textbf{Denetlenen} & \textbf{Neye karşı} & \textbf{Uyum} \\
+\midrule
+Elektrik çözücüsü & iki paralel plaka için okul formülü, $Z=L/(\sigma A)$ & $10^{-9}$ \\[3pt]
+Genel kuvvet makinesi & elle türetilen bir boyutlu formül, ikisinin de tam
+geçerli olduğu bir alanda & $7\times10^{-6}$ \\[3pt]
+Ses çözücüsü & bir kutudaki duran dalganın bilinen biçimi & $<\%2$ \\[3pt]
+Akış formülü & kendi yanıtını sayısal integre edip verilen debiyi geri bulma & $<10^{-3}$ \\[3pt]
+Akış formülü, yine & sonsuz geniş kanalın tam ders kitabı sonucu (tepe $=1{,}5\times$ ortalama) & 1,5047 \\[3pt]
+Atalet-yok kısayolu & tam $F=ma$ hesabı & $<10^{-3}$ \\[3pt]
+IC50 uydurucusu & yanıtı ekilmiş sentetik veri & $<10^{-3}$ \\[3pt]
+Takip kodu & hızı ekilmiş sentetik video & $\%1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Sayısal uyumun ötesinde test paketi \emph{özdeşlikleri} denetler --- sayılardan
+bağımsız olarak doğru olması gereken şeyleri:
+
+\begin{itemize}
+\item Kuvvet düğümlerde ve karın noktalarında tam olarak sıfırdır.
+\item Sesi iki katına çıkarmak kuvveti dörtler; hacmi iki katına çıkarmak ikiler.
+\item Vücuttaki her hücre için $\Phi>0$; bir yağ damlacığı için $\Phi<0$.
+\item $\Phi$'nin iki rakip tanımı tam olarak 3 kat farklıdır.
+\item Hiçbir hücre kaybolmaz, çoğalmaz ya da kanalın dışında bulunmaz.
+\item Sesi kapatmak hiç ayrım üretmez.
+\item Debiyi artırmak yakalamayı her zaman düşürür.
+\end{itemize}
+
+\begin{plain}
+Bir sayıyı denetlemek zayıf kanıttır; bir \emph{ilişkiyi} denetlemek güçlü
+kanıttır. Biri kodu değiştirir ve kuvvet yarıçapın küpüyle ölçeklenmeyi bırakırsa
+bir test anında düşer --- hiçbir yere belirli bir sayı yazılmamış olsa bile.
+\end{plain}
+
+\subsection*{Sağlama: doğru \emph{hızda} yakınsıyor mu?}
+
+Yukarıdakilerin hepsi \emph{doğrulamadır}: yanıt elle türetilmiş özel bir duruma
+uyuyor mu? İnce biçimde yanlış bir şema bunların hepsini geçebilir, çünkü tek bir
+özel durum tek bir noktadır.
+
+\emph{Sağlama} daha güçlü soruyu sorar: ayrıklaştırma inceltildikçe hata,
+yöntemin \textbf{vaat ettiği hızda} düşüyor mu? Tek bir ağ boyutunda tam yanıtla
+uyuşan bir çözücü şanslı olabilir. Dört inceltme boyunca tam olarak ikinci
+mertebeden yakınsayan bir çözücü, ikinci mertebeden elemanları uyguluyordur.
+
+Teknik \emph{üretilmiş çözümler yöntemidir}: bir tam çözüm seçin, onu üretecek
+kaynak terimini bulmak için türetin, o kaynağı çözücüye verin ve hatayı seçtiğiniz
+çözüme karşı ölçün. Herhangi bir bölgede çalışır ve gerçek problemin analitik
+çözümünü gerektirmez.
+
+\begin{center}\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Ayrıklaştırma} & \textbf{Ölçülen mertebe} & \textbf{Kuram} \\
+\midrule
+P1 elemanları (Helmholtz) & 1,984 & 2 \\
+P2 elemanları (Helmholtz) & 3,008 & 3 \\
+Gor'kov gradyan zinciri & 2,0 & 2 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Zaman integratörü de aynı işlemden geçer: doğrusal bir yaydan gelen tam üstel
+sönüm, onu üretecek kuvvet verilerek üretilmiş bir $x(t) = A\sin(\omega t)$
+yörüngesi, ve toleransı sıkmanın yanıtı gerçekten iyileştirdiğinin denetimi ---
+toleransını yok sayan bir integratör üçü için de aynı sayıyı döndürür ki bunu tek
+toleranslı hiçbir test yakalamaz.
+
+Kaynak: Roache (2002), \texttt{doi:10.1115/1.1436090}.
+
+\subsection*{Ağ yeterince ince mi?}
+
+Sonlu eleman yanıtı ne kadar ince böldüğünüze bağlıdır. İnceltirken yanıt
+değişmeye devam ediyorsa fiziğe değil ağınıza bakıyorsunuzdur. Gerçekte sıfır
+olması gereken simetri hatası düzenli olarak küçülür:
+
+\begin{center}\small
+\begin{tabular}{rrr}
+\toprule
+\textbf{Ağ çözünürlüğü} & \textbf{Tepe kuvvet} & \textbf{Simetri hatası} \\
+\midrule
+32  & \SI{109,60}{\pico\newton} & 0,118 \\
+64  & \SI{106,70}{\pico\newton} & 0,021 \\
+128 & \SI{106,23}{\pico\newton} & 0,009 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+İki sütun da yatışıyor. Yakınsama böyle görünür ve hesaplanmış bir yanıtla
+süslenmiş bir tahmin arasındaki fark budur.
+
+\section{Bir sayıya ne kadar güvenmeli}
+\label{sec:uncertainty}
+
+Tek bir koşu ``geri kazanım = \%100'' der ve ona ne kadar güvenileceği hakkında
+hiçbir şey söylemez. O sayının arkasında birbirinden bağımsız iki belirsizlik
+saklanır ve farklı soruları yanıtlarlar.
+
+\textbf{Sayım hatası (tek koşu içinde).} Kusursuz derecede belirlenimci bir cihaz
+bile \emph{sonlu} sayıda hücre ayırır ve 300 hücrede ölçülen bir oran,
+popülasyonun oranı değildir. Bu binomdur ve tohumu hiç değiştirmeseniz de vardır.
+
+\textbf{Tekrarlar arası hata (koşular arasında).} Her koşu log-normal boyut
+dağılımından taze yarıçaplar, taze giriş konumları ve taze canlılık sonuçları
+çeker. Yeni bir tohumla yeniden çalıştırmak farklı bir yanıt verir ve yayılım
+size sonucun ne kadarının cihaz, ne kadarının çektiğiniz o belirli örnek olduğunu
+söyler.
+
+\begin{warnbox}
+\textbf{Herkesin uzandığı aralık burada başarısız olur.} Alışılmış
+$p \pm z\sqrt{p(1-p)/n}$ ifadesi, $p = 1$ noktasında \textbf{tam olarak sıfır}
+genişlik verir. Yani 300 hücrenin 300'ü de toplandıysa sonuç ``\%100 $\pm$ 0''
+diye bildirilir --- ki bu saçmadır: sonraki 300 hücrenin hepsi kesinlikle
+yakalanmayacaktır. Üstelik 0'ın altında ya da 1'in üstünde sınırlar da
+üretebilir.
+
+Yazılım bunun yerine Wilson skor aralığını kullanır: 300/300 için
+$[\%98{,}7,\ \%100]$ verir, sınırlarda düzgün davranır ve $[0, 100]$ dışına
+çıkmaz. Kaynak: Brown, Cai \& DasGupta (2001),
+\texttt{doi:10.1214/ss/1009213286}.
+\end{warnbox}
+
+Referans koşuda ikisi de bildirilir:
+
+\begin{center}\small
+\begin{tabular}{lll}
+\toprule
+& \textbf{Nokta tahmini} & \textbf{\%95 aralık} \\
+\midrule
+Sayım hatası (tek koşu) & saflık \%95,5 & $[\%91{,}1,\ \%97{,}8]$ \\
+Tekrarlar arası (8 koşu) & saflık \%94,2 & $[\%92{,}4,\ \%96{,}1]$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Birini tek başına aktarmak, karşıt yönlerde yanıltıcıdır.
+
+% ============================================================================
+\clearpage
+\part*{VI. Bölüm --- Sayılar, ve onlardaki sorunlar}
+\addcontentsline{toc}{part}{VI. Bölüm --- Sayılar ve sınırlamalar}
+
+\section{Varsayılan deneydeki her sayı}
+
+\begin{center}\small
+\begin{tabular}{llr}
+\toprule
+\multicolumn{3}{l}{\textbf{Bizim seçtiklerimiz (cihaz)}}\\
+\midrule
+Frekans & $f$ & \SI{6,632}{\mega\hertz} \\
+Sürüş voltajı & $V_{pp}$ & \SI{15}{\volt} \\
+Kanal genişliği & $W$ & \SI{300}{\micro\meter} \\
+Kanal yüksekliği & $H$ & \SI{50}{\micro\meter} \\
+Etkin uzunluk & $L$ & \SI{2}{\milli\meter} \\
+Debi & $Q$ & \SI{5}{\micro\liter\per\minute} \\
+Sıcaklık & $T$ & \SI{25}{\celsius} \\
+\midrule
+\multicolumn{3}{l}{\textbf{Bunlardan çıkanlar (fizik)}}\\
+\midrule
+SAW dalga boyu & $\lambda_{\text{SAW}}$ & \SI{600}{\micro\meter} \\
+Düğüm aralığı & $\lambda_{\text{SAW}}/2$ & \SI{300}{\micro\meter} \\
+Kanaldaki düğüm sayısı & & 1, merkezde \\
+Sızıntı açısı & $\theta_R$ & $22{,}1^\circ$ \\
+Ses basıncı & $p_0$ & \SI{0,45}{\mega\pascal} \\
+Ortalama akış hızı & $\bar u$ & \SI{5,56}{\milli\meter\per\second} \\
+Cihazda geçen süre & $L/\bar u$ & \SI{0,36}{\second} \\
+Kanal Reynolds sayısı & $\mathrm{Re}$ & 0,53 \\
+Parçacık Reynolds sayısı & $\mathrm{Re}_p$ & 0,15 \\
+Isınma & $\Delta T$ & \SI{0,006}{\kelvin} (suyun soğurmasından) \\
+\midrule
+\multicolumn{3}{l}{\textbf{Her hücrenin hissettiği}}\\
+\midrule
+Tümör hücresine tepe kuvvet & & \SI{129,6}{\pico\newton} \\
+Alyuvara tepe kuvvet & & \SI{5,4}{\pico\newton} \\
+Kuvvet oranı & & $24\times$ \\
+Hız oranı (kuvvet $\div$ sürüklenme) & & $7{,}4\times$ \\
+Tümör hücresinin yanal tepe hızı & & \SI{858}{\micro\meter\per\second} \\
+\midrule
+\multicolumn{3}{l}{\textbf{Çıkan sonuç}}\\
+\midrule
+Geri kazanım & & $\%100$ \ \small$[\%98{,}7,\ \%100]$ \\
+Saflık & & $\%94{,}3$ \ \small$[\%91{,}1,\ \%97{,}8]$ \\
+Girdi oranına göre zenginleşme & & $1{,}9\times$ \\
+Canlılık (giriş $\to$ çıkış) & & $\%94{,}8 \to \%94{,}8$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{plain}
+\SI{129,6}{\pico\newton} bir pikonewtondur --- newtonun trilyonda biri. Kabaca
+yerçekiminin tek bir bakteriye uyguladığı kuvvettir. Ayrıca hücrelerinizin
+içindeki bir moleküler motorun ürettiğinin yaklaşık on katı ve bir kimyasal bağı
+koparmak için gerekenin yaklaşık yüzde biridir. Hücreye zarar vermeyecek kadar
+küçük, onu yönlendirecek kadar büyük. Bu tekniğin var olmasının nedeni o
+penceredir.
+\end{plain}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.86\textwidth]{../../assets/02_outlet_histogram.png}
+\caption{Hücrelerin nereden çıktığı. Mavi tümör hücreleri merkezdeki toplama
+çıkışına yığılır; turuncu alyuvarlar başladıkları duvarların yakınında kalır.
+Ortadaki küçük turuncu örtüşme, alışılmadık ölçüde büyük olan ya da merkeze daha
+yakın başlayan alyuvarların \%6'sıdır ve saflığın \%100 yerine \%94 olmasının
+nedenidir.}
+\end{figure}
+
+\subsection*{Gerçekçi bir kan örneğinde}
+
+Yukarıdaki gösterim 50:50 karışım kullanır; bu kullanışlıdır ve gerçekçi
+değildir. Tümör hücreleri alyuvar, akyuvar ve trombositten oluşan tam bir kan
+arka planına \%1 oranında katıldığında aynı cihaz şunu verir:
+
+\begin{center}\small
+\begin{tabular}{lr}
+\toprule
+Geri kazanım & $\%100$ \\
+Toplanan kesrin saflığı & $\%10$ \\
+\textbf{Zenginleşme} & $\mathbf{10\times}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Klinik olarak önemli olan sayı zenginleşmedir: bir sonraki aşamaya verilen örnek,
+giren kandan on kat daha zengin tümör hücresi içerir ve hiçbiri kaybolmamıştır.
+Gerçek iş akışları böyle birkaç aşamayı zincirler.
+
+\section{Neler varsayıldı, neler yanlış}
+\label{sec:limits}
+
+Bu belgedeki en önemli bölüm budur.
+
+\subsection*{En büyük tek varsayım}
+
+Bu yazılımdaki hiçbir şey, verilen bir sürüş voltajı için sesin ne kadar
+gürültülü olacağını öngörmez. O hesap, kristalin ve elektrot deseninin tam
+elektriksel--mekanik davranışını çözmeyi gerektirir; bu ayrı ve daha zor bir
+problemdir.
+
+Onun yerine doğrusal bir kalibrasyon vardır --- 15 volt \SI{0,45}{\mega\pascal}
+verir --- bu tür cihazlar için yayımlanmış aralığın içindedir ve kaynak kodunda
+büyük harflerle varsayım olarak etiketlenmiştir. Simülasyondaki her kuvveti
+ölçekler.
+
+\begin{plain}
+Bu cihazı yaparsanız voltaja güvenmeyin. Basıncı ölçün --- özellikleri bilinen
+kalibrasyon boncuklarını izleyip ne kadar hızlı hareket ettiklerini uydurarak ---
+ve o ölçülen sayıyı girin. Yazılım tam da bunun için değeri doğrudan kabul eder.
+\end{plain}
+
+\subsection*{Basit model iyimserdir}
+
+Bir boyutlu formül, denklem~\eqref{eq:force}, kristal yüzeyinde ölçülen ses
+şiddetini kanaldaki \emph{her} yükseklikteki hücreye uygular. Gerçek alan,
+tavandan sızıp gittikçe yükseklikle zayıflar:
+
+\begin{center}\small
+\begin{tabular}{rrl}
+\toprule
+\textbf{Kristalin üstündeki yükseklik} & \textbf{Yanal kuvvet} & \\
+\midrule
+\SI{0}{\micro\meter}  & \SI{106,7}{\pico\newton} & (basit modelin her yerde kullandığı değer) \\
+\SI{10}{\micro\meter} & \SI{88,5}{\pico\newton}  & \\
+\SI{20}{\micro\meter} & \SI{64,9}{\pico\newton}  & \\
+\SI{30}{\micro\meter} & \SI{41,9}{\pico\newton}  & \\
+\SI{40}{\micro\meter} & \SI{25,6}{\pico\newton}  & \\
+\SI{50}{\micro\meter} & \SI{19,9}{\pico\newton}  & (tavanda) \\
+\midrule
+\multicolumn{2}{l}{\textbf{Kanal boyunca ortalama}} & \textbf{yüzey değerinin \%53'ü} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Tavana yakın sürüklenen bir hücre, basit modelin varsaydığı itmenin beşte birini
+hisseder. Yani basit model bir \textbf{en iyi durumdur} ve sonlu eleman modeli
+gerçekçi olandır. İkisi de gönderilir, fark herkesin çalıştırabileceği bir
+betikle ölçülür ve test paketi sonlu eleman sonucunun basit olandan daha iyimser
+çıkmasını yasaklar.
+
+\subsection*{Tümüyle dışarıda bırakılanlar}
+
+\begin{center}\small
+\begin{tabular}{p{4.2cm}p{10.2cm}}
+\toprule
+\textbf{Dışarıda} & \textbf{Neden, ve ne zaman canınızı yakar} \\
+\midrule
+\textbf{Akustik akış} &
+Ses duvarlarda biraz enerji kaybeder ve bu, sıvıyı yavaş sabit girdaplara
+karıştırır. Bu karıştırma parçacık boyutuna \emph{bağlı değildir}, oysa ayırma
+kuvveti $r^3$ ile ölçeklenir. Kritik bir yarıçapın altında --- bu frekanslarda
+suda yaklaşık \SI{1}{\micro\meter} --- karıştırma kazanır ve parçacıklar
+ayrılmak yerine karışır. \SI{9}{\micro\meter}'lik tümör hücreleri için önemsiz;
+bakteri ya da trombosit için öldürücü. \\[4pt]
+\textbf{Hücrelerin birbirini itmesi} &
+Aynı ses alanındaki iki hücre birbirine saçar ve çekilirler. Akustoforez
+videolarında hücrelerin zincir oluşturmasının nedeni budur. $N^2$ hesaplama
+maliyeti olduğu ve ancak mililitrede $10^6$ hücrenin üzerinde önem taşıdığı için
+göz ardı edilir. \\[4pt]
+\textbf{Dikey kuvvetler} &
+Model bunları hesaplar ama varsayılan olarak uygulamaz. Gerçek bir kanalda
+hücreleri kararlı bir yükseklikte tutan kaldırma kuvvetleri vardır; bu iki
+boyutlu model onları içermez. Onlarsız hücreler akışın sıfır olduğu bir duvara
+yığılır ve \textbf{çıkışa hiç ulaşmazlar}. Açmak, başarısızlığı gizlemek yerine
+görünür kılar --- sonuç çizelgesi hücrelerin çıkamadığını bildirir. \\[4pt]
+\textbf{Hücrelerin yumuşaklığı} &
+Hücre, türdeş jelden sert bir küre olarak ele alınır. Gerçek hücreler biçim
+değiştirir ve şekil değiştirebilirlik kendi başına bir kanser göstergesidir.
+Bambaşka bir fizik. \\[4pt]
+\textbf{Zar ve çekirdek} &
+Ses için hücre tek türdeş bir yumrudur. Empedans cihazı için zar açıkça
+modellenir, çünkü orada etkinin tamamı odur. \\[4pt]
+\textbf{IDT ısınması} &
+Suyun sesi soğurmasından gelen ısı ilk ilkelerden hesaplanır ve
+\SI{0,006}{\kelvin} çıkar --- ihmal edilebilir, ve artık bunu \emph{görebiliyoruz}.
+Gerçek cihazlardaki birkaç ila onlarca kelvinlik ısınma IDT'deki dirençsel ve
+tabandaki viskoelastik kayıplardan gelir; bunu hesaplamak piezoelektrik çözümü
+gerektirir. Kullanılan katsayı açıkça varsayım etiketlidir. \\[4pt]
+\textbf{Sonoporasyon} &
+Liziz eşiğinin altındaki zar gözeneklenmesi, hücreyi öldürmeden tripan mavisini
+içeri alabilir ve canlılık okumasını bozar. Ayrıca ölü hücreler canlı hücre
+yoğunluğu ve sıkıştırılabilirliğiyle taşınır, bu yüzden nereye gittikleri
+tahmini canlılarınkinden daha az güvenilirdir. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{Çalıştığı yerde bile modelin zorlandığı nokta}
+
+Bütün akustik kuram, hücrenin ses dalga boyundan çok daha küçük olduğunu varsayar.
+Bunun ölçüsü, kabaca ``hücre kaç dalga boyu genişliğinde'' anlamına gelen
+$k a$'dır. Alışılmış sınır $ka < 0{,}1$'dir.
+
+\begin{center}\small
+\begin{tabular}{rrl}
+\toprule
+\textbf{Frekans} & \SI{9}{\micro\meter}'lik hücre için $ka$ & \\
+\midrule
+\SI{6,632}{\mega\hertz} & 0,39 & \textbf{ders kitabı sınırının ötesinde --- uyarılır} \\
+\SI{20}{\mega\hertz}    & 1,06 & \textbf{fena hâlde ötesinde --- yüksek sesle uyarılır} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{warnbox}
+Varsayılan çalışma noktası, kullandığı kuramın sıkı geçerliliğinin zaten
+dışındadır. Bu burada ortaya çıkarılmış bir kusur değildir --- akustik tümör
+hücresi ayrımı üzerine yayımlanmış deneysel literatür de aynı rejimde çalışır ve
+kuramın orada kuvveti fazla tahmin ettiği bilinir.
+
+Yazılımın tepkisi, sayıyı hesaplayıp her koşuda kaynağı adıyla anan bir uyarı
+basmaktır; susmak değil. Ne zaman menzilinin dışında kullanıldığını size söyleyen
+bir model, sessizce daha dar olandan daha kullanışlıdır.
+\end{warnbox}
+
+\subsection*{Sayılar nereden geliyor}
+
+Yazılımdaki her fiziksel sabit ya yayımlanmış bir kaynağa (DOI) dayanır ya da
+varsayım olduğunu ve nedenini söyleyen açık bir etiket taşır. Üçüncü bir kategori
+yoktur ve otomatik bir test kimsenin eklemesine izin vermez.
+
+65 malzeme değerinin 27'si yayımlanmış kaynaklıdır, 38'i işaretli varsayımdır.
+\texttt{biosim materials} komutu 38'ini, her birinin gerekçesiyle basar. Bir
+yöntem bölümünün açıklaması gereken liste tam olarak budur.
+
+\begin{plain}
+Amaç varsayımların kötü olduğunu söylemek değildir. Amaç, okuyucunun tek bir
+komutla hangi sayıların biri tarafından ölçüldüğünü, hangilerinin yazar
+tarafından seçildiğini öğrenebilmesidir --- 65'inin de aynı otoriteyle sunulması
+yerine.
+\end{plain}
+
+% ============================================================================
+\clearpage
+\section{Her şey tek sayfada}
+
+\begin{enumerate}[leftmargin=*,itemsep=6pt]
+\item \textbf{Sorun samanlıkta iğne aramaktır.} Beş milyar kan hücresi arasında
+bir tümör hücresi --- ve aramayı sağ atlatması gerekiyor.
+
+\item \textbf{Tutamak boyuttur.} Tümör hücreleri alyuvarlardan yaklaşık üç kat
+geniştir ve bir hücrenin bunu gizlemek için yapabileceği hiçbir şey yoktur.
+
+\item \textbf{Ses nazik, görünmez bir manzara sunar.} Bir çipin iki karşıt
+yanından gönderilen iki yüzey dalgası, sessiz ve gürültülü çizgileri olan duran
+bir örüntü kurar. Hücreler sessiz çizgilere doğru yokuş aşağı yuvarlanır.
+
+\item \textbf{İtme hacimle, direnç genişlikle büyür.} Dolayısıyla yanal hız
+yarıçapın karesiyle ölçeklenir. Üç kat geniş bir hücre yaklaşık on kat hızlı
+gider. \emph{Cihaz bu tek olgudan ibarettir.}
+
+\item \textbf{Gerisi zamanlamadır.} Hücreler ses alanında 0,36 saniye geçirir.
+Tümör hücreleri bu sürede ortaya varır; alyuvarlar varmaz. Orta çıkışı alın.
+
+\item \textbf{Matematik, beş çarpanlı tek bir denklemdir:} ses ne kadar
+gürültülü, hücre ne kadar büyük, sudan ne kadar farklı, örüntü ne kadar sık ve
+hücre sessiz çizgiye göre nerede duruyor.
+
+\item \textbf{Hesaplama üçgenler ve parakete hesabıdır.} Ses alanını bulmak için
+kanalı üçgenlere bölün; sonra her hücreyi küçücük zaman adımlarıyla ilerletin.
+
+\item \textbf{İnandırıcılık denetimdedir.} 230 otomatik test, elle çözülebilir
+durumlarla karşılaştırır, sayılardan bağımsız olarak doğru olması gereken
+ilişkileri doğrular, yanıtın ağ inceltildikçe değişmeyi bıraktığını onaylar ---
+ve üretilmiş çözümlerle çözücülerin \emph{vaat ettikleri hızda} yakınsadığını
+gösterir.
+
+\item \textbf{Dürüstlük uyarılardadır.} Model, geçerliliğinin dışına çıktığını,
+çalışma noktasının yanlış sayıda sessiz çizgi ürettiğini ve girdilerinden
+hangilerinin ölçülmek yerine varsayıldığını duyurur. Ayrıca her orana iki ayrı
+belirsizlik ekler --- ve \%100'de sıfır genişlik veren aralığı kullanmaz.
+
+\item \textbf{Aynı iskelet üç cihaz daha çalıştırır} --- empedans izleme, hücre
+sayımı, hücre takibi --- çünkü aynı çekirdeği paylaşırlar: deneyi tanımla,
+doğrula, çöz, kaydet, çiz.
+\end{enumerate}
+
+\vfill
+
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\small\color{muted}
+\textbf{Simülasyonun ne işe yaradığına dair kapanış notu.} Bunların hiçbiri bir
+deneyin yerini tutmaz. Yaptığı şey, \SI{300}{\micro\meter}'lik bir kanalda
+\SI{20}{\mega\hertz}'in size bir yerine üç toplama şeridi verdiğini saniyeler
+içinde ve bedelsiz öğrenmenizi sağlamaktır --- çipi ürettikten sonra öğrenmek
+yerine. Değer önerisinin tamamı budur: yazılımda yapılan hatalar ucuzdur.
+\end{minipage}
+\end{center}
+
+% ============================================================================
+\clearpage
+\appendix
+\section{Tek çizelgede bütün simgeler}
+
+\begin{center}\small
+\begin{tabular}{cll}
+\toprule
+\textbf{Simge} & \textbf{Adı} & \textbf{Düz anlamı} \\
+\midrule
+$r$ & yarıçap & hücrenin ne kadar büyük olduğu \\
+$V_c$ & hacim & $\tfrac43\pi r^3$ \\
+$\rho_p,\rho_f$ & yoğunluk & hücrenin / suyun birim hacim başına ağırlığı \\
+$\kappa_p,\kappa_f$ & sıkıştırılabilirlik & hücrenin / suyun ne kadar kolay sıkıştığı \\
+$\mu$ & viskozite & sıvının ne kadar koyu olduğu \\
+$c$ & ses hızı & örüntünün ne kadar hızlı ilerlediği \\
+$f$ & frekans & saniyedeki titreşim sayısı \\
+$\lambda$ & dalga boyu & titreşimler arasındaki uzaklık \\
+$k$ & dalga sayısı & $2\pi/\lambda$; dalga boyunun tersyüzü \\
+$p_0$ & basınç genliği & ne kadar gürültülü \\
+$\Phi$ & kontrast faktörü & hücrenin hangi yöne, ne kadar güçlü gittiği \\
+$f_1,f_2$ & saçılma terimleri & $\Phi$'nin sertlik ve ağırlık payları \\
+$U$ & Gor'kov potansiyeli & görünmez manzaranın yüksekliği \\
+$F_r$ & radyasyon kuvveti & sesten gelen yanal itme \\
+$F_d$ & sürüklenme kuvveti & suyun direnci \\
+$\mathrm{Re}$ & Reynolds sayısı & sıvının süzülüp süzülmediği (burada süzülmez) \\
+$Q$ & debi & saniyede pompalanan sıvı \\
+$T$ & sıcaklık & viskoziteyi ve dolayısıyla göç hızını belirler \\
+$Z$ & empedans & alternatif akım için elektriksel direnç \\
+$\mathrm{CI}$ & Hücre İndeksi & elektrotun ne kadar kaplı olduğu \\
+$\mathrm{IC}_{50}$ & yarı etkin doz & yarısını öldüren ilaç derişimi \\
+$\mathrm{CEM43}$ & termal doz & 43 °C'deki eşdeğer dakika \\
+$\mathrm{MI}$ & mekanik indeks & kavitasyon eşiğine ne kadar yakın olunduğu \\
+$\mathrm{MSD}$ & ort.\ karesel yer değiştirme & bir hücrenin ne kadar dolaştığı \\
+$\alpha$ & MSD üsteli & 1 = rastgele dolaşma, 2 = bir yere yürüme \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Birimlerle düşünmeyenler için}
+
+\begin{center}\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Birim} & \textbf{Büyüklüğü} & \textbf{O büyüklükte bir şey} \\
+\midrule
+metre & 1 & uzun bir adım \\
+milimetre (mm) & binde bir & bir madenî paranın kalınlığı \\
+mikrometre (µm) & milyonda bir & bir alyuvar 8 tanesi genişliğinde \\
+nanometre (nm) & milyarda bir & bir hücre zarı 5 tanesi kalınlığında \\
+\midrule
+newton (N) & 1 & bir elmanın ağırlığı \\
+pikonewton (pN) & trilyonda bir & \textbf{bu belgedeki kuvvetler} \\
+\midrule
+pascal (Pa) & 1 & çok küçük bir basınç \\
+kilopascal (kPa) & bin & atmosfer basıncı 101 kPa \\
+megapascal (MPa) & milyon & \textbf{bizim ses basıncımız 0,45} \\
+\midrule
+hertz (Hz) & saniyede 1 & yavaş bir kalp atışı \\
+megahertz (MHz) & saniyede milyon & \textbf{bizim frekansımız 6,6} \\
+\midrule
+litre (L) & 1 & bir kutu süt \\
+mikrolitre (µL) & milyonda bir & küçük bir damla; \textbf{dakikada 5 tane pompalıyoruz} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Her fikir nereden geldi}
+
+Buradaki fizik yeni değildir. Bu yazılım yayımlanmış sonuçları uygular; katkı
+onları açık kaynak kodda, varsayımları etiketlenmiş biçimde bir araya
+getirmektir.
+
+\begin{center}\small
+\begin{tabular}{p{4.9cm}p{9.5cm}}
+\toprule
+\textbf{Fikir} & \textbf{Kaynak} \\
+\midrule
+Ses alanındaki küçük bir parçacığa etkiyen kuvvet &
+Gor'kov (1962); modern türetme Bruus, \emph{Lab on a Chip} \textbf{12}:1014
+(2012), \texttt{doi:10.1039/c2lc21068a} \\[4pt]
+Düğüm aralığını sıvı değil kristal belirler &
+Shi ve ark., \emph{Lab on a Chip} \textbf{9}:3354 (2009),
+\texttt{doi:10.1039/b910595f} \\[4pt]
+Tümör hücrelerini bu yolla ayırmak &
+Li ve ark., \emph{PNAS} \textbf{112}:4970 (2015),
+\texttt{doi:10.1073/pnas.1504484112} \\[4pt]
+Yavaş akışta küreye etkiyen sürüklenme &
+Stokes (1851); Batchelor, \texttt{doi:10.1017/CBO9780511800955} \\[4pt]
+Dikdörtgen kanalda akış &
+White, \emph{Viscous Fluid Flow}; Bruus, \emph{Theoretical Microfluidics} \\[4pt]
+Suyun sıcaklığa bağlı özellikleri &
+Kell (1975), \texttt{doi:10.1021/je60064a005}; Marczak (1997),
+\texttt{doi:10.1121/1.420332}; Kestin ve ark.\ (1978),
+\texttt{doi:10.1063/1.555581} \\[4pt]
+Termal hasar dozu &
+Sapareto \& Dewey (1984), \texttt{doi:10.1016/0360-3016(84)90379-1} \\[4pt]
+Kayma gerilmesiyle hücre hasarı &
+Leverett ve ark.\ (1972), \texttt{doi:10.1016/S0006-3495(72)86085-5} \\[4pt]
+Kavitasyon ve mekanik indeks &
+Apfel \& Holland (1991), \texttt{doi:10.1016/0301-5629(91)90125-Q} \\[4pt]
+Hücreleri elektrotla ölçmek &
+Giaever \& Keese, \emph{PNAS} \textbf{88}:7896 (1991),
+\texttt{doi:10.1073/pnas.88.17.7896} \\[4pt]
+Video kareleri arasında parçacık izleme &
+Crocker \& Grier, \emph{J.\ Colloid Interface Sci.} \textbf{179}:298 (1996),
+\texttt{doi:10.1006/jcis.1996.0217} \\[4pt]
+Hücre hareketi kalıcı rastgele yürüyüş olarak &
+Selmeczi ve ark., \emph{Biophysical Journal} \textbf{89}:912 (2005),
+\texttt{doi:10.1529/biophysj.105.061150} \\[4pt]
+Akustik akış ve ne zaman baskın olduğu &
+Muller ve ark., \emph{Lab on a Chip} \textbf{12}:4617 (2012),
+\texttt{doi:10.1039/c2lc40612h} \\[4pt]
+Binom oranı için güven aralığı &
+Brown, Cai \& DasGupta (2001), \emph{Statist.\ Sci.} \textbf{16}:101,
+\texttt{doi:10.1214/ss/1009213286} \\[4pt]
+Üretilmiş çözümlerle kod sağlaması &
+Roache (2002), \emph{J.\ Fluids Eng.} \textbf{124}:4,
+\texttt{doi:10.1115/1.1436090} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{1cm}
+\begin{center}
+\small\color{muted}
+Her malzeme sabiti ve ölçülmek yerine varsayılan her değer dahil olmak üzere
+kaynakların tam listesi \texttt{docs/physics.md} içindedir ve
+\texttt{biosim materials} ile basılabilir.
+\end{center}
+
+\end{document}

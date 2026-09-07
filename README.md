@@ -366,8 +366,9 @@ için `pressure_amplitude` değerini ölçüp doğrudan verin.
 
 | Belge | İçerik |
 |---|---|
-| [docs/USER\_MANUAL.md](docs/USER_MANUAL.md) | **Kullanım kılavuzu** — kurulum, web arayüzü, CLI, Python API, tam yapılandırma referansı, kendi verinizle çalışma, Streamlit'e dağıtım, sorun giderme |
-| [docs/explainer/](docs/explainer/) | Uzman olmayanlar için 29 sayfalık PDF anlatım |
+| [docs/USER\_MANUAL.tr.md](docs/USER_MANUAL.tr.md) | **Kullanım kılavuzu** — kurulum, web arayüzü, CLI, Python API, tam yapılandırma referansı, kendi verinizle çalışma, Streamlit'e dağıtım, sorun giderme |
+| [docs/USER\_MANUAL.md](docs/USER_MANUAL.md) | The same manual, in English |
+| [docs/explainer/](docs/explainer/) | Uzman olmayanlar için 31 sayfalık PDF anlatım (**Türkçe** ve İngilizce) |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Katmanlar, sözleşmeler, veri akışı, sınırlamalar |
 | [docs/physics.md](docs/physics.md) | Her formül, kaynağı ve geçerlilik sınırı |
 | [docs/validation.md](docs/validation.md) | Ne, neye karşı, hangi toleransla doğrulandı |
@@ -375,13 +376,11 @@ için `pressure_amplitude` değerini ölçüp doğrudan verin.
 
 ## Uzman olmayanlar için / For non-experts
 
-Fiziği, matematiği ve hesaplamayı sıfırdan anlatan 29 sayfalık bir belge:
-[`docs/explainer/biosim-lab-explained.pdf`](docs/explainer/). Beşte biri
-modelin **yanlış yaptığı** şeylere ayrılmıştır, çünkü okuyucunun geri kalanına
-güvenip güvenmeyeceğine karar vermesi için gereken kısım odur.
-
-A 29-page walk through the biology, physics, mathematics and computation
-behind the project, assuming none of them.
+Biyolojiyi, fiziği, matematiği ve hesaplamayı sıfırdan anlatan 31 sayfalık bir
+belge: [`docs/explainer/biosim-lab-nasil-calisir.pdf`](docs/explainer/). Beşte
+biri modelin **yanlış yaptığı** şeylere ayrılmıştır, çünkü okuyucunun geri
+kalanına güvenip güvenmeyeceğine karar vermesi için gereken kısım odur.
+İngilizce sürümü de aynı klasörde (`biosim-lab-explained.pdf`, 29 sayfa).
 
 ## Katkı / Contributing
 

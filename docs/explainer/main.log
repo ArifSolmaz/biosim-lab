@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Homebrew) (preloaded format=xelatex 2026.3.4)  7 SEP 2026 20:59
+This is XeTeX, Version 3.141592653-2.6-0.999998 (TeX Live 2026/Homebrew) (preloaded format=xelatex 2026.3.4)  8 SEP 2026 00:36
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1653,49 +1653,49 @@ Package siunitx Info: Option "detect-all" has been deprecated in this release.
 (siunitx)             as a replacement.
 
 Package translations Info: No language package found. I am going to use `englis
-h' as default language. on input line 89.
+h' as default language. on input line 91.
  (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 89.
-LaTeX Font Info:    ... okay on input line 89.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 91.
+LaTeX Font Info:    ... okay on input line 91.
 LaTeX Font Info:    Overwriting math alphabet `\mathrm' in version `normal'
 (Font)                  TU/STIXTwoMath(1)/m/n --> TU/STIXTwoText(0)/m/n on inpu
-t line 89.
+t line 91.
 LaTeX Font Info:    Overwriting math alphabet `\mathit' in version `normal'
-(Font)                  OT1/cmr/m/it --> TU/STIXTwoText(0)/m/it on input line 8
-9.
+(Font)                  OT1/cmr/m/it --> TU/STIXTwoText(0)/m/it on input line 9
+1.
 LaTeX Font Info:    Overwriting math alphabet `\mathbf' in version `normal'
-(Font)                  OT1/cmr/bx/n --> TU/STIXTwoText(0)/b/n on input line 89
+(Font)                  OT1/cmr/bx/n --> TU/STIXTwoText(0)/b/n on input line 91
 .
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `normal'
 (Font)                  OT1/cmss/m/n --> TU/HelveticaNeue(0)/m/n on input line 
-89.
+91.
 LaTeX Font Info:    Overwriting math alphabet `\mathsf' in version `bold'
 (Font)                  OT1/cmss/bx/n --> TU/HelveticaNeue(0)/b/n on input line
- 89.
+ 91.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `normal'
-(Font)                  OT1/cmtt/m/n --> TU/Menlo(0)/m/n on input line 89.
+(Font)                  OT1/cmtt/m/n --> TU/Menlo(0)/m/n on input line 91.
 LaTeX Font Info:    Overwriting math alphabet `\mathtt' in version `bold'
-(Font)                  OT1/cmtt/m/n --> TU/Menlo(0)/b/n on input line 89.
+(Font)                  OT1/cmtt/m/n --> TU/Menlo(0)/b/n on input line 91.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
@@ -1741,14 +1741,14 @@ File: translations-basic-dictionary-english.trsl (english translation file `tra
 nslations-basic-dictionary')
 )
 Package translations Info: loading dictionary `translations-basic-dictionary' f
-or `english'. on input line 89.
-LaTeX Info: Redefining \microtypecontext on input line 89.
-Package microtype Info: Applying patch `item' on input line 89.
-Package microtype Info: Applying patch `toc' on input line 89.
-Package microtype Info: Applying patch `eqnum' on input line 89.
-Package microtype Info: Applying patch `footnote' on input line 89.
-Package microtype Info: Applying patch `verbatim' on input line 89.
-LaTeX Info: Redefining \microtypesetup on input line 89.
+or `english'. on input line 91.
+LaTeX Info: Redefining \microtypecontext on input line 91.
+Package microtype Info: Applying patch `item' on input line 91.
+Package microtype Info: Applying patch `toc' on input line 91.
+Package microtype Info: Applying patch `eqnum' on input line 91.
+Package microtype Info: Applying patch `footnote' on input line 91.
+Package microtype Info: Applying patch `verbatim' on input line 91.
+LaTeX Info: Redefining \microtypesetup on input line 91.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
 Package microtype Info: No adjustment of tracking.
@@ -1761,82 +1761,82 @@ Package microtype Info: Loading generic protrusion settings for font family
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
-Package hyperref Info: Link coloring OFF on input line 89.
+Package hyperref Info: Link coloring OFF on input line 91.
  (./main.out) (./main.out)
 \@outlinefile=\write4
 \openout4 = `main.out'.
 
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/n' will be
-(Font)              scaled to size 15.86856pt on input line 91.
+(Font)              scaled to size 15.86856pt on input line 93.
 Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `HelveticaNeue' (encoding: TU).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/b/n' will be
-(Font)              scaled to size 15.86856pt on input line 91.
+(Font)              scaled to size 15.86856pt on input line 93.
 LaTeX Font Info:    Font shape `TU/Menlo(0)/b/n' will be
-(Font)              scaled to size 14.86081pt on input line 91.
+(Font)              scaled to size 14.86081pt on input line 93.
 Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `Menlo' (encoding: TU).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/b/n' will be
-(Font)              scaled to size 11.01984pt on input line 91.
+(Font)              scaled to size 11.01984pt on input line 93.
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/n' will be
-(Font)              scaled to size 11.01984pt on input line 91.
+(Font)              scaled to size 11.01984pt on input line 93.
 Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             `STIXTwoMath' (encoding: TU).
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 12.00128pt on input line 91.
+(Font)              scaled to size 12.00128pt on input line 93.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 8.00085pt on input line 91.
+(Font)              scaled to size 8.00085pt on input line 93.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 6.00064pt on input line 91.
+(Font)              scaled to size 6.00064pt on input line 93.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 11.99872pt on input line 91.
+(Font)              scaled to size 11.99872pt on input line 93.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 7.99915pt on input line 91.
+(Font)              scaled to size 7.99915pt on input line 93.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 5.99936pt on input line 91.
+(Font)              scaled to size 5.99936pt on input line 93.
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/n' will be
-(Font)              scaled to size 10.05559pt on input line 91.
+(Font)              scaled to size 10.05559pt on input line 93.
 LaTeX Font Info:    Font shape `TU/Menlo(0)/m/n' will be
-(Font)              scaled to size 9.41699pt on input line 91.
+(Font)              scaled to size 9.41699pt on input line 93.
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/n' will be
-(Font)              scaled to size 9.1832pt on input line 91.
+(Font)              scaled to size 9.1832pt on input line 93.
 
 
 LaTeX Font Warning: Font shape `TU/STIXTwoText(0)/b/n' undefined
-(Font)              using `TU/STIXTwoText(0)/m/n' instead on input line 96.
+(Font)              using `TU/STIXTwoText(0)/m/n' instead on input line 98.
 
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 10.95116pt on input line 109.
+(Font)              scaled to size 10.95116pt on input line 111.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 7.6658pt on input line 109.
+(Font)              scaled to size 7.6658pt on input line 111.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 6.02315pt on input line 109.
+(Font)              scaled to size 6.02315pt on input line 111.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 10.94882pt on input line 109.
+(Font)              scaled to size 10.94882pt on input line 111.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 7.66417pt on input line 109.
+(Font)              scaled to size 7.66417pt on input line 111.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 6.02185pt on input line 109.
+(Font)              scaled to size 6.02185pt on input line 111.
 LaTeX Font Info:    Font shape `TU/Menlo(0)/m/n' will be
-(Font)              scaled to size 8.6pt on input line 115.
+(Font)              scaled to size 8.6pt on input line 117.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 10.00107pt on input line 115.
+(Font)              scaled to size 10.00107pt on input line 117.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 7.00075pt on input line 115.
+(Font)              scaled to size 7.00075pt on input line 117.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 5.00053pt on input line 115.
+(Font)              scaled to size 5.00053pt on input line 117.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 9.99893pt on input line 115.
+(Font)              scaled to size 9.99893pt on input line 117.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 6.99925pt on input line 115.
+(Font)              scaled to size 6.99925pt on input line 117.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 4.99947pt on input line 115.
+(Font)              scaled to size 4.99947pt on input line 117.
 [1
 
 ] (./main.toc
@@ -1850,17 +1850,17 @@ LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/n' will be
 
  [3]
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/b/n' will be
-(Font)              scaled to size 10.05559pt on input line 152.
+(Font)              scaled to size 10.05559pt on input line 154.
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/b/n' will be
-(Font)              scaled to size 9.1832pt on input line 152.
+(Font)              scaled to size 9.1832pt on input line 154.
 
-Underfull \hbox (badness 3919) in paragraph at lines 186--188
+Underfull \hbox (badness 3919) in paragraph at lines 188--190
 []|\TU/STIXTwoText(0)/b/n/10 density $[][]$ between [][] and [][], where water 
 is
  []
 
 
-Overfull \hbox (18.569pt too wide) in paragraph at lines 181--194
+Overfull \hbox (18.569pt too wide) in paragraph at lines 183--196
  [] 
  []
 
@@ -1868,45 +1868,45 @@ Overfull \hbox (18.569pt too wide) in paragraph at lines 181--194
 
 ]
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 9.00096pt on input line 214.
+(Font)              scaled to size 9.00096pt on input line 216.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 8.99904pt on input line 214.
+(Font)              scaled to size 8.99904pt on input line 216.
 
-Overfull \hbox (85.46199pt too wide) in paragraph at lines 253--259
+Overfull \hbox (85.46199pt too wide) in paragraph at lines 255--261
  [] 
  []
 
 [5]
-Overfull \hbox (300.2389pt too wide) in paragraph at lines 279--288
+Overfull \hbox (300.2389pt too wide) in paragraph at lines 281--290
  [] 
  []
 
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/n' will be
-(Font)              scaled to size 7.34656pt on input line 331.
+(Font)              scaled to size 7.34656pt on input line 333.
 [6
 
 ] [7]
-Overfull \hbox (5.6078pt too wide) in paragraph at lines 444--451
+Overfull \hbox (5.6078pt too wide) in paragraph at lines 446--453
  [] 
  []
 
 [8]
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(2)/m/n' will be
-(Font)              scaled to size 14.40152pt on input line 528.
+(Font)              scaled to size 14.40152pt on input line 530.
 LaTeX Font Info:    Font shape `TU/STIXTwoMath(3)/m/n' will be
-(Font)              scaled to size 14.39845pt on input line 528.
+(Font)              scaled to size 14.39845pt on input line 530.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 528.
+(hyperref)                removing `math shift' on input line 530.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `superscript' on input line 528.
+(hyperref)                removing `superscript' on input line 530.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 528.
+(hyperref)                removing `math shift' on input line 530.
 
 File: ../../assets/02_trajectories.png Graphic file (type bmp)
 <../../assets/02_trajectories.png>
@@ -1916,7 +1916,7 @@ LaTeX Warning: `h' float specifier changed to `ht'.
 [9] [10] [11
 
 ] [12] [13]
-Overfull \hbox (300.785pt too wide) in paragraph at lines 1002--1012
+Overfull \hbox (300.785pt too wide) in paragraph at lines 1004--1014
  [] 
  []
 
@@ -1932,68 +1932,68 @@ File: ../../assets/05_dose_response.png Graphic file (type bmp)
 LaTeX Warning: `h' float specifier changed to `ht'.
 
 [15] [16]
-Underfull \hbox (badness 1348) in paragraph at lines 1097--1097
+Underfull \hbox (badness 1348) in paragraph at lines 1099--1099
 []|\TU/STIXTwoText(0)/b/n/10 The image is brighter in the
  []
 
 
-Underfull \hbox (badness 2856) in paragraph at lines 1101--1102
+Underfull \hbox (badness 2856) in paragraph at lines 1103--1104
 \TU/STIXTwoText(0)/b/n/10 and counting anything random
  []
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 1127.
+(hyperref)                removing `math shift' on input line 1129.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\leavevmode@ifvmode' on input line 1127.
+(hyperref)                removing `\leavevmode@ifvmode' on input line 1129.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
 (hyperref)                \kern 1.82538pt
-(hyperref)                removed on input line 1127.
+(hyperref)                removed on input line 1129.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `math shift' on input line 1127.
+(hyperref)                removing `math shift' on input line 1129.
 
 [17
 
 ] [18]
-Overfull \hbox (8.11316pt too wide) in paragraph at lines 1245--1251
+Overfull \hbox (8.11316pt too wide) in paragraph at lines 1247--1253
  [] 
  []
 
 LaTeX Font Info:    Font shape `TU/HelveticaNeue(0)/m/it' will be
-(Font)              scaled to size 7.34656pt on input line 1294.
+(Font)              scaled to size 7.34656pt on input line 1296.
 [19
 
 ]
 File: ../../assets/04_pressure_field.png Graphic file (type bmp)
 <../../assets/04_pressure_field.png>
  [20]
-Underfull \hbox (badness 10000) in paragraph at lines 1408--1409
+Underfull \hbox (badness 10000) in paragraph at lines 1410--1411
 []|\TU/STIXTwoText(0)/b/n/10 the hand-derived one-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1408--1409
+Underfull \hbox (badness 10000) in paragraph at lines 1410--1411
 \TU/STIXTwoText(0)/b/n/10 dimensional formula, on a
  []
 
 
-Underfull \hbox (badness 1168) in paragraph at lines 1410--1410
+Underfull \hbox (badness 1168) in paragraph at lines 1412--1412
 []|\TU/STIXTwoText(0)/b/n/10 the known shape of a standing
  []
 
 
-Underfull \hbox (badness 2027) in paragraph at lines 1411--1412
+Underfull \hbox (badness 2027) in paragraph at lines 1413--1414
 []|\TU/STIXTwoText(0)/b/n/10 numerically integrating its own
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1417--1417
+Underfull \hbox (badness 10000) in paragraph at lines 1419--1419
 []|\TU/STIXTwoText(0)/b/n/10 synthetic video with planted
  []
 
@@ -2009,25 +2009,25 @@ LaTeX Warning: `h' float specifier changed to `ht'.
 ] [24] [25] [26] [27
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 1832--1833
+Underfull \hbox (badness 10000) in paragraph at lines 1834--1835
 []|\TU/STIXTwoText(0)/b/n/10 Giaever & Keese, \TU/STIXTwoText(0)/m/it/10 PNAS \
 TU/STIXTwoText(0)/b/n/10 88:7896 (1991),
  []
 
 
-Underfull \hbox (badness 3514) in paragraph at lines 1835--1836
+Underfull \hbox (badness 3514) in paragraph at lines 1837--1838
 []|\TU/STIXTwoText(0)/b/n/10 Crocker & Grier, \TU/STIXTwoText(0)/m/it/10 J. Col
 loid Interface Sci. \TU/STIXTwoText(0)/b/n/10 179:298 (1996),
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1838--1839
+Underfull \hbox (badness 10000) in paragraph at lines 1840--1841
 []|\TU/STIXTwoText(0)/b/n/10 Selmeczi et al., \TU/STIXTwoText(0)/m/it/10 Biophy
 sical Journal \TU/STIXTwoText(0)/b/n/10 89:912 (2005),
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 1841--1843
+Underfull \hbox (badness 10000) in paragraph at lines 1843--1845
 []|\TU/STIXTwoText(0)/b/n/10 Muller et al., \TU/STIXTwoText(0)/m/it/10 Lab on a
  Chip \TU/STIXTwoText(0)/b/n/10 12:4617 (2012),
  []
@@ -2043,13 +2043,16 @@ L3 programming layer <2026-01-19>
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
 Package rerunfilecheck Info: File `main.out' has not changed.
 (rerunfilecheck)             Checksum: B7B6FDA68C3212272A6D1052DDBE8E88;9257.
  ) 
 Here is how much of TeX's memory you used:
  49307 strings out of 468168
  1208370 string characters out of 5423555
- 1853901 words of memory out of 5000000
+ 1853903 words of memory out of 5000000
  77333 multiletter control sequences out of 15000+600000
  633785 words of font info for 141 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191

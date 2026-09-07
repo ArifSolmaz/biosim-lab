@@ -2,11 +2,13 @@
 
 | Belge | İçerik |
 |---|---|
-| [USER_MANUAL.md](USER_MANUAL.md) | **Kullanım kılavuzu** — kurulum, web arayüzü, CLI, Python API, yapılandırma referansı, Streamlit dağıtımı, sorun giderme |
+| [USER_MANUAL.tr.md](USER_MANUAL.tr.md) | **Kullanım kılavuzu (Türkçe)** — kurulum, web arayüzü, CLI, Python API, yapılandırma referansı, Streamlit dağıtımı, sorun giderme |
+| [USER_MANUAL.md](USER_MANUAL.md) | The same manual in English — kurulum, web arayüzü, CLI, Python API, yapılandırma referansı, Streamlit dağıtımı, sorun giderme |
 | [../README.md](../README.md) | Kurulum, hızlı başlangıç, cihaz listesi, öne çıkan fizik sonuçları |
 | [../ARCHITECTURE.md](../ARCHITECTURE.md) | Katmanlar, `Instrument` / `Solver` sözleşmeleri, veri akışı, doğrulama stratejisi |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Yeni cihaz eklemek — 10 adım; değişmez kurallar |
 | [physics.md](physics.md) | Kullanılan tüm formüller, kaynakları ve geçerlilik sınırları |
 | [instruments.md](instruments.md) | Her cihazın parametreleri, çıktıları ve kapsamı |
 | [validation.md](validation.md) | Ne doğrulandı, neye karşı, hangi toleransla |
-| [explainer/biosim-lab-explained.pdf](explainer/) | **Uzman olmayanlar için 29 sayfalık anlatım** — biyoloji, fizik, matematik ve hesaplama, sıfırdan (İngilizce) |
+| [explainer/biosim-lab-nasil-calisir.pdf](explainer/) | **Uzman olmayanlar için 31 sayfalık anlatım** — biyoloji, fizik, matematik ve hesaplama, sıfırdan |
+| [explainer/biosim-lab-explained.pdf](explainer/) | The same explainer in English (29 pages) |

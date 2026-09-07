@@ -73,7 +73,9 @@
 \newtcolorbox{keybox}[1][]{
   enhanced, breakable, colback=surface, colframe=ink, boxrule=1pt,
   arc=2pt, left=8pt, right=8pt, top=7pt, bottom=7pt,
-  fonttitle=\sffamily\bfseries\small, coltitle=ink,
+  % coltitle must contrast with colframe: the title sits ON the frame bar, so
+  % ink-on-ink rendered as a solid black stripe with the heading invisible.
+  fonttitle=\sffamily\bfseries\small, coltitle=surface,
   title={The one equation that matters}, #1}
 
 \newcommand{\sym}[2]{\textcolor{ink}{$#1$} & #2 \\}

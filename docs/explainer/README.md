@@ -1,8 +1,14 @@
-# The explainer
+# The explainer / Anlatım
 
-`biosim-lab-explained.pdf` — a 29-page walk through the biology, physics,
-mathematics and computation behind this project, written for someone who is not
-an expert in any of them.
+Two editions of the same document:
+
+| File | Language | Pages |
+|---|---|---|
+| `biosim-lab-explained.pdf` (`main.tex`) | English | 29 |
+| `biosim-lab-nasil-calisir.pdf` (`main-tr.tex`) | Türkçe | 31 |
+
+A walk through the biology, physics, mathematics and computation behind this
+project, written for someone who is not an expert in any of them.
 
 Roughly a fifth of it is about what the model gets *wrong*, because that is the
 part a reader needs in order to judge the rest.
@@ -22,8 +28,14 @@ part a reader needs in order to judge the rest.
 ## Building it
 
 ```bash
-make            # needs xelatex
+make            # both editions; needs xelatex
+make en         # English only
+make tr         # Türkçe only
 ```
+
+The Turkish edition uses `polyglossia` with `\setmainlanguage{turkish}` for
+correct hyphenation. Both are built with XeLaTeX, which is what makes the
+Turkish characters and the STIX Two maths font work together.
 
 The figures come from `../../assets/`, which the examples generate:
 
