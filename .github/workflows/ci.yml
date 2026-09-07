@@ -1,0 +1,192 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  MPLBACKEND: Agg
+  PYVISTA_OFF_SCREEN: "true"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  test:
+    name: tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      # Installed from packages.txt itself, so the file the hosted app depends
+      # on is exercised rather than duplicated. PyVista/VTK and Gmsh link
+      # against OpenGL and X11 even when rendering off-screen.
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          xargs -a packages.txt sudo apt-get install -y -qq
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[mesh,dev]"
+
+      - name: Lint
+        run: ruff check biosim_lab tests examples streamlit_app.py
+
+      - name: Tests
+        run: pytest --cov=biosim_lab --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage
+        if: matrix.python == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  # ---------------------------------------------------------------------------
+  # The whole point of the plugin architecture is that the core works with no
+  # optional back-end present. That claim is only true if something checks it.
+  minimal:
+    name: tests with no optional back-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install core only (no gmsh, no pyvista, no napari)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Tests must still pass
+        run: pytest -q
+      - name: doctor must report, not crash
+        run: biosim doctor
+
+  # ---------------------------------------------------------------------------
+  # Guards the class of bug that shipped a blank sweep heatmap: the script exits
+  # 0, writes a valid PNG, and the PNG contains nothing. Unit tests cover the
+  # specific case; this covers every figure the examples produce.
+  figures:
+    name: examples produce non-degenerate figures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          xargs -a packages.txt sudo apt-get install -y -qq
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[mesh,dev]" kaleido
+
+      - name: Run the examples
+        run: |
+          python examples/01_single_cell.py
+          python examples/02_ctc_vs_rbc.py
+          python examples/03_parameter_sweep.py --quick
+          python examples/04_validate_analytic_vs_fem.py
+          python examples/05_impedance_rtca.py
+          python examples/06_imaging_demo.py
+
+      - name: No figure may be blank
+        run: python scripts/check_figures.py assets
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: figures
+          path: assets/*.png
+
+  # ---------------------------------------------------------------------------
+  package:
+    name: wheel builds and installs clean
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check dist/*
+      - name: Install the wheel into a clean environment
+        run: |
+          python -m venv /tmp/fresh
+          /tmp/fresh/bin/pip install --upgrade pip
+          /tmp/fresh/bin/pip install dist/*.whl
+          # Entry points must resolve from an installed wheel, not just a checkout.
+          /tmp/fresh/bin/biosim list
+          /tmp/fresh/bin/biosim doctor
+
+  # ---------------------------------------------------------------------------
+  streamlit:
+    name: hosted app imports and its manifests are valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: System libraries
+        run: |
+          sudo apt-get update -qq
+          xargs -a packages.txt sudo apt-get install -y -qq
+      - name: Install exactly what the host installs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: The app must import without the package being pip-installed
+        run: python -c "import streamlit_app; print('pages:', list(streamlit_app.PAGES))"
+      - name: Instruments must resolve from a bare checkout
+        run: |
+          python -c "
+          from biosim_lab.registry import installed_instruments, discovery_source
+          found = sorted(installed_instruments())
+          print('instruments:', found)
+          print('via:', discovery_source())
+          assert len(found) == 4, found
+          "
+
+  # ---------------------------------------------------------------------------
+  # Advisory only. There are 36 known errors as of this commit; the job exists so
+  # the number is visible and can only go down, not to block anyone today.
+  types:
+    name: mypy (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" mypy
+      - name: mypy
+        run: mypy biosim_lab | tail -40

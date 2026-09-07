@@ -157,3 +157,84 @@ def test_trajectory_figure_thins_but_keeps_the_legend():
                                    max_tracks_per_population=10)
     shown = [t for t in fig.data if t.showlegend]
     assert len(shown) == 2, "exactly one legend entry per population"
+
+
+# ---------------------------------------------------------------------------
+# regressions found by looking at the rendered figures
+# ---------------------------------------------------------------------------
+
+
+def _sweep(values: np.ndarray) -> xr.Dataset:
+    return xr.Dataset(
+        {"purity_percent": (("voltage_pp", "flow_rate"), values)},
+        coords={"voltage_pp": [5.0, 10.0, 15.0, 25.0],
+                "flow_rate": [8.3e-11, 2.5e-10, 6.7e-10]},
+    )
+
+
+def test_all_nan_sweep_slice_says_so_instead_of_rendering_blank():
+    """A slice where the metric is undefined everywhere used to ship as an
+    empty PNG with invented axes and no warning at all."""
+    fig = curves.sweep_heatmap_figure(
+        _sweep(np.full((4, 3), np.nan)), "purity_percent",
+        x="voltage_pp", y="flow_rate",
+    )
+    messages = [a.text for a in fig.layout.annotations]
+    assert any("No data in this slice" in m for m in messages), messages
+    assert any("undefined at every sweep point" in m for m in messages)
+
+
+def test_sweep_heatmap_uses_categorical_axes():
+    """Swept values are rarely evenly spaced; on a continuous axis the tiles
+    come out unequal and stop lining up with the tick labels."""
+    fig = curves.sweep_heatmap_figure(
+        _sweep(np.arange(12.0).reshape(4, 3)), "purity_percent",
+        x="voltage_pp", y="flow_rate",
+    )
+    assert fig.layout.xaxis.type == "category"
+    assert fig.layout.yaxis.type == "category"
+
+
+def test_sweep_heatmap_labels_undefined_cells_and_prints_values():
+    values = np.arange(12.0).reshape(4, 3)
+    values[0, 0] = np.nan
+    fig = curves.sweep_heatmap_figure(
+        _sweep(values), "purity_percent", x="voltage_pp", y="flow_rate",
+    )
+    flat = [cell for row in fig.data[0].text for cell in row]
+    assert flat.count("n/a") == 1, "the undefined cell must be marked, not left blank"
+    assert fig.data[0].texttemplate is not None, "small grids print their values"
+    # Labels must ride on the trace, not on layout annotations, which get
+    # coerced to numeric positions on a category axis.
+    assert len(fig.layout.annotations) == 0
+
+
+def test_percentage_sweeps_are_anchored_to_zero_hundred():
+    """Auto-scaling a 67-100 % spread makes a 5-point difference look like the
+    whole dynamic range, and makes panels incomparable."""
+    fig = curves.sweep_heatmap_figure(
+        _sweep(np.full((4, 3), 95.0)), "purity_percent",
+        x="voltage_pp", y="flow_rate",
+    )
+    assert (fig.data[0].zmin, fig.data[0].zmax) == (0.0, 100.0)
+
+
+def test_nyquist_axes_are_locked_to_equal_scale():
+    """The whole point of a Nyquist plot is the shape of the locus. Independent
+    axis scaling turns semicircles into ellipses and makes it unreadable."""
+    f = np.logspace(2, 7, 60)
+    z = 350 + 1 / (3e-5 * (1j * 2 * np.pi * f) ** 0.92)
+    fig = curves.nyquist_figure(f, z)
+    assert fig.layout.yaxis.scaleanchor == "x"
+    assert fig.layout.yaxis.scaleratio == 1
+
+
+def test_nyquist_marks_frequency_because_the_axes_cannot():
+    f = np.logspace(2, 7, 60)
+    z = 350 + 1 / (3e-5 * (1j * 2 * np.pi * f) ** 0.92)
+    labelled = curves.nyquist_figure(f, z)
+    bare = curves.nyquist_figure(f, z, label_decades=False)
+    assert len(labelled.layout.annotations) >= 2
+    assert len(bare.layout.annotations) == 0
+    texts = " ".join(a.text for a in labelled.layout.annotations)
+    assert "Hz" in texts

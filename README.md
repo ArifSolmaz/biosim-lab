@@ -391,9 +391,21 @@ gerektirmez — bkz. [CONTRIBUTING.md](CONTRIBUTING.md). Mimari için
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # 160 test, opsiyonel arka uç olmadan geçer
+pytest                    # 208 test, opsiyonel arka uç olmadan geçer
 ruff check biosim_lab
 ```
+
+Her itme ve her PR'da GitHub Actions altı iş çalıştırır
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+
+| İş | Ne denetler |
+|---|---|
+| `test` | Python 3.11 ve 3.12'de lint + tüm test paketi, kapsam raporuyla |
+| `minimal` | **Hiçbir opsiyonel arka uç kurulu değilken** paketin yine geçmesi — mimarinin temel iddiası |
+| `figures` | Örnekleri çalıştırır ve üretilen hiçbir şeklin boş olmadığını doğrular |
+| `package` | Wheel derlenir, temiz bir ortama kurulur, entry point'ler çözülür |
+| `streamlit` | `requirements.txt` ile uygulama import edilir ve dört cihaz çıplak checkout'ta bulunur |
+| `types` | mypy (bilgilendirme amaçlı; şu an 36 bilinen hata) |
 
 ## Atıf / Citation
 

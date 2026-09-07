@@ -549,10 +549,41 @@ def sweep_heatmap_figure(
     y: str | None = None,
     scale: dict[str, float] | None = None,
     unit_labels: dict[str, str] | None = None,
+    annotate: bool | None = None,
+    zrange: tuple[float, float] | None = None,
     dark: bool = False,
     title: str | None = None,
 ) -> go.Figure:
-    """Heatmap of one sweep metric over two swept parameters."""
+    """Heatmap of one sweep metric over two swept parameters.
+
+    Three things here are deliberate, and each fixes a way this plot can lie.
+
+    **Categorical axes.** Swept values are rarely evenly spaced --- 5, 15 and
+    40 uL/min is a typical choice --- and on a continuous axis a heatmap then
+    draws tiles of wildly different sizes whose centres do not line up with the
+    tick labels. Every sweep point carries equal evidence, so every tile gets
+    equal area and the real value is printed on the axis.
+
+    **Explicit missing data.** A metric can be genuinely undefined at a sweep
+    point: purity is ``0/0`` when nothing was collected. An all-NaN slice
+    otherwise renders as a blank panel with invented axes and no warning at all,
+    which is worse than an error. Missing cells are hatched and labelled, and a
+    slice with no data at all says so in the middle of the figure.
+
+    **Anchored colour range.** For a percentage metric the scale is pinned to
+    0--100 unless told otherwise, so panels are comparable with each other. An
+    auto-scaled ramp over 67--100 % makes a 5-point spread look like the whole
+    dynamic range.
+
+    Parameters
+    ----------
+    annotate:
+        Print each value in its cell. ``None`` (default) turns it on for grids
+        of 42 cells or fewer, where the numbers beat the colour ramp outright.
+    zrange:
+        Explicit ``(min, max)`` for the colour scale. ``None`` anchors
+        percentage metrics to 0--100 and auto-scales anything else.
+    """
     dims = list(sweep[metric].dims)
     if len(dims) < 2:
         raise ValueError(f"{metric!r} has dims {dims}; a heatmap needs two swept parameters")
@@ -560,21 +591,71 @@ def sweep_heatmap_figure(
     y = y or dims[1]
     scale = scale or {}
     unit_labels = unit_labels or {}
-    data = sweep[metric].transpose(y, x).values
+
+    data = np.asarray(sweep[metric].transpose(y, x).values, dtype=float)
+    x_values = np.asarray(sweep[x].values, dtype=float) * scale.get(x, 1.0)
+    y_values = np.asarray(sweep[y].values, dtype=float) * scale.get(y, 1.0)
+    x_labels = [_tick(v) for v in x_values]
+    y_labels = [_tick(v) for v in y_values]
+
+    finite = np.isfinite(data)
+    if zrange is not None:
+        zmin, zmax = zrange
+    elif metric.endswith("_percent"):
+        zmin, zmax = 0.0, 100.0
+    elif finite.any():
+        zmin, zmax = float(data[finite].min()), float(data[finite].max())
+    else:
+        zmin, zmax = 0.0, 1.0
+
+    if annotate is None:
+        annotate = data.size <= 42
+
+    # Cell labels ride on the heatmap's own text layer rather than
+    # add_annotation(). Annotation coordinates on a category axis are coerced
+    # back to numbers whenever the category names look numeric ("5", "10", ...),
+    # which silently throws every label outside the plot area and stretches the
+    # axis to reach them. texttemplate places text in cell centres by
+    # construction, so it cannot drift.
+    cell_text = [
+        [_cell_label(value) if np.isfinite(value) else "n/a" for value in row]
+        for row in data
+    ]
 
     fig = go.Figure(
         go.Heatmap(
-            x=sweep[x].values * scale.get(x, 1.0),
-            y=sweep[y].values * scale.get(y, 1.0),
+            x=x_labels,
+            y=y_labels,
             z=data,
+            zmin=zmin,
+            zmax=zmax,
             colorscale=sequential_colorscale(),
             colorbar={"title": {"text": metric.replace("_", " "), "side": "right"},
                       "thickness": 12},
-            hovertemplate=(f"{x} %{{x:.4g}}<br>{y} %{{y:.4g}}<br>"
+            xgap=2,
+            ygap=2,
+            hoverongaps=False,
+            text=cell_text,
+            texttemplate="%{text}" if annotate else None,
+            textfont={"size": 11},
+            hovertemplate=(f"{unit_labels.get(x, x)} %{{x}}<br>"
+                           f"{unit_labels.get(y, y)} %{{y}}<br>"
                            f"{metric} %{{z:.1f}}<extra></extra>"),
         )
     )
-    return _finish(
+
+    if not finite.any():
+        fig.add_annotation(
+            x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False,
+            text=("<b>No data in this slice.</b><br>"
+                  f"{metric.replace('_', ' ')} is undefined at every sweep point "
+                  "here —<br>typically because nothing reached the collection outlet."),
+            font={"size": 13, "color": "#52514e"}, align="center",
+            bgcolor="rgba(252,252,251,0.92)", bordercolor="#e6e5e1", borderwidth=1,
+            borderpad=10,
+        )
+
+    out = _finish(
         fig,
         title=title or metric.replace("_", " "),
         xaxis_title=unit_labels.get(x, x),
@@ -582,6 +663,24 @@ def sweep_heatmap_figure(
         dark=dark,
         showlegend=False,
     )
+    # After _finish, not before: plotly_layout() replaces the whole xaxis/yaxis
+    # dict, which would silently drop the categorical type and put the tiles
+    # back on an unevenly spaced continuous axis.
+    out.update_xaxes(type="category")
+    out.update_yaxes(type="category")
+    return out
+
+
+def _cell_label(value: float) -> str:
+    """Value printed inside a heatmap cell."""
+    return f"{value:.0f}" if abs(value) >= 10 else f"{value:.2g}"
+
+
+def _tick(value: float) -> str:
+    """Compact axis label for a swept parameter value."""
+    if value == int(value):
+        return str(int(value))
+    return f"{value:.4g}"
 
 
 def size_distribution_figure(
@@ -641,27 +740,94 @@ def timeseries_figure(
 
 
 def nyquist_figure(
-    frequency: np.ndarray, impedance: np.ndarray, *, dark: bool = False,
+    frequency: np.ndarray,
+    impedance: np.ndarray,
+    *,
+    label_decades: bool = True,
+    dark: bool = False,
     title: str = "Nyquist plot",
 ) -> go.Figure:
-    """Complex-plane impedance locus, ``-Im(Z)`` against ``Re(Z)``."""
+    """Complex-plane impedance locus, ``-Im(Z)`` against ``Re(Z)``.
+
+    **The axes are locked to equal scale**, which is not decoration: the whole
+    point of a Nyquist plot is that you read the *shape*. A semicircle means a
+    resistor in parallel with a capacitor, a 45-degree line means diffusion, and
+    a depressed arc means a distributed time constant. Stretch one axis and
+    every one of those readings becomes wrong. Plotly will happily auto-scale
+    the two axes independently, which is how this plot usually gets ruined.
+
+    Because frequency does not appear on either axis, a Nyquist plot is
+    unreadable without it marked on the curve; *label_decades* annotates one
+    point per decade.
+
+    Note that an electrode-electrolyte interface behaves as a constant-phase
+    element, so at low frequency the locus runs off towards large ``-Im Z``
+    rather than closing into an arc. The equal-scale requirement means the
+    figure is then tall and narrow. That is the honest shape --- pass a
+    restricted *frequency* range to zoom into the cell-layer feature.
+    """
     z = np.asarray(impedance)
+    frequency = np.asarray(frequency, dtype=float)
+    colour = color_for("target", dark=dark)
+    surface = "#fcfcfb" if not dark else "#1a1a19"
+
     fig = go.Figure(
         go.Scatter(
             x=z.real,
             y=-z.imag,
             mode="lines+markers",
-            marker={"size": 8, "color": color_for("target", dark=dark),
-                    "line": {"width": 2, "color": "#fcfcfb" if not dark else "#1a1a19"}},
-            line={"color": color_for("target", dark=dark), "width": 2},
-            customdata=np.asarray(frequency),
-            hovertemplate=("f %{customdata:.3g} Hz<br>Re Z %{x:.4g} Ω"
+            marker={"size": 7, "color": colour,
+                    "line": {"width": 1.5, "color": surface}},
+            line={"color": colour, "width": 2},
+            customdata=frequency,
+            hovertemplate=("f %{customdata:.4g} Hz<br>Re Z %{x:.4g} Ω"
                            "<br>-Im Z %{y:.4g} Ω<extra></extra>"),
             name="Z(f)",
         )
     )
-    return _finish(fig, title=title, xaxis_title="Re Z (Ω)", yaxis_title="−Im Z (Ω)",
-                   dark=dark, showlegend=False)
+
+    if label_decades and frequency.size:
+        positive = frequency > 0
+        if positive.any():
+            decades = np.unique(np.floor(np.log10(frequency[positive])))
+            span = max(np.ptp(z.real), np.ptp(-z.imag)) or 1.0
+            placed: list[tuple[float, float]] = []
+            for decade in decades:
+                index = int(np.argmin(np.abs(frequency - 10.0**decade)))
+                point = (float(z.real[index]), float(-z.imag[index]))
+                # A CPE locus crowds many decades into a few ohms near the
+                # origin. Labels that would sit on top of each other are worse
+                # than no label, so keep one per 8 % of the plot diagonal.
+                if any(np.hypot(point[0] - px, point[1] - py) < 0.08 * span
+                       for px, py in placed):
+                    continue
+                placed.append(point)
+                fig.add_annotation(
+                    x=point[0], y=point[1],
+                    text=_frequency_label(frequency[index]),
+                    showarrow=True, arrowhead=0, arrowsize=1, arrowwidth=1,
+                    arrowcolor="#8a8880", ax=30, ay=-16,
+                    font={"size": 10, "color": "#52514e"},
+                    bgcolor="rgba(252,252,251,0.85)", borderpad=2,
+                )
+
+    out = _finish(fig, title=title, xaxis_title="Re Z (Ω)", yaxis_title="−Im Z (Ω)",
+                  dark=dark, showlegend=False)
+    # Equal scaling, enforced. constrain="domain" shrinks the plot box rather
+    # than widening a range, so the aspect is right without dead space.
+    out.update_xaxes(constrain="domain")
+    out.update_yaxes(scaleanchor="x", scaleratio=1, constrain="domain")
+    return out
+
+
+def _frequency_label(value: float) -> str:
+    """Human frequency label: 100 Hz, 10 kHz, 1 MHz."""
+    for divisor, suffix in ((1e6, "MHz"), (1e3, "kHz"), (1.0, "Hz")):
+        if value >= divisor:
+            scaled = value / divisor
+            text = f"{scaled:.0f}" if scaled >= 10 or scaled == int(scaled) else f"{scaled:.1f}"
+            return f"{text} {suffix}"
+    return f"{value:.3g} Hz"
 
 
 def bode_magnitude_figure(
