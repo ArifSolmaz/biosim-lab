@@ -66,6 +66,25 @@ ve ana imaja bağımlılık eklemezler. Kurulu değillerse platform şunu bildir
 
 ---
 
+## Tarayıcıda dene / Try it in a browser
+
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py             # http://localhost:8501
+```
+
+Aynı dosya Streamlit Community Cloud'a olduğu gibi dağıtılabilir — depoyu
+GitHub'a itin, giriş noktası olarak `streamlit_app.py` seçin. Adım adım anlatım:
+[USER\_MANUAL.md §9](docs/USER_MANUAL.md#9-publishing-your-own-copy-on-streamlit).
+
+`requirements.txt` bilerek `pyproject.toml`'dan **daha küçüktür**: PyVista/VTK,
+Gmsh, Napari, Panel ve NetCDF yazıcıları dışarıda bırakılmıştır. Çekirdek
+bunlarsız da eksiksiz çalışır (yapılandırılmış ağ yedeğine düşer, sonuçlar CSV
+iner) ve uygulamanın *Environment* sayfası neyin eksik olduğunu ve neyi
+kaçırdığınızı tek tek sayar.
+
+![Streamlit arayüzü](assets/streamlit_saw_sorter.png)
+
 ## Hızlı başlangıç / Quick start
 
 ```bash
@@ -308,6 +327,17 @@ Aşama 4'ün (Elmer piezoelektrik çözümü) işidir; o zamana kadar kendi çip
 için `pressure_amplitude` değerini ölçüp doğrudan verin.
 
 ---
+
+## Belgeler / Documentation
+
+| Belge | İçerik |
+|---|---|
+| [docs/USER\_MANUAL.md](docs/USER_MANUAL.md) | **Kullanım kılavuzu** — kurulum, web arayüzü, CLI, Python API, tam yapılandırma referansı, kendi verinizle çalışma, Streamlit'e dağıtım, sorun giderme |
+| [docs/explainer/](docs/explainer/) | Uzman olmayanlar için 29 sayfalık PDF anlatım |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Katmanlar, sözleşmeler, veri akışı, sınırlamalar |
+| [docs/physics.md](docs/physics.md) | Her formül, kaynağı ve geçerlilik sınırı |
+| [docs/validation.md](docs/validation.md) | Ne, neye karşı, hangi toleransla doğrulandı |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Yeni cihaz eklemek — 10 adım |
 
 ## Uzman olmayanlar için / For non-experts
 

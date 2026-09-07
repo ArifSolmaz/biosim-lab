@@ -1,0 +1,37 @@
+# Dependencies for the hosted Streamlit app (Streamlit Community Cloud reads
+# this file automatically).
+#
+# This list is deliberately SMALLER than the one in pyproject.toml. Left out on
+# purpose, because the core degrades gracefully without them and they would
+# blow the memory budget of a free hosting tier:
+#
+#   pyvista, vtk   3-D field rendering and trajectory movies (needs OpenGL, ~150 MB)
+#   gmsh, meshio   only required to mesh a PDMS wall layer; core.geometry falls
+#                  back to an exact structured triangulation, and gmsh publishes
+#                  no wheel for linux/arm64 anyway
+#   panel, bokeh   the desktop dashboards — this app replaces them
+#   napari         interactive image review (needs Qt and a display)
+#   netCDF4, h5py  NetCDF output — the app offers CSV downloads instead
+#   typer, rich    the command-line interface, unused here
+#
+# The Environment page inside the app lists exactly what is present and what
+# each absent component would have unlocked.
+#
+# For the full local install use:  pip install -e ".[mesh]"
+
+numpy>=1.26
+scipy>=1.11
+pandas>=2.2
+xarray>=2024.1
+
+pint>=0.23
+pydantic>=2.6
+pyyaml>=6
+
+scikit-fem>=9.0        # the built-in Helmholtz / Stokes / electro solvers
+scikit-image>=0.22     # segmentation
+trackpy>=0.6           # track linking
+openpyxl>=3.1          # reading uploaded .xlsx instrument exports
+
+plotly>=5.20
+streamlit>=1.40

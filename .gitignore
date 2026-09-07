@@ -11,3 +11,4 @@ assets/*.nc
 assets/*.parquet
 .DS_Store
 .pytest_cache/
+.venv-cloud/

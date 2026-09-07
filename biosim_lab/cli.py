@@ -33,9 +33,10 @@ console = Console()
 
 
 def _instruments() -> dict[str, Any]:
-    from biosim_lab.core.plugin import discover_instruments
+    """Installed instruments, falling back to the built-ins in a source checkout."""
+    from biosim_lab.registry import installed_instruments
 
-    return discover_instruments()
+    return installed_instruments()
 
 
 @app.command("list")
@@ -121,10 +122,13 @@ def doctor() -> None:
 
     console.print(table)
 
+    from biosim_lab.registry import discovery_source
+
     instruments = _instruments()
     console.print(
         f"\n[bold]{len(instruments)} instrument(s) discovered:[/bold] "
         + ", ".join(sorted(instruments))
+        + f"\n[dim]found via {discovery_source()}[/dim]"
     )
     if not any(r["available"] and r["name"] in ("openfoam", "elmer")
                for r in solver_report()):
@@ -137,6 +141,15 @@ def doctor() -> None:
         )
 
 
+def _get_instrument(name: str) -> Any:
+    """Look up one instrument, tolerating an uninstalled checkout."""
+    instruments = _instruments()
+    if name not in instruments:
+        available = ", ".join(sorted(instruments)) or "none"
+        raise KeyError(f"unknown instrument {name!r}; installed: {available}")
+    return instruments[name]
+
+
 @app.command()
 def init(
     instrument: str = typer.Argument(..., help="instrument name, e.g. saw_sorter"),
@@ -144,9 +157,8 @@ def init(
 ) -> None:
     """Write a working example configuration for INSTRUMENT."""
     from biosim_lab.core.config import ExperimentConfig
-    from biosim_lab.core.plugin import get_instrument
 
-    cls = get_instrument(instrument)
+    cls = _get_instrument(instrument)
     cfg = ExperimentConfig.model_validate(cls.example_config())
     path = cfg.to_yaml(output)
     console.print(f"[green]wrote[/green] {path}")
@@ -161,13 +173,12 @@ def run(
     """Run an experiment described by CONFIG and save the results."""
     from biosim_lab.core.config import ExperimentConfig
     from biosim_lab.core.io import save_result
-    from biosim_lab.core.plugin import get_instrument
 
     cfg = ExperimentConfig.from_yaml(config)
     if output_dir is not None:
         cfg = cfg.model_copy(update={"output_dir": output_dir})
 
-    cls = get_instrument(cfg.instrument)
+    cls = _get_instrument(cfg.instrument)
     instrument = cls(cfg)
 
     with warnings.catch_warnings(record=True) as caught:
@@ -210,11 +221,10 @@ def sweep(
     """Sweep parameters around the operating point in CONFIG."""
     from biosim_lab.core.config import ExperimentConfig
     from biosim_lab.core.io import save_dataset, save_table
-    from biosim_lab.core.plugin import get_instrument
 
     cfg = ExperimentConfig.from_yaml(config)
     out_dir = output_dir or cfg.output_dir
-    cls = get_instrument(cfg.instrument)
+    cls = _get_instrument(cfg.instrument)
     instrument = cls(cfg)
     if not hasattr(instrument, "sweep"):
         raise typer.BadParameter(f"{cfg.instrument} does not support sweeps")
@@ -246,7 +256,6 @@ def dashboard(
 ) -> None:
     """Serve the interactive dashboard for a config or a results file."""
     from biosim_lab.core.config import ExperimentConfig
-    from biosim_lab.core.plugin import get_instrument
     from biosim_lab.core.viz.dashboard import serve
 
     if target.suffix == ".nc":
@@ -267,7 +276,7 @@ def dashboard(
         )
 
     cfg = ExperimentConfig.from_yaml(target)
-    cls = get_instrument(cfg.instrument)
+    cls = _get_instrument(cfg.instrument)
     instrument = cls(cfg)
     instrument.setup()
     if cls.name != "saw_sorter":

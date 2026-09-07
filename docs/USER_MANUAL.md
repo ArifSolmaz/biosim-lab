@@ -1,0 +1,731 @@
+# biosim-lab — User Manual
+
+Version 0.1.0 · MIT licence
+
+> **Language note.** This manual is in English, matching the explainer PDF. The
+> README and the reference docs (`physics.md`, `validation.md`,
+> `instruments.md`) are Turkish-first. Ask if you would like a Turkish edition
+> of this manual too.
+
+---
+
+## Table of contents
+
+1. [What this is, in one page](#1-what-this-is-in-one-page)
+2. [Three ways to use it](#2-three-ways-to-use-it)
+3. [Installing locally](#3-installing-locally)
+4. [The web app, page by page](#4-the-web-app-page-by-page)
+5. [The command line](#5-the-command-line)
+6. [The Python API](#6-the-python-api)
+7. [Configuration file reference](#7-configuration-file-reference)
+8. [Using your own data](#8-using-your-own-data)
+9. [Publishing your own copy on Streamlit](#9-publishing-your-own-copy-on-streamlit)
+10. [Docker](#10-docker)
+11. [Reading results honestly](#11-reading-results-honestly)
+12. [Troubleshooting](#12-troubleshooting)
+13. [Extending it](#13-extending-it)
+
+---
+
+## 1. What this is, in one page
+
+biosim-lab simulates what four kinds of laboratory instrument measure, using
+only open-source Python. It also runs the same analyses on real instrument data.
+
+| Instrument | Commercial equivalent | Answers | Status |
+|---|---|---|---|
+| `saw_sorter` | acoustic cell separators | Can I pull tumour cells out of blood, and how pure is the result? | complete |
+| `impedance_rtca` | xCELLigence RTCA | How fast are the cells growing, and what drug dose kills half of them? | minimal but working |
+| `cell_counter` | Countess, Cellometer | How many cells per mL, and what fraction are alive? | skeleton + demo |
+| `cell_tracker` | Incucyte | How fast do they crawl, and do they move in a direction? | skeleton + demo |
+
+Everything shares one core: a validated configuration, a solver, a result
+container, and a plotting layer. Adding a fifth instrument requires no change to
+that core — see [§13](#13-extending-it).
+
+**If you only read one other thing**, read
+[`docs/explainer/biosim-lab-explained.pdf`](explainer/) — 29 pages on the
+biology, physics and computation, written for non-experts, of which about a
+fifth is what the model gets wrong.
+
+---
+
+## 2. Three ways to use it
+
+| Route | Best for | Needs |
+|---|---|---|
+| **Web app** | exploring, teaching, showing someone | a browser (hosted) or `pip install -r requirements.txt` |
+| **Command line** | reproducible runs, batch sweeps, saving results | a local install |
+| **Python API** | your own analysis, notebooks, new instruments | a local install |
+
+They are the same code. The web app calls exactly the functions the command line
+calls; nothing on screen is pre-computed.
+
+---
+
+## 3. Installing locally
+
+Requires **Python 3.11 or newer**.
+
+```bash
+git clone https://github.com/<your-account>/biosim-lab.git
+cd biosim-lab
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e ".[mesh]"
+biosim doctor                      # confirms what works
+```
+
+### Which install do I want?
+
+| Command | Gets you |
+|---|---|
+| `pip install -e .` | everything except Gmsh meshing |
+| `pip install -e ".[mesh]"` | **recommended** — adds Gmsh + meshio, needed only for PDMS wall layers |
+| `pip install -r requirements.txt` | the slim web-app set; no PyVista, Panel, Gmsh or NetCDF |
+| `pip install -e ".[imaging]"` | Napari viewer and `btrack` lineage trees |
+| `pip install -e ".[segmentation]"` | Cellpose / StarDist segmentation back-ends |
+| `pip install -e ".[dev]"` | pytest, ruff, mypy |
+
+### Check the install
+
+```bash
+pytest                     # 160 tests, ~15 s, must all pass
+biosim list                # 4 instruments, 5 solver back-ends
+```
+
+`pytest` passing with **no optional back-end installed** is a deliberate design
+guarantee, not a coincidence.
+
+### If something is missing
+
+`biosim doctor` never fails — it reports. Each missing component comes with the
+capability it would unlock, so you can decide whether you need it.
+
+```
+gmsh    missing   python module 'gmsh' not importable (pip install biosim-lab[mesh]);
+                  the structured-mesh fallback covers the straight-channel template
+```
+
+---
+
+## 4. The web app, page by page
+
+Run it locally:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+It opens at <http://localhost:8501>.
+
+### Overview
+
+Orientation, plus the three things to know before trusting a number. Start here
+if someone else set this up for you.
+
+### SAW cell sorter
+
+The flagship. Every sidebar control re-runs the simulation.
+
+**Controls that change the physics**
+
+| Control | Effect | Watch for |
+|---|---|---|
+| Channel width | sets which frequency gives one node | the tooltip prints the single-node frequency for the current width |
+| Frequency | sets the node spacing (`λ_SAW/2`) | more than one node in the channel and two-outlet sorting stops working |
+| Drive voltage | force scales with **voltage squared** | the most effective knob by far |
+| Flow rate | sets how long cells spend in the field | raise it and recovery always falls |
+| Active length | same effect as flow rate, inversely | this is the IDT aperture in a real chip |
+| Force field: analytic / FEM | closed form vs solving the wave equation | FEM is slower and **less optimistic** — see [§11](#11-reading-results-honestly) |
+
+**Reading the numbers**
+
+- **Recovery** — of the target cells, what fraction reached the collection outlet.
+- **Purity** — of what was collected, what fraction is target.
+- **Enrichment** — purity divided by the input fraction. The number a rare-cell
+  assay is actually judged on. Recovery and purity trade off; enrichment does not
+  lie about the trade.
+
+**Tabs**
+
+- *Trajectories* — one line per cell, seen from above.
+- *Outlet histogram* — where each cell was when it left. Overlap inside the
+  shaded band is what limits purity.
+- *Force profile* — the sideways push across the channel, in piconewtons.
+- *Size distribution* — the log-normal radii actually drawn.
+- *Per-population* — the numbers behind the metrics, plus the contrast factors.
+- *Data* — the full per-cell table as CSV, and **the configuration as YAML**,
+  which runs unchanged on the command line.
+
+### Impedance (RTCA)
+
+Simulates a 96-well plate: cells attach, grow, get dosed, and an IC50 is fitted
+from the endpoint. Or upload a real RTCA export (CSV/XLSX) and it analyses that
+instead.
+
+The blue note explaining why the fitted IC50 differs from the planted one is not
+an apology — it is the exposure-time effect that real endpoint assays show.
+
+### Cell counter
+
+Segments a synthetic field of view with known ground truth, so the segmentation
+can be *scored* rather than admired. Shows the raw image beside the detected
+outlines.
+
+The Poisson counting error (`1/√N`) is displayed prominently because it is
+usually larger than the difference people are trying to measure.
+
+### Cell tracker
+
+Segments every frame, links detections, and reports speed, directional
+persistence and the MSD exponent α (1 = random wandering, 2 = walking
+somewhere).
+
+The *Search range* slider is the one that matters: too small and tracks
+fragment, too large and identities get swapped. The app warns when you set it
+close to the actual step size.
+
+### Material provenance
+
+All 65 physical constants with their source: 27 with a published DOI, 38 flagged
+as assumptions with the reason. Downloadable as CSV. This is the list a methods
+section should disclose.
+
+### Environment
+
+What is installed, what is not, and what each absent component would have
+unlocked. Also reports *how* the instruments were discovered — entry points if
+the package is installed, direct import if you are running from a checkout.
+
+---
+
+## 5. The command line
+
+| Command | Does |
+|---|---|
+| `biosim list` | installed instruments and solver back-ends |
+| `biosim doctor` | full environment diagnosis |
+| `biosim init <instrument> -o run.yaml` | write a working example config |
+| `biosim run run.yaml` | run it, save `.nc` + `.parquet` + `_metrics.csv` |
+| `biosim sweep run.yaml -p 'NAME=v1,v2'` | parameter sweep |
+| `biosim dashboard run.yaml` | serve the Panel dashboard |
+| `biosim materials` | the assumption list |
+| `biosim materials --all` | every value with its source |
+| `biosim version` | version |
+
+### A complete session
+
+```bash
+biosim init saw_sorter -o my_run.yaml
+$EDITOR my_run.yaml                     # change frequency, cells, whatever
+biosim run my_run.yaml
+```
+
+```
+ctc_vs_rbc — SAW acoustophoretic cell sorter
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┓
+┃ metric                        ┃     value ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━┩
+│ efficiency_percent            │     99.67 │
+│ purity_percent                │     95.53 │
+│ enrichment_fold               │     1.911 │
+│ all_cells_exited              │      True │
+│ channel_reynolds              │    0.5335 │
+└───────────────────────────────┴───────────┘
+RegimeWarning: k*a = 0.34 > 0.1: ...
+wrote fields: results/ctc_vs_rbc.nc
+wrote table: results/ctc_vs_rbc.parquet
+wrote metrics: results/ctc_vs_rbc_metrics.csv
+```
+
+### Sweeps
+
+Values may carry units, and repeating `-p` makes the grid multi-dimensional:
+
+```bash
+biosim sweep my_run.yaml \
+  -p 'voltage_pp=5 V,10 V,15 V,25 V' \
+  -p 'flow_rate=5 uL/min,15 uL/min,40 uL/min' \
+  -o sweeps/
+```
+
+Writes a long table (CSV + Parquet) and an N-dimensional NetCDF ready for a
+heatmap.
+
+> **Do not average a sweep across frequency.** Frequency changes the *number* of
+> pressure nodes, i.e. the operating regime. `examples/03_parameter_sweep.py`
+> produces one heatmap per frequency instead of one averaged over them, for
+> exactly this reason.
+
+### Shipped configurations
+
+| File | What it demonstrates |
+|---|---|
+| `configs/ctc_vs_rbc.yaml` | the reference single-node separation |
+| `configs/saw_sorter_20mhz_spec.yaml` | the multi-node regime and its warning |
+| `configs/saw_sorter_fem.yaml` | the same device solved by FEM |
+| `configs/saw_sorter_whole_blood.yaml` | 1 % tumour cells in a 3-component blood background |
+| `configs/rtca_ic50.yaml` | 48 h growth with a drug at 24 h |
+| `configs/cell_count_demo.yaml` | synthetic counting |
+| `configs/cell_track_demo.yaml` | synthetic tracking |
+
+---
+
+## 6. The Python API
+
+```python
+from biosim_lab.core.config import ExperimentConfig
+from biosim_lab.registry import installed_instruments
+
+cfg = ExperimentConfig.from_yaml("configs/ctc_vs_rbc.yaml")
+Instrument = installed_instruments()[cfg.instrument]
+result = Instrument(cfg).run()
+
+result.metrics["efficiency_percent"]   # scalars
+result.table.head()                    # one row per cell
+result.fields                          # xarray Dataset of trajectories/fields
+```
+
+Or drive the simulation directly, without a config file:
+
+```python
+from biosim_lab.instruments.saw_sorter.simulate import (
+    SAWSorterParams, SAWSorterSimulation,
+)
+
+params = SAWSorterParams(
+    frequency="6.632 MHz",        # unit strings are validated with pint
+    voltage_pp="15 V",
+    channel_width="300 um",
+    flow_rate="5 uL/min",
+    populations=[
+        {"cell_type": "mcf7", "count": 300, "target": True},
+        {"cell_type": "rbc",  "count": 300, "target": False},
+    ],
+)
+outcome = SAWSorterSimulation(params).run()
+print(outcome.metrics["purity_percent"])
+```
+
+### Physics functions on their own
+
+```python
+from biosim_lab.instruments.saw_sorter.physics.acoustics import (
+    contrast_factor, primary_radiation_force_1d, saw_wavelength,
+)
+from biosim_lab.core.materials import MCF7, WATER
+
+phi = contrast_factor(MCF7.rho, WATER.rho, MCF7.kappa, WATER.kappa)   # 0.2371
+lam = saw_wavelength(6.632e6, 3979.0)                                  # 600 µm
+```
+
+Every physics function takes **plain SI floats** and returns SI. Units are
+checked at the configuration boundary, not inside the numerical core.
+
+### Saving and loading
+
+```python
+from biosim_lab.core.io import save_result, load_result
+
+paths = save_result(result, "results/", "my_run")
+again  = load_result(paths["fields"])
+```
+
+---
+
+## 7. Configuration file reference
+
+Every run is one YAML file:
+
+```yaml
+name: my_experiment           # used for output filenames
+instrument: saw_sorter        # which plugin
+seed: 12345                   # reproducibility; null for random
+output_dir: results           # relative paths resolve next to this file
+description: >-
+  Free text, carried into the result metadata.
+params:                       # validated by the instrument's own schema
+  frequency: 6.632 MHz
+  ...
+```
+
+Unit-bearing values are written as strings and checked with `pint`. Writing
+`frequency: 300 um` raises a `DimensionalityError` rather than running.
+
+### `saw_sorter`
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `frequency` | `6.632 MHz` | IDT drive frequency |
+| `voltage_pp` | `15 V` | drive voltage; ignored if `pressure_amplitude` is set |
+| `pressure_amplitude` | `null` | measured p₀ — **prefer this if you have it** |
+| `substrate` | `linbo3_128yx` | sets the SAW velocity |
+| `node_offset` | `null` | node position; defaults to the channel centre |
+| `channel_width` | `300 um` | across the acoustic axis |
+| `channel_height` | `50 um` | |
+| `channel_length` | `2 mm` | the acoustically active length (IDT aperture) |
+| `flow_rate` | `5 uL/min` | what a syringe pump controls |
+| `fluid` | `water` | `water`, `pbs`, `dmem` |
+| `populations` | MCF-7 + RBC | list of `{cell_type, count, target}` |
+| `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre` |
+| `inlet_band` | `0.15` | inlet stream width, as a fraction of the channel |
+| `collection_fraction` | `0.333` | central outlet width / channel width |
+| `mode` | `analytic` | `analytic` or `fem` |
+| `integration` | `overdamped` | `overdamped` or `inertial` |
+| `enable_vertical_arf` | `false` | FEM vertical force — see [§11](#11-reading-results-honestly) |
+| `enable_gravity` | `false` | sedimentation |
+| `enable_wall_repulsion` | `false` | numerical regulariser, not physics |
+| `enable_secondary_bjerknes` | `false` | cell–cell acoustic interaction, `O(N²)` |
+| `fem_resolution` | `40` | elements across the channel width |
+| `fem_grid` | `[241, 41]` | sampling grid for the force field |
+| `n_time_samples` | `101` | trajectory sample points |
+| `seed` | `12345` | |
+
+Cell types: `mcf7`, `hela`, `a549`, `rbc`, `wbc`, `platelet`, `ps_bead`, `lipid`.
+
+### `impedance_rtca`
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `frequency` | `10 kHz` | Cell Index readout frequency |
+| `spectrum_frequencies` | `60` | points in the `|Z|(f)` sweep |
+| `spectrum_range` | `[100, 1e7]` | Hz |
+| `n_wells` | `96` | `96` or `384` |
+| `duration` | `48 h` | |
+| `n_timepoints` | `97` | |
+| `doubling_time` | `20 h` | |
+| `lag_time` | `2 h` | attachment delay before growth starts |
+| `seeding_coverage` / `max_coverage` | `0.05` / `0.95` | electrode coverage limits |
+| `treatment_time` | `24 h` | when the drug goes in; `null` for none |
+| `concentrations` | 8-point series | dose series |
+| `replicates` | `3` | wells per dose |
+| `true_ic50` / `hill_slope` | `1.0` / `1.3` | used to synthesise the plate |
+| `noise_cv` | `0.02` | measurement noise |
+| `conductivity` | `1.4 S/m` | medium |
+| `junction_resistance` | `2.0` | `R_b`, Ω·cm² |
+| `membrane_capacitance` | `1e-6` | F/cm² |
+| `electrode_area_cm2` | `0.008` | |
+| `cell_radius` / `gap_height` | `8 um` / `100 nm` | shell-model geometry |
+| `source_file` | `null` | path to a real RTCA export |
+
+### `cell_counter`
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `source_image` | `null` | TIFF/PNG; synthesises when absent |
+| `pixel_size` | `0.65 um` | metres per pixel |
+| `chamber_depth` | `100 um` | Neubauer standard |
+| `dilution_factor` | `2.0` | 1:1 trypan-blue mix |
+| `backend` | `classical` | `classical`, `cellpose`, `stardist` |
+| `min_radius_px` | `4.0` | debris cut-off |
+| `min_diameter_um` / `max_diameter_um` | `5` / `40` | size gate |
+| `viability_threshold` | `null` | `null` uses Otsu on intensity |
+| `n_cells`, `dead_fraction`, `image_size`, `seed` | | synthetic-demo controls |
+
+### `cell_tracker`
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `source_movie` | `null` | TIFF stack or image directory |
+| `pixel_size` | `0.65 um` | |
+| `frame_interval` | `10 min` | |
+| `backend` | `classical` | |
+| `search_range_px` | `12.0` | **the parameter that matters most** |
+| `memory_frames` | `2` | frames a cell may vanish for |
+| `min_track_length` | `5` | shorter tracks are discarded |
+| `n_frames`, `n_cells`, `image_size`, `speed_px_per_frame`, `persistence`, `seed` | | synthetic-demo controls |
+
+---
+
+## 8. Using your own data
+
+### Real RTCA exports
+
+```yaml
+instrument: impedance_rtca
+params:
+  source_file: /path/to/RTCA_export.csv
+```
+
+The reader skips metadata rows above the header, tolerates rows with different
+field counts, sniffs the delimiter, and locates the header by finding the first
+row containing well labels (`A1` … `H12`). CSV and XLSX both work.
+
+Or drop the file into the web app's uploader.
+
+### Microscopy images
+
+```yaml
+instrument: cell_counter
+params:
+  source_image: /path/to/field.tif
+  pixel_size: 0.325 um        # YOUR objective and camera, not the default
+  chamber_depth: 100 um
+  dilution_factor: 2.0
+```
+
+For tracking, `source_movie` accepts a multi-page TIFF **or a directory** of
+numbered images.
+
+> **Set `pixel_size` correctly or every physical number is wrong.** It converts
+> pixels to metres, so it propagates into diameter, concentration and speed. Get
+> it from a stage micrometer, not from the objective's nominal magnification.
+
+### Measured acoustic pressure
+
+If you have calibrated your chip, skip the voltage assumption entirely:
+
+```yaml
+params:
+  voltage_pp: null
+  pressure_amplitude: 0.38 MPa    # measured, e.g. by bead tracking
+```
+
+---
+
+## 9. Publishing your own copy on Streamlit
+
+The repository already contains everything Streamlit Community Cloud needs.
+
+| File | Role |
+|---|---|
+| `streamlit_app.py` | the entry point, at the repository root |
+| `requirements.txt` | the slim dependency set (no PyVista, Gmsh, Panel, NetCDF) |
+| `.streamlit/config.toml` | theme matching the figure palette, upload limit |
+
+### Step by step
+
+**1. Put it on GitHub.**
+
+```bash
+cd biosim-lab
+git remote add origin https://github.com/<your-account>/biosim-lab.git
+git branch -M main
+git push -u origin main
+```
+
+Or, with the GitHub CLI, create the repository and push in one go:
+
+```bash
+gh repo create <your-account>/biosim-lab --public --source=. --remote=origin --push
+```
+
+**2. Deploy.** Go to <https://share.streamlit.io>, sign in with GitHub, and
+click *New app*:
+
+| Field | Value |
+|---|---|
+| Repository | `<your-account>/biosim-lab` |
+| Branch | `main` |
+| Main file path | `streamlit_app.py` |
+| Python version | 3.11 or 3.12 |
+
+Press *Deploy*. The first build takes 3–5 minutes while it installs the
+dependencies; later pushes to `main` redeploy automatically.
+
+**3. Check it.** Open the *Environment* page in the deployed app. It should say:
+
+```
+Instruments found via direct import (4 built-in instrument(s));
+the package is not pip-installed, so third-party plugins will not be discovered
+```
+
+That is **expected and correct**. Streamlit Cloud installs `requirements.txt`
+but does not `pip install` the project itself, so entry-point metadata is
+absent; `biosim_lab.registry` falls back to importing the built-in instruments
+directly. Everything works; only third-party plugins would be missed.
+
+### Staying inside the free tier
+
+The free tier gives roughly 1 GB of RAM. The app is built for it:
+
+- **`requirements.txt` deliberately omits** PyVista/VTK (~150 MB and needs
+  OpenGL), Gmsh, Napari, Panel/Bokeh and the NetCDF stack.
+- **Every simulation is cached** on its parameters (`st.cache_data`), so
+  returning to a previous slider position is instant.
+- **The sliders are capped**: 600 cells per population, mesh resolution 64,
+  30 tracker frames, 512-pixel images. Raise them in `streamlit_app.py` if you
+  are hosting somewhere larger.
+- **Downloads are CSV**, not NetCDF or Parquet, so no HDF5 or Arrow writer is
+  needed.
+
+If the app is killed for memory, the usual cause is the FEM mode at high mesh
+resolution combined with a large cell count. Lower `fem_resolution` first.
+
+### Running the web app locally instead
+
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+
+Anything the hosted app can do, this can do — plus, if you have the full install,
+the extras the Environment page lists as missing.
+
+---
+
+## 10. Docker
+
+```bash
+docker compose up biosim              # Panel dashboard on http://localhost:5006
+docker compose run --rm tests         # the test suite
+docker compose run --rm examples      # every example, writes assets/
+docker compose run --rm cli           # biosim doctor
+```
+
+The heavy solvers sit behind a profile so a plain `up` never builds them:
+
+```bash
+docker compose --profile solvers build openfoam elmer
+```
+
+The main image deliberately contains neither OpenFOAM nor Elmer. On `linux/arm64`
+it also builds without Gmsh, since no wheel exists there — the structured-mesh
+fallback covers everything the tests and examples use, and all 160 tests pass in
+the container.
+
+---
+
+## 11. Reading results honestly
+
+This section is the one that stops you publishing something wrong.
+
+### The warnings are the product
+
+Orange `RegimeWarning` banners mean an assumption behind the model has been
+stretched. They are not noise:
+
+| Warning | Means | Do |
+|---|---|---|
+| `k*a > 0.1` | cells are not small compared with the sound wavelength; the force is over-predicted | treat forces as indicative, not absolute |
+| `N pressure nodes` | the channel holds more than one collection line | change frequency or width, or accept a multi-outlet design |
+| `Reynolds number > 1` | the creeping-flow model no longer applies | lower the flow rate, or use the OpenFOAM back-end |
+| `Stokes number > 0.1` | particle inertia matters | switch `integration` to `inertial` |
+
+### `analytic` is the optimistic mode
+
+The closed-form model applies the sound strength at the chip surface to cells at
+*every* height. The real field weakens upwards — averaged across a 50 µm channel
+the lateral force is only **53 %** of the surface value.
+
+| | recovery | purity |
+|---|---|---|
+| `mode: analytic` | 100 % | 94.3 % |
+| `mode: fem` | 45.5 % | 98.9 % |
+
+Neither is a bug. Use `analytic` to explore a design space quickly, then confirm
+with `fem` before believing a number. `examples/04_validate_analytic_vs_fem.py`
+prints the comparison and explains every source of the gap.
+
+### `enable_vertical_arf` will strand your cells
+
+It is `false` by default. The FEM field has a genuine vertical force, but this
+2-D cross-section model has no lift force to balance it, so cells pile against a
+wall where the axial flow is zero and never reach the outlet.
+
+If you turn it on, **check `all_cells_exited` in the metrics.** If it is `False`,
+the recovery and purity numbers are meaningless. The web app shows a red banner
+in this case.
+
+### Check the provenance before quoting a number
+
+```bash
+biosim materials            # the 38 assumptions, with reasons
+```
+
+The largest single one: nothing here predicts acoustic pressure from drive
+voltage. A linear calibration (15 Vpp → 0.45 MPa) stands in, and it scales
+*every* acoustic force. Measure it for your chip and set `pressure_amplitude`.
+
+### Not modelled at all
+
+Acoustic streaming (matters below ~1 µm particles), cell–cell acoustic
+interaction, cell deformability, and the membrane/nucleus structure for
+acoustics. `docs/physics.md` §5 has the full list with references.
+
+---
+
+## 12. Troubleshooting
+
+**`biosim: command not found`**
+The virtual environment is not active. `source .venv/bin/activate`, or call it
+as `python -m biosim_lab.cli`.
+
+**`0 instruments discovered`**
+The package was not installed. Either `pip install -e .`, or use
+`biosim_lab.registry.installed_instruments()`, which falls back to importing the
+built-ins.
+
+**`RuntimeError: a PDMS wall layer requires gmsh`**
+`pip install biosim-lab[mesh]`. Without Gmsh only the wall-free straight channel
+is available — which is what every shipped configuration uses.
+
+**`no usable NetCDF back-end`**
+`pip install netCDF4` (or `h5netcdf` *and* `h5py` — `h5netcdf` imports without
+`h5py` but fails at write time). Or write CSV instead.
+
+**The simulation is very slow**
+Almost always `mode: fem` with a high `fem_resolution`. Start at 32. If the
+*analytic* mode is slow, check `all_cells_exited`: cells stuck against a wall
+extend the integration window enormously.
+
+**`DimensionalityError`**
+A unit in the YAML has the wrong dimension — e.g. `frequency: 300 um`. This is
+the unit checker doing its job.
+
+**Every cell ends up in one place, no separation**
+Look at the diagnostics line. If there are several pressure nodes the channel
+sorts into stripes, not two outlets. Use `f = c_SAW / (2 × width)`.
+
+**The Streamlit app is killed on the free tier**
+Lower `fem_resolution` and the cell count. See [§9](#9-publishing-your-own-copy-on-streamlit).
+
+**Tests fail after I changed something**
+Read *which* test. They check relationships (force ∝ r³, Φ > 0 for cells, no
+cell lost) rather than remembered numbers, so a failure usually names the
+physical property you broke.
+
+---
+
+## 13. Extending it
+
+Adding an instrument takes ten steps and **no change to the core** — the full
+walkthrough is in [`CONTRIBUTING.md`](../CONTRIBUTING.md). In outline:
+
+1. Make a package under `biosim_lab/instruments/` (or in your own distribution).
+2. Write a `BaseConfigModel` subclass with unit-annotated fields.
+3. Put the physics in its own module, with a DOI on every formula.
+4. Warn with `RegimeWarning` when the model is out of range.
+5. Implement `Instrument`: `setup()` (idempotent) and `run()`.
+6. Use the core `io` and `viz` layers rather than your own.
+7. Add a dashboard using `core.viz.dashboard.shell()`.
+8. Provide a working `example_config()` — the tests execute it.
+9. Register an entry point under `biosim_lab.instruments`.
+10. Write tests, including one that skips cleanly if an optional back-end is absent.
+
+To add a **solver** back-end instead, implement `Solver`, declare
+`required_executables` / `required_modules`, and register under
+`biosim_lab.solvers`. When it is absent, `get_solver()` returns an
+`UnavailableSolver` that explains itself — never an `ImportError`.
+
+### The rules that must not be broken
+
+1. The whole test suite passes with no optional back-end installed.
+2. Every physical constant has a DOI or an explicit `ASSUMPTION` label.
+3. Units are validated at the boundary; the core uses plain SI floats.
+4. Instruments never import each other, and the core imports no instrument.
+5. Out-of-range models warn; they never quietly return a plausible wrong number.
+
+---
+
+## Further reading
+
+| Document | Contents |
+|---|---|
+| [`docs/explainer/biosim-lab-explained.pdf`](explainer/) | 29-page explainer for non-experts |
+| [`ARCHITECTURE.md`](../ARCHITECTURE.md) | layers, contracts, data flow, limitations |
+| [`docs/physics.md`](physics.md) | every formula, its source, and where it stops being valid |
+| [`docs/validation.md`](validation.md) | what was checked against what, and to what tolerance |
+| [`docs/instruments.md`](instruments.md) | per-instrument reference (Turkish) |
+| [`CONTRIBUTING.md`](../CONTRIBUTING.md) | adding an instrument in ten steps |

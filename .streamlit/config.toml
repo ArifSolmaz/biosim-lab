@@ -1,0 +1,15 @@
+# Matches the palette in biosim_lab/core/viz/theme.py, so the interface and the
+# figures inside it are the same colours rather than nearly the same.
+[theme]
+base = "light"
+primaryColor = "#2A78D6"
+backgroundColor = "#FCFCFB"
+secondaryBackgroundColor = "#F2F1EE"
+textColor = "#0B0B0B"
+font = "sans serif"
+
+[server]
+maxUploadSize = 20          # MB — instrument exports are small
+
+[browser]
+gatherUsageStats = false
