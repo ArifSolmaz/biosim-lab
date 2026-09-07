@@ -169,6 +169,11 @@ def run(
     config: Path = typer.Argument(..., exists=True, help="experiment YAML"),
     output_dir: Path | None = typer.Option(None, "--output-dir", "-o"),
     quiet: bool = typer.Option(False, "--quiet", "-q"),
+    replicates: int = typer.Option(
+        1, "--replicates", "-n",
+        help="run this many times with different random samples and report the "
+             "spread as well as the point estimate",
+    ),
 ) -> None:
     """Run an experiment described by CONFIG and save the results."""
     from biosim_lab.core.config import ExperimentConfig
@@ -188,6 +193,21 @@ def run(
 
     written = save_result(result, cfg.output_dir, cfg.name)
 
+    replicate_summary = None
+    if replicates > 1:
+        if not hasattr(instrument, "replicate"):
+            console.print(
+                f"[yellow]{cfg.instrument} does not support replicates; "
+                "reporting the single run.[/yellow]"
+            )
+        else:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                replicate_summary = instrument.replicate(n_replicates=replicates)
+            table_path = Path(cfg.output_dir) / f"{cfg.name}_replicates.csv"
+            replicate_summary["table"].to_csv(table_path, index=False)
+            written["replicates"] = table_path
+
     if not quiet:
         table = Table(title=f"{cfg.name} — {cls.display_name}", header_style="bold")
         table.add_column("metric")
@@ -197,6 +217,21 @@ def run(
                 continue
             table.add_row(key, f"{value:.4g}" if isinstance(value, float) else str(value))
         console.print(table)
+
+        if replicate_summary is not None:
+            spread = Table(
+                title=f"across {replicates} replicates (different cell samples)",
+                header_style="bold",
+            )
+            spread.add_column("metric")
+            for column in ("mean", "std", "95 % CI"):
+                spread.add_column(column, justify="right")
+            for name, summary in replicate_summary["summary"].items():
+                spread.add_row(
+                    name, f"{summary.mean:.3g}", f"{summary.std:.3g}",
+                    f"[{summary.low:.3g}, {summary.high:.3g}]",
+                )
+            console.print(spread)
 
         for w in caught:
             if issubclass(w.category, UserWarning):

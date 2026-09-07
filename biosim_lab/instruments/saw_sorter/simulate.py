@@ -57,6 +57,7 @@ from biosim_lab.core.particles import (
     make_state,
 )
 from biosim_lab.core.plugin import RegimeWarning
+from biosim_lab.core.statistics import replicate, summary_table, wilson_interval
 from biosim_lab.instruments.saw_sorter import viability as viability_model
 from biosim_lab.instruments.saw_sorter.fem_model import SAWFieldModel, pressure_from_voltage
 from biosim_lab.instruments.saw_sorter.flow import RectangularPoiseuille
@@ -716,6 +717,13 @@ class SAWSorterSimulation:
             n_live_target_collected / n_live_collected if n_live_collected else float("nan")
         )
 
+        # Even a perfectly deterministic device sorts a FINITE number of cells,
+        # so every proportion here carries binomial counting error. Wilson rather
+        # than the normal approximation, which gives a width of exactly zero at
+        # 100 % — the case a working sorter hits constantly.
+        efficiency_ci = wilson_interval(n_target_collected, n_target)
+        purity_ci = wilson_interval(n_target_collected, n_collected)
+
         return {
             "n_cells": n_total,
             "n_target": n_target,
@@ -723,7 +731,11 @@ class SAWSorterSimulation:
             "n_alive_collected": n_live_collected,
             "n_live_target_collected": n_live_target_collected,
             "efficiency_percent": 100.0 * efficiency,
+            "efficiency_ci_low": efficiency_ci.low_percent,
+            "efficiency_ci_high": efficiency_ci.high_percent,
             "purity_percent": 100.0 * purity,
+            "purity_ci_low": purity_ci.low_percent,
+            "purity_ci_high": purity_ci.high_percent,
             "live_efficiency_percent": 100.0 * live_efficiency,
             "live_purity_percent": 100.0 * live_purity,
             "enrichment_fold": enrichment,
@@ -823,10 +835,65 @@ def parameter_sweep(
     return df, ds
 
 
+def replicate_sorting(
+    params: SAWSorterParams,
+    *,
+    n_replicates: int = 5,
+    confidence: float = 0.95,
+    metrics: Sequence[str] | None = None,
+) -> dict[str, Any]:
+    """Run the same device *n_replicates* times with different random samples.
+
+    Two different uncertainties sit behind a single reported number, and this
+    covers the second one:
+
+    * **Counting error**, already in every run's metrics as ``*_ci_low`` /
+      ``*_ci_high``: a proportion measured on a finite number of cells is not
+      the population proportion, and that is true even with the seed fixed.
+    * **Sample-to-sample error**, measured here: each replicate draws fresh
+      radii from the log-normal size distribution, fresh inlet positions and
+      fresh viability outcomes. The spread across replicates says how much of
+      the result is the device and how much is the particular batch of cells.
+
+    Quoting either alone is misleading, in opposite directions.
+
+    Returns
+    -------
+    dict
+        The structure from :func:`biosim_lab.core.statistics.replicate`, plus a
+        ``table`` DataFrame ready to print or download.
+    """
+    default_metrics = (
+        "efficiency_percent",
+        "purity_percent",
+        "live_purity_percent",
+        "enrichment_fold",
+        "viability_out_percent",
+        "n_collected",
+    )
+
+    def run_once(seed: int) -> dict[str, Any]:
+        replica = params.model_copy(update={"seed": seed})
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RegimeWarning)
+            return SAWSorterSimulation(replica).run().metrics
+
+    result = replicate(
+        run_once,
+        n_replicates=n_replicates,
+        base_seed=int(params.seed or 0),
+        metrics=list(metrics) if metrics is not None else list(default_metrics),
+        confidence=confidence,
+    )
+    result["table"] = summary_table(result)
+    return result
+
+
 __all__ = [
     "Population",
     "SAWSorterParams",
     "SAWSorterSimulation",
     "SortingOutcome",
     "parameter_sweep",
+    "replicate_sorting",
 ]

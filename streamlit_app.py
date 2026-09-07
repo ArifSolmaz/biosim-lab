@@ -400,6 +400,13 @@ def page_sorter() -> None:
         )
         n_cells = st.slider("Cells per population", 50, 600, 300, 50)
 
+        st.subheader("Uncertainty")
+        n_replicates = st.slider(
+            "Replicates", 1, 12, 1, 1,
+            help="Re-run on freshly drawn cells. 1 reports only the counting "
+                 "error; more also measures sample-to-sample spread.",
+        )
+
         st.subheader("Model")
         mode = st.radio(
             "Force field", ["analytic", "fem"], horizontal=True,
@@ -419,10 +426,19 @@ def page_sorter() -> None:
     m, d = out["metrics"], out["diagnostics"]
 
     cols = st.columns(6)
-    cols[0].metric("Recovery", f"{m['efficiency_percent']:.1f} %",
-                   help="fraction of target cells that reached the collection outlet")
-    cols[1].metric("Purity", f"{m['purity_percent']:.1f} %",
-                   help="fraction of the collected cells that are targets")
+    cols[0].metric(
+        "Recovery", f"{m['efficiency_percent']:.1f} %",
+        help="Fraction of target cells that reached the collection outlet. "
+             f"95 % counting interval [{m['efficiency_ci_low']:.1f}, "
+             f"{m['efficiency_ci_high']:.1f}] — binomial, from the finite number "
+             "of cells simulated.",
+    )
+    cols[1].metric(
+        "Purity", f"{m['purity_percent']:.1f} %",
+        help="Fraction of the collected cells that are targets. "
+             f"95 % counting interval [{m['purity_ci_low']:.1f}, "
+             f"{m['purity_ci_high']:.1f}].",
+    )
     cols[2].metric("Live purity", f"{m['live_purity_percent']:.1f} %",
                    help="of the LIVE cells collected, the fraction that are targets — "
                         "a collected dead cell is of no use downstream")
@@ -468,7 +484,7 @@ def page_sorter() -> None:
     tabs = st.tabs(
         ["Live view", "Cross-section", "Live count", "Cell safety", "Trajectories",
          "Outlet histogram", "Force profile", "Size distribution", "Per-population",
-         "Data"]
+         "Uncertainty", "Data"]
     )
     half = 0.5 * collection_fraction * width_um * 1e-6
     bounds = (out["node_offset"] - half, out["node_offset"] + half)
@@ -608,6 +624,14 @@ def page_sorter() -> None:
         )
 
     with tabs[9]:
+        _uncertainty_panel(
+            m, n_replicates, frequency_mhz, voltage_pp, flow_ul_min, width_um,
+            height_um, length_mm, n_cells, collection_fraction, inlet, mode,
+            target, background, fem_resolution, temperature_c, inlet_viability,
+            rf_power, int(seed),
+        )
+
+    with tabs[10]:
         st.dataframe(out["cells"].head(200), use_container_width=True, hide_index=True)
         _download_row(out)
         note(
@@ -707,6 +731,116 @@ def _cell_safety_panel(metrics: dict[str, Any], diagnostics: dict[str, Any]) -> 
         "density and compressibility, so their predicted destination is less "
         "trustworthy than that of live ones.",
         icon="🔬",
+    )
+
+
+@st.cache_data(show_spinner="Re-running on fresh cell samples…", max_entries=16)
+def run_replicates(n_replicates: int, **kwargs: Any) -> Any:
+    """Replicate summary for one operating point, as a plain DataFrame."""
+    from biosim_lab.instruments.saw_sorter.simulate import (
+        SAWSorterParams,
+        replicate_sorting,
+    )
+
+    params = SAWSorterParams(
+        frequency=kwargs["frequency_mhz"] * 1e6,
+        voltage_pp=kwargs["voltage_pp"],
+        temperature=kwargs["temperature_c"] + 273.15,
+        inlet_viability=kwargs["inlet_viability"],
+        rf_power=kwargs["rf_power"] or None,
+        channel_width=kwargs["width_um"] * 1e-6,
+        channel_height=kwargs["height_um"] * 1e-6,
+        channel_length=kwargs["length_mm"] * 1e-3,
+        flow_rate=kwargs["flow_ul_min"] * UL_MIN,
+        inlet=kwargs["inlet"],
+        collection_fraction=kwargs["collection_fraction"],
+        mode=kwargs["mode"],
+        fem_resolution=kwargs["fem_resolution"],
+        fem_grid=(201, 33),
+        populations=[
+            {"cell_type": kwargs["target"], "count": kwargs["n_cells"], "target": True},
+            {"cell_type": kwargs["background"], "count": kwargs["n_cells"],
+             "target": False},
+        ],
+        seed=kwargs["seed"],
+    )
+    return replicate_sorting(params, n_replicates=n_replicates)["table"]
+
+
+def _uncertainty_panel(
+    metrics: dict[str, Any], n_replicates: int, frequency_mhz: float,
+    voltage_pp: float, flow_ul_min: float, width_um: float, height_um: float,
+    length_mm: float, n_cells: int, collection_fraction: float, inlet: str,
+    mode: str, target: str, background: str, fem_resolution: int,
+    temperature_c: float, inlet_viability: float, rf_power: float, seed: int,
+) -> None:
+    """Two different uncertainties, side by side, because they are not the same."""
+    st.markdown("#### How much should you trust these numbers?")
+    note(
+        "A simulated result has two independent uncertainties, and quoting "
+        "either one alone is misleading in opposite directions."
+    )
+
+    left, right = st.columns(2)
+    with left:
+        st.markdown("**1 · Counting error, within this run**")
+        st.caption(
+            "Even a perfectly deterministic device sorts a finite number of "
+            "cells, so the measured proportion is not the population "
+            "proportion. Present even with the seed fixed."
+        )
+        st.dataframe(
+            pd.DataFrame([
+                {"metric": "recovery",
+                 "value": f"{metrics['efficiency_percent']:.1f} %",
+                 "95 % interval": f"[{metrics['efficiency_ci_low']:.1f}, "
+                                  f"{metrics['efficiency_ci_high']:.1f}]"},
+                {"metric": "purity",
+                 "value": f"{metrics['purity_percent']:.1f} %",
+                 "95 % interval": f"[{metrics['purity_ci_low']:.1f}, "
+                                  f"{metrics['purity_ci_high']:.1f}]"},
+            ]),
+            use_container_width=True, hide_index=True,
+        )
+        st.caption(
+            "Wilson score interval, not the textbook `p ± z√(p(1−p)/n)` — that "
+            "one gives a width of **exactly zero** at 100 %, which a working "
+            "sorter reaches constantly."
+        )
+
+    with right:
+        st.markdown("**2 · Sample-to-sample error, across runs**")
+        st.caption(
+            "Each replicate draws fresh radii from the log-normal size "
+            "distribution, fresh inlet positions and fresh viability outcomes. "
+            "This is how much of the answer is the device and how much is the "
+            "particular batch of cells."
+        )
+        if n_replicates < 2:
+            st.info(
+                "Set **Replicates** above 1 in the sidebar to measure this.",
+                icon="🎲",
+            )
+        else:
+            table = run_replicates(
+                n_replicates, frequency_mhz=frequency_mhz, voltage_pp=voltage_pp,
+                flow_ul_min=flow_ul_min, width_um=width_um, height_um=height_um,
+                length_mm=length_mm, n_cells=n_cells,
+                collection_fraction=collection_fraction, inlet=inlet, mode=mode,
+                target=target, background=background,
+                fem_resolution=fem_resolution, temperature_c=temperature_c,
+                inlet_viability=inlet_viability, rf_power=rf_power, seed=seed,
+            )
+            st.dataframe(table.round(3), use_container_width=True, hide_index=True)
+            download_frame(table, "replicates.csv", "Download (CSV)")
+
+    st.info(
+        "**Which do you quote?** If you are comparing two designs on the same "
+        "simulated sample, the counting error is the relevant one. If you are "
+        "predicting what a real experiment will measure, you need both, and the "
+        "real experiment has a third source this model does not cover at all — "
+        "device-to-device variation in fabrication.",
+        icon="📐",
     )
 
 

@@ -34,6 +34,21 @@ Boundary conditions
     partially absorbing wall such as PDMS, whose impedance is close to water's
     and therefore leaks strongly.
 
+Volumetric sources
+------------------
+:meth:`HelmholtzSolver.setup` accepts an optional ``source`` term, so the solver
+handles
+
+    laplacian(p) + k^2 p = -f
+
+The physical use is a distributed forcing (a vibrating region of fluid). The
+reason it exists here is verification: the *method of manufactured solutions*
+picks an exact ``p``, differentiates it to obtain the ``f`` that would produce
+it, and then checks that the solver recovers ``p`` at the expected rate as the
+mesh is refined. Without a source term there is no way to manufacture a
+non-trivial exact solution on an arbitrary domain, and the only checks available
+are special cases the solver might pass by accident.
+
 Sign convention
 ---------------
 Throughout biosim-lab the time factor is ``exp(-i omega t)``, so a
@@ -54,6 +69,7 @@ from skfem import (
     ElementTriP1,
     ElementTriP2,
     FacetBasis,
+    Functional,
     LinearForm,
     condense,
 )
@@ -151,8 +167,17 @@ class HelmholtzSolver(Solver):
         return self.speed_of_sound / self.frequency
 
     # -- Solver contract --------------------------------------------------
-    def setup(self, mesh: MeshBundle, bc: Any) -> None:
-        """Assemble the Helmholtz system for *mesh* with boundary conditions *bc*."""
+    def setup(self, mesh: MeshBundle, bc: Any, source: Any = None) -> None:
+        """Assemble the Helmholtz system for *mesh* with boundary conditions *bc*.
+
+        Parameters
+        ----------
+        source:
+            Optional volumetric source ``f`` in ``laplacian(p) + k^2 p = -f``,
+            given as a scalar or a callable ``f(x) -> array`` over the
+            quadrature points. Used by the manufactured-solution verification in
+            ``tests/test_verification.py``.
+        """
         if not isinstance(mesh, MeshBundle):
             raise TypeError("HelmholtzSolver expects a MeshBundle from core.geometry")
         self._bundle = mesh
@@ -168,6 +193,14 @@ class HelmholtzSolver(Solver):
 
         A = stiffness.assemble(basis)
         b = np.zeros(basis.N, dtype=complex)
+
+        if source is not None:
+            @LinearForm(dtype=complex)
+            def volumetric(v, w, _source=source):
+                return _evaluate(_source, w.x) * v
+
+            b += volumetric.assemble(basis)
+
         dirichlet: dict[int, complex] = {}
 
         for cond in _as_bc_list(bc):
@@ -273,6 +306,36 @@ class HelmholtzSolver(Solver):
         return ds
 
     # -- post-processing --------------------------------------------------
+    def solution(self) -> np.ndarray:
+        """Raw complex nodal solution vector, in the solver's own DOF order."""
+        if self._p is None:
+            raise RuntimeError("call run() before solution()")
+        return self._p
+
+    @property
+    def basis(self) -> Basis | None:
+        """The assembled finite-element basis, for error norms and projections."""
+        return self._basis
+
+    def l2_error(self, exact: Any) -> float:
+        """``sqrt( integral |p_h - p_exact|^2 )`` over the domain.
+
+        The exact field is evaluated **at the quadrature points**, not projected
+        onto the finite-element space first. Projecting would add the
+        projection's own error to the measurement and flatter the method; and
+        comparing only at nodes would flatter it further, because nodal values
+        superconverge.
+        """
+        if self._p is None or self._basis is None:
+            raise RuntimeError("call run() before l2_error()")
+
+        @Functional(dtype=complex)
+        def squared(w, _exact=exact):
+            return np.abs(w["uh"] - _evaluate(_exact, w.x)) ** 2
+
+        value = squared.assemble(self._basis, uh=self._basis.interpolate(self._p))
+        return float(np.sqrt(abs(value)))
+
     def sample_on_grid(self, nx: int = 201, ny: int = 41) -> xr.Dataset:
         """Interpolate the solution onto a regular ``(x, y)`` grid.
 

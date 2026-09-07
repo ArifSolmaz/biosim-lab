@@ -26,6 +26,7 @@ from biosim_lab.instruments.saw_sorter.simulate import (
     SAWSorterSimulation,
     SortingOutcome,
     parameter_sweep,
+    replicate_sorting,
 )
 
 
@@ -91,6 +92,20 @@ class SAWSorter(Instrument):
         self._ensure_setup()
         assert self.params is not None
         return parameter_sweep(self.params, grid, progress=progress)
+
+    def replicate(self, *, n_replicates: int = 5, confidence: float = 0.95) -> Any:
+        """Re-run the same device on fresh random samples and summarise the spread.
+
+        Complements the counting error already in ``metrics`` (``*_ci_low`` /
+        ``*_ci_high``, which is binomial and present even with the seed fixed).
+        This measures the other uncertainty: how much the answer moves when the
+        cells themselves are redrawn.
+        """
+        self._ensure_setup()
+        assert self.params is not None
+        return replicate_sorting(
+            self.params, n_replicates=n_replicates, confidence=confidence
+        )
 
     def dashboard(self) -> Any:
         """Interactive Panel dashboard with live parameter sliders."""
