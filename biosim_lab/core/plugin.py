@@ -40,6 +40,21 @@ class RegimeWarning(UserWarning):
     """Raised when a simulation runs outside the validity of its model."""
 
 
+class ConfigurationError(ValueError):
+    """The settings cannot be simulated, and the user is the one who can fix it.
+
+    Distinct from an ordinary error so a front end can explain the problem
+    instead of showing a stack trace, *without* swallowing genuine bugs: only
+    this type is caught. Raise it when a configuration is physically or
+    numerically impossible rather than merely unusual --- a cell taller than the
+    channel it must flow through, a linking radius so large the assignment is
+    ambiguous. Something that is merely outside a model's validated range is a
+    :class:`RegimeWarning`, not this.
+
+    Subclasses ``ValueError``, so existing handlers keep working.
+    """
+
+
 def optional_import(module: str, *, purpose: str = "", warn: bool = False) -> ModuleType | None:
     """Import *module*, returning ``None`` instead of raising when absent.
 

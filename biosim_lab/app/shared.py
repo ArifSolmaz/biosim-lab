@@ -6,11 +6,14 @@ that decides how a model warning is rendered.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import pandas as pd
 import streamlit as st
 
+from biosim_lab.core.plugin import ConfigurationError
 from biosim_lab.core.viz.theme import PALETTE
 
 UL_MIN = 1e-9 / 60.0  # m^3/s per uL/min
@@ -54,6 +57,26 @@ def show_warnings(caught: list[dict[str, Any]]) -> None:
             st.info(f"**Optional back-end missing** — {w['message']}", icon="ℹ️")
 
 
+@contextmanager
+def explained_settings() -> Iterator[None]:
+    """Render a settings problem as guidance rather than as a stack trace.
+
+    Some widget combinations describe a device that cannot exist --- a cell
+    taller than the channel it must flow through, a linking radius so wide that
+    the assignment is ambiguous. Those are the user's to fix, and the model says
+    how in the exception text.
+
+    Only :class:`ConfigurationError` is caught. A genuine bug still surfaces as
+    a real traceback, because hiding one behind a friendly message is how a
+    broken simulation gets published.
+    """
+    try:
+        yield
+    except ConfigurationError as exc:
+        st.error(f"**These settings cannot be simulated** — {exc}", icon="🚫")
+        st.stop()
+
+
 def download_frame(df: pd.DataFrame, filename: str, label: str) -> None:
     """CSV download button. CSV rather than Parquet/NetCDF so the hosted app
     needs neither pyarrow nor an HDF5 stack."""
@@ -63,4 +86,12 @@ def download_frame(df: pd.DataFrame, filename: str, label: str) -> None:
     )
 
 
-__all__ = ["CSS", "PLOTLY_CONFIG", "UL_MIN", "download_frame", "note", "show_warnings"]
+__all__ = [
+    "CSS",
+    "PLOTLY_CONFIG",
+    "UL_MIN",
+    "download_frame",
+    "explained_settings",
+    "note",
+    "show_warnings",
+]

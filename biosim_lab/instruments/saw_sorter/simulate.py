@@ -56,7 +56,7 @@ from biosim_lab.core.particles import (
     TrackResult,
     make_state,
 )
-from biosim_lab.core.plugin import RegimeWarning
+from biosim_lab.core.plugin import ConfigurationError, RegimeWarning
 from biosim_lab.core.statistics import replicate, summary_table, wilson_interval
 from biosim_lab.instruments.saw_sorter import viability as viability_model
 from biosim_lab.instruments.saw_sorter.fem_model import SAWFieldModel, pressure_from_voltage
@@ -263,16 +263,46 @@ class SAWSorterSimulation:
         xs, ys, radii, rhos, kappas, labels = [], [], [], [], [], []
         for pop in p.populations:
             cell = get_cell(pop.cell_type)
-            r = cell.sample_radii(pop.count, self.rng)
-            x = self._sample_inlet_x(pop.count, np.asarray(r))
+            r = np.asarray(cell.sample_radii(pop.count, self.rng), dtype=float)
+
+            # A cell taller than the channel cannot enter it: a real device holds
+            # it at the inlet or clogs. Simulating one would put a sphere inside
+            # a wall AND make the wall-clearance sampling below ill-posed
+            # (low > high), so oversized cells are excluded and the loss is
+            # reported rather than absorbed silently. Cell diameters are
+            # log-normal, so at a tight channel height this is not a rare tail:
+            # a 20 um channel rejects ~16 % of an MCF-7 population.
+            smallest_um = 2.0 * float(r.min()) * 1e6
+            fits = 2.0 * r <= p.channel_height
+            n_excluded = int((~fits).sum())
+            if n_excluded:
+                warnings.warn(
+                    f"{n_excluded} of {pop.count} {pop.resolved_label()} cells are "
+                    f"taller than the {p.channel_height * 1e6:.0f} um channel and "
+                    "were excluded from the run; they could not enter the device. "
+                    "Metrics below describe only the cells that fit.",
+                    RegimeWarning,
+                    stacklevel=2,
+                )
+                r = r[fits]
+            if r.size == 0:
+                raise ConfigurationError(
+                    f"no {pop.resolved_label()} cell fits in a "
+                    f"{p.channel_height * 1e6:.0f} um channel (smallest sampled "
+                    f"diameter {smallest_um:.1f} um); raise the channel height "
+                    "or choose a smaller cell type"
+                )
+
+            n = int(r.size)
+            x = self._sample_inlet_x(n, r)
             # Keep cell centres at least one radius from the top/bottom walls.
             y = self.rng.uniform(r, p.channel_height - r)
             xs.append(x)
             ys.append(y)
             radii.append(r)
-            rhos.append(np.full(pop.count, cell.rho))
-            kappas.append(np.full(pop.count, cell.kappa))
-            labels.extend([pop.resolved_label()] * pop.count)
+            rhos.append(np.full(n, cell.rho))
+            kappas.append(np.full(n, cell.kappa))
+            labels.extend([pop.resolved_label()] * n)
 
         positions = np.column_stack(
             [np.concatenate(xs), np.concatenate(ys), np.zeros(sum(len(a) for a in xs))]
@@ -294,7 +324,12 @@ class SAWSorterSimulation:
         if p.inlet == "uniform":
             return self.rng.uniform(radii, w - radii)
         if p.inlet == "centre":
-            return self.rng.uniform(0.5 * w - 0.5 * band, 0.5 * w + 0.5 * band)
+            # size=n is required: both bounds are scalars here, so without it
+            # Generator.uniform returns a single float rather than one position
+            # per cell, and the caller concatenates zero-dimensional arrays.
+            return self.rng.uniform(
+                0.5 * w - 0.5 * band, 0.5 * w + 0.5 * band, size=n
+            )
         # sheath_sides: two hydrodynamically focused streams hugging the side walls,
         # the standard SSAW sorter inlet (doi:10.1073/pnas.1504484112).
         side = self.rng.integers(0, 2, size=n)

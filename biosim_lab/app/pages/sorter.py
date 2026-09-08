@@ -17,6 +17,7 @@ from biosim_lab.app.runners import (
 from biosim_lab.app.shared import (
     PLOTLY_CONFIG,
     download_frame,
+    explained_settings,
     note,
     show_warnings,
 )
@@ -105,11 +106,12 @@ def page_sorter() -> None:
             fem_resolution = st.slider("Mesh resolution", 16, 64, 40, 8)
         seed = st.number_input("Random seed", 0, 999_999, 12345, 1)
 
-    out = run_sorter(
-        frequency_mhz, voltage_pp, flow_ul_min, width_um, height_um, length_mm,
-        n_cells, collection_fraction, inlet, mode, target, background,
-        fem_resolution, temperature_c, inlet_viability, rf_power, int(seed),
-    )
+    with explained_settings():
+        out = run_sorter(
+            frequency_mhz, voltage_pp, flow_ul_min, width_um, height_um, length_mm,
+            n_cells, collection_fraction, inlet, mode, target, background,
+            fem_resolution, temperature_c, inlet_viability, rf_power, int(seed),
+        )
     m, d = out["metrics"], out["diagnostics"]
 
     cols = st.columns(6)

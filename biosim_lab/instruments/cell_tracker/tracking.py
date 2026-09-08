@@ -34,7 +34,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from biosim_lab.core.plugin import optional_import
+from biosim_lab.core.plugin import ConfigurationError, optional_import
 
 
 def link_detections(
@@ -70,7 +70,22 @@ def link_detections(
         raise ValueError(f"detections table is missing columns: {sorted(missing)}")
 
     tp.quiet()
-    linked = tp.link(detections, search_range=search_range, memory=memory)
+    try:
+        linked = tp.link(detections, search_range=search_range, memory=memory)
+    except tp.SubnetOversizeException as exc:
+        # Not an internal fault: linking is a combinatorial assignment, and once
+        # the search radius reaches typical cell spacing the number of candidate
+        # pairings explodes and no unique answer exists. trackpy refuses rather
+        # than guessing, which is the right call --- but the message it raises
+        # names an implementation detail ("subnetwork"), so it is translated
+        # into the thing the user can actually act on.
+        n_per_frame = float(detections.groupby("frame").size().mean())
+        raise ConfigurationError(
+            f"search_range={search_range:g} px is too large for this cell "
+            f"density (~{n_per_frame:.0f} cells per frame): too many cells are "
+            "plausible matches for each other, so the linking is ambiguous. "
+            "Reduce the search range, or track fewer cells."
+        ) from exc
     if min_track_length > 1:
         linked = tp.filter_stubs(linked, threshold=min_track_length)
     return linked.reset_index(drop=True)

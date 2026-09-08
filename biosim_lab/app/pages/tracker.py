@@ -12,6 +12,7 @@ from biosim_lab.app.runners import (
 from biosim_lab.app.shared import (
     PLOTLY_CONFIG,
     download_frame,
+    explained_settings,
     note,
 )
 from biosim_lab.core.viz.theme import color_for
@@ -53,8 +54,9 @@ def page_tracker() -> None:
             icon="⚠️",
         )
 
-    out = run_tracker(n_frames, n_cells, image_size, speed_px, persistence,
-                      search_range, frame_interval_min, int(seed))
+    with explained_settings():
+        out = run_tracker(n_frames, n_cells, image_size, speed_px, persistence,
+                          search_range, frame_interval_min, int(seed))
     m = out["metrics"]
 
     cols = st.columns(5)
