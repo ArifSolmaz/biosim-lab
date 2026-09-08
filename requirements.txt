@@ -61,7 +61,7 @@ typer>=0.12
 rich>=13
 
 # --- interface -------------------------------------------------------------
-streamlit>=1.40
+streamlit>=1.49  # width= replaced use_container_width
 
 # --- optional: deep-learning segmentation ----------------------------------
 # Uncomment ALL FOUR lines to enable the Cellpose back-end on CPU. This adds

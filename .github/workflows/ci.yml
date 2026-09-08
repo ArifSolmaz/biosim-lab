@@ -161,6 +161,12 @@ jobs:
           pip install -r requirements.txt
       - name: The app must import without the package being pip-installed
         run: python -c "import streamlit_app; print('pages:', list(streamlit_app.PAGES))"
+      - name: Every page must actually render, not merely import
+        # The app is split one module per page, so a name that quietly moved out
+        # of scope gives a page that imports fine and raises at render time.
+        run: |
+          pip install pytest
+          pytest tests/test_streamlit_app.py -q
       - name: Instruments must resolve from a bare checkout
         run: |
           python -c "
