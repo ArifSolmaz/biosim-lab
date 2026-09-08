@@ -184,8 +184,14 @@ jobs:
           "
 
   # ---------------------------------------------------------------------------
-  # Advisory only. There are 36 known errors as of this commit; the job exists so
+  # Advisory only. There are 34 known errors as of this commit; the job exists so
   # the number is visible and can only go down, not to block anyone today.
+  #
+  # It read 88 before the pydantic mypy plugin was enabled in pyproject.toml.
+  # Most of those were not real: mypy saw the annotated field type on
+  # SAWSorterParams and not the validator that accepts "6.632 MHz", so every
+  # construction call looked like a type error. The plugin teaches it the
+  # generated __init__.
   types:
     name: mypy (advisory)
     runs-on: ubuntu-latest

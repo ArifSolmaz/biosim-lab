@@ -141,5 +141,9 @@ ignore = [
 
 [tool.mypy]
 python_version = "3.11"
+# Without this, every SAWSorterParams(frequency="6.632 MHz", ...) call reads as a
+# type error: mypy sees the annotated field type and not the validator that
+# accepts a unit string. The plugin teaches it the generated __init__.
+plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
 warn_unused_ignores = false
