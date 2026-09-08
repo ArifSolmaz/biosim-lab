@@ -14,11 +14,13 @@ This file is the entry point and the router only. Each page lives in
 Deployment notes (see docs/USER_MANUAL.md for the full walkthrough)
 ------------------------------------------------------------------
 * Entry point for Streamlit Community Cloud: this file, at the repository root.
-* Dependencies come from ``requirements.txt``, which is deliberately *smaller*
-  than the ones in ``pyproject.toml``: PyVista/VTK, Gmsh, Napari, Panel and the
-  NetCDF back-ends are all left out. The core degrades to a structured mesh, and
-  results download as CSV instead of NetCDF. That keeps the image inside the
-  memory budget of a free hosting tier.
+* Dependencies come from ``requirements.txt``. There is deliberately **no**
+  ``packages.txt``: any such file makes the host run ``apt-get update``, and a
+  single expired release file in its base image then fails the whole deploy —
+  which leaves the previous process serving stale code rather than the app
+  simply losing a feature. Nothing here needs system libraries. Gmsh cannot
+  import without OpenGL, so meshing falls back to the structured template; that
+  path is exercised in CI and by ``tests/test_deployment.py``.
 * Because the package is not ``pip install``-ed there, entry-point discovery
   finds nothing; :mod:`biosim_lab.registry` falls back to importing the built-in
   instruments directly. The Environment page reports which route was taken.

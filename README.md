@@ -77,12 +77,14 @@ Aynı dosya Streamlit Community Cloud'a olduğu gibi dağıtılabilir — depoyu
 GitHub'a itin, giriş noktası olarak `streamlit_app.py` seçin. Adım adım anlatım:
 [USER\_MANUAL.md §9](docs/USER_MANUAL.md#9-publishing-your-own-copy-on-streamlit).
 
-`requirements.txt` yönetilen bir sunucuda **gerçekten çalışan her şeyi** içerir
-(Gmsh, PyVista, Panel, NetCDF, Parquet dahil); `packages.txt` ise apt ile
-kurulması gereken sistem kütüphanelerini (OpenGL, X11, xvfb) listeler. Bu küme,
-Streamlit Cloud'un çalıştırdığı platformun aynısı olan `linux/amd64` Debian
-bookworm konteynerinde kurulup ağ üretilerek, render alınarak, NetCDF yazılarak
-ve tüm test paketi çalıştırılarak doğrulanmıştır.
+`requirements.txt` yönetilen bir sunucuda **gerçekten çalışan her şeyi** içerir.
+Depoda bilerek **`packages.txt` yoktur**: böyle bir dosyanın varlığı sunucuda
+`apt-get update` çalıştırır ve temel imajdaki süresi dolmuş tek bir depo tüm
+dağıtımı düşürür — üstelik yeni örnek hiç başlamadığı için eski süreç eski kodla
+hizmet vermeye devam eder. Hiçbir bağımlılık sistem kütüphanesi gerektirmez;
+OpenGL olmadan içe aktarılamayan tek paket Gmsh'tir ve yapılandırılmış ağ
+şablonuna geri düşer. Bu küme, Streamlit Cloud'un çalıştırdığı platformun aynısı
+olan `linux/amd64` konteynerinde **hiç apt paketi kurulmadan** doğrulanmıştır.
 
 Üçü bilerek dışarıdadır ve `requirements.txt`'e eklemek işe yaramaz: **Napari**
 (Qt ve ekran ister), **OpenFOAM/Elmer** (Python paketi değil, harici ikili

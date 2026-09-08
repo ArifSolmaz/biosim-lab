@@ -1,6 +1,6 @@
 # Dependencies for the hosted Streamlit app.
-# Streamlit Community Cloud installs this file automatically, together with the
-# system libraries listed in packages.txt.
+# Streamlit Community Cloud installs this file automatically. There is
+# deliberately no packages.txt: see the note on gmsh below.
 #
 # This is the FULL set of everything that genuinely works on a managed host.
 # Verified by installing it in a linux/amd64 Debian bookworm container — the
@@ -32,7 +32,10 @@ pyyaml>=6
 
 # --- solvers and meshing ---------------------------------------------------
 scikit-fem>=9.0        # built-in Helmholtz / Stokes / electro-quasistatic
-gmsh>=4.12             # PDMS-wall mesh template
+gmsh>=4.12             # PDMS-wall mesh template. Will NOT import on a host
+                       # without system OpenGL (libGLU); the structured-mesh
+                       # fallback covers the straight-channel template, and
+                       # `biosim doctor` reports it as missing.
 meshio>=5.3            # reading Gmsh output into scikit-fem
 
 # --- image analysis --------------------------------------------------------
@@ -45,7 +48,8 @@ matplotlib>=3.8        # colour maps used internally by scikit-image
 # --- visualisation ---------------------------------------------------------
 plotly>=5.20           # every figure in this app
 kaleido                # static PNG export of those figures
-pyvista>=0.43          # off-screen 3-D field rendering (needs xvfb, see packages.txt)
+pyvista>=0.43          # off-screen 3-D field rendering; imports without system
+                       # OpenGL, and the web app uses Plotly rather than VTK
 panel>=1.4             # the desktop dashboards, importable here for completeness
 bokeh>=3.4             # Panel's rendering back-end
 

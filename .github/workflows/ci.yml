@@ -32,13 +32,18 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
 
-      # Installed from packages.txt itself, so the file the hosted app depends
-      # on is exercised rather than duplicated. PyVista/VTK and Gmsh link
-      # against OpenGL and X11 even when rendering off-screen.
+      # Listed inline, not from a packages.txt: the hosted app deliberately has
+      # no such file (its presence makes the host run apt-get update, and one
+      # expired repository in the base image then fails the whole deploy). These
+      # jobs still install OpenGL/X11 so the Gmsh and PyVista paths are covered
+      # somewhere; the `streamlit` job below runs with none of them, which is
+      # what the host actually does.
       - name: System libraries
         run: |
           sudo apt-get update -qq
-          xargs -a packages.txt sudo apt-get install -y -qq
+          sudo apt-get install -y -qq libgl1 libglu1-mesa libxrender1 libxext6 \
+            libsm6 libice6 libxcursor1 libxinerama1 libxft2 libfontconfig1 \
+            libgomp1 xvfb
 
       - name: Install
         run: |
@@ -95,7 +100,9 @@ jobs:
       - name: System libraries
         run: |
           sudo apt-get update -qq
-          xargs -a packages.txt sudo apt-get install -y -qq
+          sudo apt-get install -y -qq libgl1 libglu1-mesa libxrender1 libxext6 \
+            libsm6 libice6 libxcursor1 libxinerama1 libxft2 libfontconfig1 \
+            libgomp1 xvfb
       - name: Install
         run: |
           python -m pip install --upgrade pip
@@ -151,10 +158,9 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: System libraries
-        run: |
-          sudo apt-get update -qq
-          xargs -a packages.txt sudo apt-get install -y -qq
+      # NO system libraries on purpose: this job must match Streamlit Community
+      # Cloud, which installs none. If anything here starts needing a shared
+      # object, it has to fail in CI rather than in a hosting build log.
       - name: Install exactly what the host installs
         run: |
           python -m pip install --upgrade pip

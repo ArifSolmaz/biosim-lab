@@ -543,67 +543,41 @@ The repository already contains everything Streamlit Community Cloud needs.
 | `streamlit_app.py` | the entry point and router, at the repository root |
 | `biosim_lab/app/` | the app itself: one module per page under `app/pages/`, cached simulation wrappers in `app/runners.py`, formatting helpers in `app/shared.py` |
 | `requirements.txt` | the Python dependencies — **the full set that works on a managed host** |
-| `packages.txt` | the system libraries apt must install first (OpenGL, X11, xvfb) |
 | `.streamlit/config.toml` | theme matching the figure palette, upload limit |
 
-`packages.txt` is not optional if you want PyVista or Gmsh. Both are compiled
-against OpenGL and X11 even when rendering off-screen, so without those shared
-objects the import fails with `libGL.so.1: cannot open shared object file`.
-Streamlit Cloud reads the file automatically and runs apt before pip.
+There is deliberately **no `packages.txt`**, and adding one is the single
+easiest way to take this deployment down.
 
-> ### ⚠️ `packages.txt` must contain nothing but package names
->
-> **Streamlit Cloud's parser has no comment support.** It splits the file on
-> whitespace and hands every token to `apt-get install`, so one explanatory
-> comment produces a wall of errors and fails the whole deployment:
->
-> ```
-> E: Unable to locate package OpenGL,
-> E: Unable to locate package needed
-> E: Unable to locate package by
-> E: Unable to locate package VTK
-> ❗️ installer returned a non-zero exit code
-> ```
->
-> One package name per line. No comments, no blank lines, no trailing
-> whitespace, no CRLF. `tests/test_deployment.py` enforces all four, because
-> this file is never read by Python and nothing else would catch it — the
-> failure only appears minutes later in a build log.
+### Why there is no `packages.txt`
 
-The twelve libraries and what each is for:
+Its mere presence makes Streamlit Cloud run `apt-get update` before pip. The
+base image carries repositories this project does not control, and one of them
+expiring is enough to sink the deploy:
 
-| Package | Why |
-|---|---|
-| `libgl1`, `libglu1-mesa` | OpenGL — VTK (inside PyVista) and Gmsh's renderer |
-| `libxrender1`, `libxext6`, `libsm6`, `libice6` | X11 client libraries both link against |
-| `libxcursor1`, `libxinerama1`, `libxft2`, `libfontconfig1` | Gmsh's GUI toolkit dependencies, needed even headless |
-| `libgomp1` | OpenMP runtime, used by scikit-image and SciPy |
-| `xvfb` | virtual framebuffer, so PyVista can render with no display. Call `pyvista.start_xvfb()` once before rendering on a headless host. |
-
-### Step by step
-
-**1. Put it on GitHub.**
-
-```bash
-cd biosim-lab
-git remote add origin https://github.com/<your-account>/biosim-lab.git
-git branch -M main
-git push -u origin main
+```
+E: Release file for .../bullseye-security/InRelease is expired (invalid since 12h)
+❗️ installer returned a non-zero exit code
+❗️ Error during processing dependencies!
 ```
 
-Or, with the GitHub CLI, create the repository and push in one go:
+The consequence is worse than losing a feature. The new instance never starts,
+so the **previous process keeps serving** — executing the old bytecode against
+the newly pulled source. A fix you just pushed appears to change nothing, and
+the traceback mixes old line numbers with new source text. The app now detects
+that state and says so on every page (see §12).
 
-```bash
-gh repo create <your-account>/biosim-lab --public --source=. --remote=origin --push
-```
+Nothing here needs a system library. Gmsh is the one dependency that cannot
+import without OpenGL, and it is optional by design: meshing falls back to the
+structured straight-channel template, and `biosim doctor` reports it missing.
+Everything else in `requirements.txt` imports unaided — the `streamlit` CI job
+installs it with no apt step at all, precisely so this fails in CI rather than
+in a hosting build log.
 
-**2. Deploy.** Go to <https://share.streamlit.io>, sign in with GitHub, and
-click *New app*:
+If you do add a system dependency, note that **the parser has no comment
+support**: it splits on whitespace and hands every token to `apt-get install`,
+so one explanatory comment becomes `E: Unable to locate package OpenGL,`. One
+bare package name per line, nothing else.
 
-| Field | Value |
-|---|---|
-| Repository | `<your-account>/biosim-lab` |
-| Branch | `main` |
 | Main file path | `streamlit_app.py` |
 | Python version | 3.11 or 3.12 |
 

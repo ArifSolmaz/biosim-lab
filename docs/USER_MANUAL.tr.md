@@ -474,24 +474,41 @@ Depo, Streamlit Community Cloud'un ihtiyaç duyduğu her şeyi zaten içerir.
 |---|---|
 | `streamlit_app.py` | giriş noktası, depo kökünde |
 | `requirements.txt` | Python bağımlılıkları — **yönetilen bir sunucuda çalışan tam küme** |
-| `packages.txt` | apt'nin önce kurması gereken sistem kütüphaneleri (OpenGL, X11, xvfb) |
 | `.streamlit/config.toml` | şekil paletiyle uyumlu tema, yükleme sınırı |
+| `biosim_lab/app/` | uygulamanın kendisi: `app/pages/` altında sayfa başına bir modül |
 
-> ### ⚠️ `packages.txt` yalnızca paket adları içermelidir
->
-> **Streamlit Cloud'un ayrıştırıcısı yorum desteklemez.** Dosyayı boşluklardan
-> böler ve her parçayı `apt-get install`'a verir; tek bir açıklama satırı
-> dağıtımı düşüren bir hata duvarı üretir:
->
-> ```
-> E: Unable to locate package OpenGL,
-> E: Unable to locate package needed
-> ❗️ installer returned a non-zero exit code
-> ```
->
-> Satır başına bir paket adı. Yorum yok, boş satır yok, sondaki boşluk yok,
-> CRLF yok. `tests/test_deployment.py` dördünü de zorunlu kılar, çünkü bu dosya
-> Python tarafından hiç okunmaz ve başka hiçbir şey yakalamaz.
+Depoda bilerek **`packages.txt` yoktur** ve böyle bir dosya eklemek bu dağıtımı
+düşürmenin en kolay yoludur.
+
+### Neden `packages.txt` yok
+
+Dosyanın varlığı, Streamlit Cloud'un pip'ten önce `apt-get update` çalıştırmasına
+yol açar. Temel imaj, bu projenin denetiminde olmayan depoları taşır ve bunlardan
+birinin süresinin dolması dağıtımı batırmaya yeter:
+
+```
+E: Release file for .../bullseye-security/InRelease is expired (invalid since 12h)
+❗️ installer returned a non-zero exit code
+❗️ Error during processing dependencies!
+```
+
+Sonuç, bir özelliği kaybetmekten daha kötüdür. Yeni örnek hiç başlamaz, bu yüzden
+**önceki süreç hizmet vermeye devam eder** — yeni çekilmiş kaynağa karşı eski
+bayt kodunu çalıştırarak. Az önce ittiğiniz düzeltme hiçbir şeyi değiştirmemiş
+gibi görünür ve yığın izi eski satır numaralarıyla yeni kaynak metnini karıştırır.
+Uygulama artık bu durumu saptayıp her sayfada bildirir (bkz. §12).
+
+Burada hiçbir şey sistem kütüphanesine ihtiyaç duymaz. OpenGL olmadan içe
+aktarılamayan tek bağımlılık Gmsh'tir ve o da tasarım gereği isteğe bağlıdır:
+ağ oluşturma, yapılandırılmış düz kanal şablonuna geri düşer ve `biosim doctor`
+onu eksik olarak raporlar. `requirements.txt` içindeki diğer her şey yardımsız
+içe aktarılır — `streamlit` CI işi bunu hiç apt adımı olmadan kurar; tam da bu
+hata bir barındırma günlüğünde değil CI'da patlasın diye.
+
+Yine de bir sistem bağımlılığı eklerseniz, **ayrıştırıcının yorum desteklemediğini**
+unutmayın: dosyayı boşluklardan böler ve her parçayı `apt-get install`'a verir;
+tek bir açıklama satırı `E: Unable to locate package OpenGL,` hatasına dönüşür.
+Satır başına bir çıplak paket adı, başka hiçbir şey.
 
 ### Adım adım
 
