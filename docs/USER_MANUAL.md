@@ -812,6 +812,67 @@ the full channel width to migrate across, so the separation is as strong as the
 geometry allows, whereas `sheath_sides` starts cells at *both* walls and halves
 the distance available.
 
+### Tilted-angle SSAW: a different mechanism, not a different outlet
+
+Everything above assumes the standing wave runs **straight** across the channel.
+The node planes then lie parallel to the flow, a cell migrates sideways until it
+reaches a node, and it **stops**. Its displacement is capped by the node spacing
+no matter how long the channel is or how strong the field.
+
+Tilting the IDTs (`tilt_angle_deg`, doi:10.1073/pnas.1413325111) changes what the
+device does. The node planes now cross the flow, so a cell held in one is dragged
+across the channel as it travels downstream:
+
+```
+dx/dz = -tan(theta)      so a held cell drifts  L * tan(theta)  over length L
+```
+
+Displacement grows with **channel length** instead of saturating, and the
+separation stops being "how fast does it migrate" and becomes **"can a node hold
+it at all"**.
+
+**The design number is the tilt limit.** Holding a cell on a moving node plane
+costs a sideways drag of `u * tan(theta)`, so a cell stays trapped only while
+
+```
+sin(theta) / cos^2(theta)  <=  pi * p0^2 * kappa_f * Phi * a^2 / (9 * mu * lambda * u)
+```
+
+That right-hand side scales with **a²**, so small cells lose their grip first —
+and *that asymmetry is the separation*. `biosim_lab.instruments.saw_sorter.
+physics.acoustics.max_trappable_tilt` gives each population's limit and
+`cutoff_radius` inverts it into the sorter's cutoff size; both appear in
+`diagnostics["tilt"]` and on the web app when the angle is non-zero. At
+6.632 MHz, 15 Vpp and 5 µL/min:
+
+| cell | radius | holds up to |
+|---|---|---|
+| MCF-7 | 9.00 µm | 16.5° |
+| A549 | 7.75 µm | 9.8° |
+| WBC | 4.25 µm | 2.6° |
+| RBC | 2.78 µm | 2.4° |
+
+Any angle between 2.4° and 16.5° deflects the tumour cells and lets the blood
+cells flow straight through. Pick one and the cutoff diameter follows: 10° gives
+13.7 µm.
+
+**Past the limit the device silently does nothing.** A cell that cannot be held
+slips across node planes, the force averages to zero, and it flows on almost
+undeflected — a failure that produces perfectly plausible-looking output. Check
+the limit rather than assuming a bigger angle deflects harder.
+
+**Two things the model refuses or flags.** `mode="fem"` with a tilt raises: the
+Helmholtz field is solved on the channel cross-section and does not vary along
+the flow, whereas a tilted pattern varies along the flow by definition, so that
+mesh would silently return a straight-IDT answer under a tilted label. And a
+positive angle deflects towards −x, so with the sample on the left wall you want
+a **negative** angle; get the sign wrong and every cell is pressed into the wall
+it started against, which the model warns about.
+
+`examples/10_tilted_angle_ssaw.py` shows both the loss of saturation and what it
+buys: in a 600 µm channel one wavelength wide, a straight device cannot reach
+90 % recovery at any divider, while −10° gives 100 % recovery at 100 % purity.
+
 ### Which of the 38 assumptions actually matter
 
 The Material provenance page lists every number that could not be traced to a

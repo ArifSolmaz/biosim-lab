@@ -80,6 +80,14 @@ def page_sorter() -> None:
             help="A freshly prepared suspension is typically 90-97 % viable, "
                  "so the honest baseline is not 100 %.",
         )
+        tilt_angle_deg = st.slider(
+            "IDT tilt angle (°)", -30.0, 30.0, 0.0, 0.5,
+            help="0 = conventional SSAW: nodes run along the channel and cells "
+                 "park on one. Non-zero = tilted-angle SSAW, a different "
+                 "mechanism: the nodes cross the flow and drag held cells across "
+                 "the channel, so displacement grows with length. A positive "
+                 "angle deflects towards the left wall.",
+        )
         inlet = st.selectbox(
             "Inlet focusing", ["sheath_sides", "uniform", "centre", "side"], index=0,
             help="side = the whole sample enters along one wall, which is what a "
@@ -136,6 +144,7 @@ def page_sorter() -> None:
             n_cells, collection_fraction, inlet, mode, target, background,
             fem_resolution, temperature_c, inlet_viability, rf_power, int(seed),
             inlet_side, outlet_layout, split_position, collect_side,
+            tilt_angle_deg,
         )
     m, d = out["metrics"], out["diagnostics"]
 
@@ -165,6 +174,22 @@ def page_sorter() -> None:
                    help=f"{m['n_alive_collected']} of them alive")
 
     show_warnings(out["warnings"])
+
+    tilt = out["diagnostics"].get("tilt", {})
+    if out["diagnostics"].get("tilt_angle_deg"):
+        limits = {k: v["max_trappable_tilt_deg"]
+                  for k, v in tilt.get("per_population", {}).items()}
+        window = "; ".join(f"{k} holds to {v:.1f}°" for k, v in limits.items())
+        note(
+            f"<b>Tilted-angle mode.</b> A node can only drag a cell across the "
+            f"channel while the force covers the sideways pull: {window}. Any "
+            f"angle between those limits deflects the large cells and lets the "
+            f"small ones through — that is the separation. At this angle the "
+            f"cutoff is <b>{tilt.get('cutoff_diameter_um', float('nan')):.1f} µm "
+            f"diameter</b>, and a held cell drifts "
+            f"{tilt.get('geometric_drift_um', float('nan')):.0f} µm over the "
+            f"channel length."
+        )
 
     if not m["all_cells_exited"]:
         st.error(

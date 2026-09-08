@@ -41,6 +41,7 @@ def run_sorter(
     outlet_layout: str = "centre_band",
     split_position: float = 0.5,
     collect_side: str = "right",
+    tilt_angle_deg: float = 0.0,
 ) -> dict[str, Any]:
     """Run one sorter experiment. Arguments are primitives so caching works."""
     from biosim_lab.instruments.saw_sorter.simulate import (
@@ -61,6 +62,7 @@ def run_sorter(
         inlet=inlet,
         inlet_side=inlet_side,
         outlet_layout=outlet_layout,
+        tilt_angle_deg=tilt_angle_deg,
         collection_fraction=collection_fraction,
         split_position=split_position,
         collect_side=collect_side,

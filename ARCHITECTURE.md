@@ -77,7 +77,8 @@ biosim_lab/
     saw_sorter/    # AŞAMA 1 — tam
       viability.py            # CEM43 termal doz, kayma, kavitasyon; canlı/ölü
       calibration.py          # boncuk yörüngesinden akustik enerji yoğunluğu (Barnkob 2010)
-      physics/acoustics.py    # Gor'kov, ARF, kontrast faktörü, SAW alanı
+      physics/acoustics.py    # Gor'kov, ARF, kontrast faktörü, SAW alanı,
+                              # eğik açılı SSAW tutulma sınırı ve kesme boyutu
       physics/drag.py         # Stokes sürüklenme, Re denetimi
       physics/secondary.py    # Bjerknes, yerçekimi/kaldırma, duvar itme (varsayılan kapalı)
       flow.py                 # Dikdörtgen kanal Poiseuille (Fourier serisi)

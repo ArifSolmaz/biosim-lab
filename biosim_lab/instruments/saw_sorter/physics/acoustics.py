@@ -481,4 +481,106 @@ __all__ = [
     "ssaw_pressure_field",
     "gorkov_potential",
     "gorkov_force_on_grid",
+    "max_trappable_tilt",
+    "cutoff_radius",
 ]
+
+
+def _force_to_drag_ratio(
+    radius: float | np.ndarray,
+    *,
+    p0: float,
+    kappa_f: float,
+    wavelength: float,
+    phi: float | np.ndarray,
+    viscosity: float,
+    flow_speed: float,
+) -> np.ndarray:
+    """Peak radiation force divided by the drag of moving at the flow speed.
+
+    Substituting the Gor'kov amplitude and Stokes drag into
+    ``F_amp / (6 pi mu a u)`` and cancelling gives
+
+        R = pi * p0^2 * kappa_f * Phi * a^2 / (9 * mu * lambda * u)
+
+    which is dimensionless and, note, scales with ``a^2`` --- the same ``r^2``
+    that governs migration speed, so trapping inherits the size selectivity.
+    """
+    a = np.asarray(radius, dtype=float)
+    return (
+        np.pi * float(p0) ** 2 * float(kappa_f) * np.abs(phi) * a**2
+        / (9.0 * float(viscosity) * float(wavelength) * float(flow_speed))
+    )
+
+
+def max_trappable_tilt(
+    radius: float | np.ndarray,
+    *,
+    p0: float,
+    kappa_f: float,
+    wavelength: float,
+    phi: float | np.ndarray,
+    viscosity: float,
+    flow_speed: float,
+) -> np.ndarray:
+    """Largest IDT tilt [rad] at which a particle is still carried by a node.
+
+    In a tilted-angle device (doi:10.1073/pnas.1413325111) the node planes cross
+    the flow, so holding a particle on one requires dragging it sideways at
+    ``u * tan(theta)`` for the whole channel. Writing the projected coordinate as
+    ``xi`` and setting ``d(xi)/dt = 0`` for a particle advected at ``u``,
+
+        |F| = 6 * pi * mu * a * u * sin(theta) / cos^2(theta)
+
+    so a particle stays trapped only while the available force covers that.
+    With ``R`` from :func:`_force_to_drag_ratio` the condition is
+    ``sin(theta) / cos^2(theta) <= R``, and substituting ``s = sin(theta)`` makes
+    it the quadratic ``R s^2 + s - R = 0``, giving the closed form below.
+
+    **This is the design number for a tilted device.** Past this angle the
+    particle slips across node planes, the average force cancels, and it flows
+    straight through: the device silently does nothing rather than failing
+    loudly. Because ``R`` scales with ``a^2``, small cells lose their grip first
+    --- which is exactly the separation mechanism, and why the useful tilt sits
+    between the two populations' limits.
+    """
+    ratio = _force_to_drag_ratio(
+        radius, p0=p0, kappa_f=kappa_f, wavelength=wavelength, phi=phi,
+        viscosity=viscosity, flow_speed=flow_speed,
+    )
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sin_theta = (-1.0 + np.sqrt(1.0 + 4.0 * ratio**2)) / (2.0 * ratio)
+    sin_theta = np.where(np.isfinite(sin_theta), sin_theta, 0.0)
+    return np.arcsin(np.clip(sin_theta, 0.0, 1.0))
+
+
+def cutoff_radius(
+    tilt_angle: float,
+    *,
+    p0: float,
+    kappa_f: float,
+    wavelength: float,
+    phi: float,
+    viscosity: float,
+    flow_speed: float,
+) -> float:
+    """Smallest particle radius [m] still carried by a node at *tilt_angle* [rad].
+
+    The inverse of :func:`max_trappable_tilt`, and the more directly useful form:
+    it is the **cutoff size of a tilted-angle sorter**. Everything larger is
+    deflected across the channel, everything smaller flows straight through.
+
+    Inverting ``R >= sin(theta)/cos^2(theta)`` for the radius gives
+
+        a_cutoff = sqrt( 9 * mu * lambda * u * T / (pi * p0^2 * kappa_f * Phi) )
+
+    with ``T = sin(theta)/cos^2(theta)``. Tilt harder and the cutoff rises;
+    raise the field or slow the flow and it falls.
+    """
+    theta = abs(float(tilt_angle))
+    t = np.sin(theta) / np.cos(theta) ** 2
+    numerator = 9.0 * float(viscosity) * float(wavelength) * float(flow_speed) * t
+    denominator = np.pi * float(p0) ** 2 * float(kappa_f) * abs(float(phi))
+    if denominator <= 0.0:
+        return float("inf")
+    return float(np.sqrt(numerator / denominator))

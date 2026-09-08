@@ -719,6 +719,66 @@ kanalın tam genişliğini verir, yani ayrım geometrinin izin verdiği kadar g�
 olur; `sheath_sides` ise hücreleri **iki** duvardan başlatır ve kullanılabilir
 mesafeyi yarıya indirir.
 
+### Eğik açılı SSAW: farklı bir çıkış değil, farklı bir mekanizma
+
+Yukarıdaki her şey duran dalganın kanalı **dik** kestiğini varsayar. O zaman
+düğüm düzlemleri akışa paraleldir; hücre yana göç eder, bir düğüme varır ve
+**durur**. Yer değiştirmesi, kanal ne kadar uzun ya da alan ne kadar güçlü olursa
+olsun düğüm aralığıyla sınırlıdır.
+
+IDT'leri eğmek (`tilt_angle_deg`, doi:10.1073/pnas.1413325111) cihazın yaptığı işi
+değiştirir. Düğüm düzlemleri artık akışı keser, dolayısıyla bir düğümde tutulan
+hücre akış yönünde ilerledikçe kanal boyunca sürüklenir:
+
+```
+dx/dz = -tan(theta)      yani tutulan hücre L uzunlukta  L * tan(theta)  kayar
+```
+
+Yer değiştirme doyuma ulaşmak yerine **kanal uzunluğuyla** büyür ve ayrım artık
+"ne kadar hızlı göç ediyor" değil, **"bir düğüm onu tutabiliyor mu"** sorusudur.
+
+**Tasarım sayısı, eğim sınırıdır.** Hareket eden bir düğüm düzleminde hücreyi
+tutmak `u * tan(theta)` kadar yanal sürüklenme gerektirir; hücre ancak şu koşulda
+tutulu kalır:
+
+```
+sin(theta) / cos^2(theta)  <=  pi * p0^2 * kappa_f * Phi * a^2 / (9 * mu * lambda * u)
+```
+
+Sağ taraf **a²** ile ölçeklenir, yani tutunmayı önce küçük hücreler kaybeder — ve
+*ayrımı yapan tam da bu asimetridir*. `max_trappable_tilt` her popülasyonun
+sınırını verir, `cutoff_radius` bunu ayırıcının kesme boyutuna çevirir; ikisi de
+`diagnostics["tilt"]` içinde ve açı sıfır değilken web arayüzünde görünür.
+6.632 MHz, 15 Vpp ve 5 µL/dk için:
+
+| hücre | yarıçap | tutulma sınırı |
+|---|---|---|
+| MCF-7 | 9.00 µm | 16.5° |
+| A549 | 7.75 µm | 9.8° |
+| Akyuvar | 4.25 µm | 2.6° |
+| Alyuvar | 2.78 µm | 2.4° |
+
+2.4° ile 16.5° arasındaki herhangi bir açı tümör hücrelerini saptırır ve kan
+hücrelerinin düz geçmesine izin verir. Birini seçin, kesme çapı ardından gelir:
+10° için 13.7 µm.
+
+**Sınırın ötesinde cihaz sessizce hiçbir şey yapmaz.** Tutulamayan hücre düğüm
+düzlemleri arasından kayar, kuvvet ortalamada sıfırlanır ve hücre neredeyse hiç
+sapmadan akıp gider — makul görünen çıktı üreten bir başarısızlık. Daha büyük
+açının daha çok saptıracağını varsaymak yerine sınırı kontrol edin.
+
+**Modelin reddettiği ya da uyardığı iki şey.** Eğimle birlikte `mode="fem"` hata
+verir: Helmholtz alanı kanal kesitinde çözülür ve akış boyunca değişmez; oysa eğik
+desen tanımı gereği akış boyunca değişir, dolayısıyla o ağ eğik etiketi altında
+sessizce dik-IDT cevabı döndürürdü. Ayrıca pozitif açı −x yönüne saptırır; numune
+sol duvardaysa **negatif** açı istersiniz. İşareti yanlış verirseniz her hücre
+başladığı duvara bastırılır ve model bunu uyarır.
+
+`examples/10_tilted_angle_ssaw.py` hem doyumun kayboluşunu hem de kazancı
+gösterir: bir dalga boyu genişliğindeki 600 µm'lik kanalda dik cihaz hiçbir
+ayırıcıyla %90 geri kazanıma ulaşamazken −10° %100 geri kazanım ve %100 saflık
+verir.
+
 ### 38 varsayımdan hangileri gerçekten önemli
 
 Malzeme kaynakları sayfası, DOI'ye dayandırılamayan her sayıyı listeler. Bu

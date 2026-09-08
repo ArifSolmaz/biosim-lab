@@ -7,6 +7,27 @@ Geometry and frame
 analytic Poiseuille profile while the acoustic radiation force displaces them
 along ``x``; the simulation ends when a cell reaches ``z = channel_length``.
 
+Straight and tilted IDTs
+------------------------
+``tilt_angle_deg`` selects between two genuinely different mechanisms, not two
+geometries:
+
+* **0 (default)** --- conventional SSAW. The wave runs across the channel, node
+  planes lie parallel to the flow, and a cell migrates sideways to a node and
+  stops. Displacement is capped by the node spacing.
+* **non-zero** --- tilted-angle SSAW (doi:10.1073/pnas.1413325111). The node
+  planes cross the flow, so a held cell is dragged across the channel as it
+  travels: ``dx/dz = -tan(theta)``. Displacement grows with channel length, and
+  the separation turns on whether a node can *hold* a cell at all. That limit
+  scales with ``a^2``, so the small cells slip first --- see
+  :func:`~biosim_lab.instruments.saw_sorter.physics.acoustics.max_trappable_tilt`
+  and :func:`~...acoustics.cutoff_radius`, both reported in
+  ``diagnostics["tilt"]``.
+
+A tilted pattern varies along the flow, which the FEM cross-section cannot
+represent, so ``mode="fem"`` with a non-zero tilt is refused rather than
+silently answering with a straight-IDT field.
+
 Outlet layouts
 --------------
 Two chip topologies are supported, chosen with ``outlet_layout``:
@@ -82,7 +103,9 @@ from biosim_lab.instruments.saw_sorter.flow import RectangularPoiseuille
 from biosim_lab.instruments.saw_sorter.physics.acoustics import (
     check_gorkov_validity,
     contrast_factor,
+    cutoff_radius,
     effective_contrast_factor,
+    max_trappable_tilt,
     node_positions,
     primary_radiation_force_1d,
     saw_wavelength,
@@ -162,6 +185,12 @@ class SAWSorterParams(BaseConfigModel):
             Population(cell_type="rbc", count=200, target=False),
         ]
     )
+    tilt_angle_deg: float = Field(
+        0.0, gt=-90.0, lt=90.0,
+        description="angle between the SAW propagation direction and the channel "
+        "width axis. 0 = conventional SSAW, nodes parallel to the flow. Non-zero "
+        "= tilted-angle SSAW (taSSAW), a different separation mechanism",
+    )
     inlet: Literal["sheath_sides", "uniform", "centre", "side"] = "sheath_sides"
     inlet_side: Literal["left", "right"] = Field(
         "left", description="which wall the sample hugs when inlet='side'"
@@ -216,6 +245,18 @@ class SAWSorterParams(BaseConfigModel):
             raise ValueError("give either pressure_amplitude or voltage_pp")
         if not any(p.target for p in self.populations):
             raise ValueError("at least one population must be marked target=True")
+        if self.tilt_angle_deg != 0.0 and self.mode == "fem":
+            # The FEM field is solved on the (x, y) cross-section and is
+            # invariant along the flow. A tilted pattern varies with z by
+            # construction, so that mesh cannot represent it — and the failure
+            # would be silent, returning a straight-IDT field under a tilted
+            # label, which is exactly the kind of wrong answer that looks right.
+            raise ValueError(
+                "mode='fem' cannot represent a tilted pattern: the Helmholtz "
+                "field is solved on the channel cross-section and does not vary "
+                "along the flow, whereas tilting makes it vary along the flow by "
+                "definition. Use mode='analytic' for tilt_angle_deg != 0."
+            )
         return self
 
     @property
@@ -269,6 +310,21 @@ class SAWSorterSimulation:
         )
         self._field_model: SAWFieldModel | None = None
         self._force_interp: dict[str, Any] = {}
+
+    @property
+    def tilt_angle(self) -> float:
+        """IDT tilt relative to the channel width axis [rad]."""
+        return float(np.deg2rad(self.params.tilt_angle_deg))
+
+    @property
+    def lateral_node_spacing(self) -> float:
+        """Distance between node planes measured ACROSS the channel [m].
+
+        Tilting stretches the pattern as seen along ``x``: the wave still has
+        wavelength ``lambda`` along its own direction, but the intersection of
+        those planes with the channel width is spaced ``lambda / (2 cos theta)``.
+        """
+        return 0.5 * self.wavelength / float(np.cos(self.tilt_angle))
 
     # -- outlets ----------------------------------------------------------
     @property
@@ -465,17 +521,50 @@ class SAWSorterSimulation:
             k_transverse=self.k_transverse,
             k_fluid=self.k_fluid,
         )
-        fx = primary_radiation_force_1d(
-            state.x[:, 0],
+        theta = self.tilt_angle
+        if theta == 0.0:
+            # Conventional SSAW: the wave runs across the channel, so the node
+            # planes lie parallel to the flow and the force is purely lateral.
+            fx = primary_radiation_force_1d(
+                state.x[:, 0],
+                p0=self.params.p0,
+                volume=state.volume,
+                kappa_f=self.fluid.kappa,
+                wavelength=self.wavelength,
+                phi=phi,
+                node_offset=self.node_offset,
+            )
+            out = np.zeros_like(state.x)
+            out[:, 0] = fx
+            return out
+
+        # Tilted-angle SSAW (doi:10.1073/pnas.1413325111). Rotating the IDTs by
+        # theta rotates the whole standing-wave pattern with them: the field
+        # still varies sinusoidally with wavelength lambda, but along the
+        # rotated propagation direction n = (cos theta, 0, sin theta) rather
+        # than along x. So the same one-dimensional force law applies to the
+        # PROJECTED coordinate, and the force points along n.
+        #
+        # The consequence is the mechanism itself. Node planes are no longer
+        # parallel to the flow, so a particle held in one is dragged across the
+        # channel as it travels downstream (dx/dz = -tan theta) instead of
+        # parking at a fixed node. Displacement then grows with channel length
+        # rather than saturating at the node, and the separation turns on
+        # whether a particle can be held at all.
+        cos_t, sin_t = np.cos(theta), np.sin(theta)
+        xi = (state.x[:, 0] - self.node_offset) * cos_t + state.x[:, 2] * sin_t
+        f_xi = primary_radiation_force_1d(
+            xi,
             p0=self.params.p0,
             volume=state.volume,
             kappa_f=self.fluid.kappa,
             wavelength=self.wavelength,
             phi=phi,
-            node_offset=self.node_offset,
+            node_offset=0.0,
         )
         out = np.zeros_like(state.x)
-        out[:, 0] = fx
+        out[:, 0] = f_xi * cos_t
+        out[:, 2] = f_xi * sin_t
         return out
 
     def _fem_arf(self, state: ParticleState) -> np.ndarray:
@@ -584,6 +673,7 @@ class SAWSorterSimulation:
             viscosity=self.fluid.mu,
         )
         self._warn_if_multinode()
+        self._warn_if_tilt_wastes_the_channel()
 
         def fluid_velocity(t: float, x: np.ndarray) -> np.ndarray:
             """Advection: zero in the cross-section, Poiseuille along z."""
@@ -686,6 +776,8 @@ class SAWSorterSimulation:
             "active_forces": registry.active,
             "mode": p.mode,
             "vertical_arf_enabled": p.enable_vertical_arf,
+            "tilt_angle_deg": p.tilt_angle_deg,
+            "tilt": self.tilt_report(),
         }
         if self._field_model is not None:
             diagnostics["fem"] = self._field_model.results().diagnostics
@@ -694,6 +786,76 @@ class SAWSorterSimulation:
             tracks=tracks, cells=cells, metrics=metrics, field=field_ds,
             diagnostics=diagnostics, viability=viability,
         )
+
+    def tilt_report(self) -> dict[str, Any]:
+        """The design window for a tilted device: which cells a node can hold.
+
+        In a tilted device the separation is not "how fast does it migrate" but
+        "can a node keep hold of it at all". Each population has a maximum tilt,
+        set by its radius, and any angle between the largest and the smallest
+        separates them. This reports that window, and the cutoff diameter at the
+        configured angle, so the choice does not have to be made by sweeping.
+        """
+        p = self.params
+        flow_speed = p.flow_rate / (p.channel_width * p.channel_height)
+        common = {
+            "p0": p.p0,
+            "kappa_f": self.fluid.kappa,
+            "wavelength": self.wavelength,
+            "viscosity": self.fluid.mu,
+            "flow_speed": flow_speed,
+        }
+        per_population: dict[str, Any] = {}
+        for pop in p.populations:
+            cell = get_cell(pop.cell_type)
+            phi = self.phi_for(cell)
+            per_population[pop.resolved_label()] = {
+                "radius_um": float(cell.r) * 1e6,
+                "max_trappable_tilt_deg": float(
+                    np.degrees(max_trappable_tilt(float(cell.r), phi=phi, **common))
+                ),
+            }
+        first_phi = self.phi_for(get_cell(p.populations[0].cell_type))
+        report: dict[str, Any] = {
+            "mean_flow_speed_m_s": flow_speed,
+            "per_population": per_population,
+        }
+        if p.tilt_angle_deg != 0.0:
+            radius = cutoff_radius(self.tilt_angle, phi=first_phi, **common)
+            report["cutoff_radius_um"] = radius * 1e6
+            report["cutoff_diameter_um"] = 2.0 * radius * 1e6
+            report["lateral_node_spacing_um"] = self.lateral_node_spacing * 1e6
+            report["geometric_drift_um"] = (
+                p.channel_length * abs(np.tan(self.tilt_angle)) * 1e6
+            )
+        return report
+
+    def _warn_if_tilt_wastes_the_channel(self) -> None:
+        """Say so when the tilt deflects cells into the wall they entered on.
+
+        A trapped particle drifts at ``dx/dz = -tan(theta)``, so a POSITIVE tilt
+        moves cells toward -x and a negative one toward +x. Get the sign wrong
+        with a one-wall inlet and every cell is pressed into the wall it started
+        against: the run completes, the numbers look plausible, and the device
+        has simply done nothing. Flipping the sign of the angle fixes it.
+        """
+        p = self.params
+        if p.tilt_angle_deg == 0.0 or p.inlet != "side":
+            return
+        drifts_left = p.tilt_angle_deg > 0.0
+        if (p.inlet_side == "left" and drifts_left) or (
+            p.inlet_side == "right" and not drifts_left
+        ):
+            toward = "left" if drifts_left else "right"
+            warnings.warn(
+                f"tilt_angle_deg={p.tilt_angle_deg:+g} deflects cells toward the "
+                f"{toward} wall, which is the wall the sample enters on "
+                f"(inlet_side={p.inlet_side!r}). Cells are pressed into it and the "
+                f"channel width is unused; flip the sign of the angle to deflect "
+                "them across the channel instead.",
+                RegimeWarning,
+                stacklevel=2,
+            )
 
     def _warn_if_multinode(self) -> None:
         nodes = node_positions(
