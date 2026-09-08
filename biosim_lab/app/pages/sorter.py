@@ -80,13 +80,20 @@ def page_sorter() -> None:
             help="A freshly prepared suspension is typically 90-97 % viable, "
                  "so the honest baseline is not 100 %.",
         )
-        tilt_angle_deg = st.slider(
-            "IDT tilt angle (°)", -30.0, 30.0, 0.0, 0.5,
+        # A typed value rather than a slider, because the useful angles are
+        # separated by fractions of a degree: at 6.6 MHz a white cell holds to
+        # 2.6 deg and a red cell to 2.4, so a 0.5 deg step cannot express the
+        # angle that tells them apart.
+        tilt_angle_deg = st.number_input(
+            "IDT tilt angle (°)", min_value=-89.0, max_value=89.0,
+            value=0.0, step=0.1, format="%.2f",
             help="0 = conventional SSAW: nodes run along the channel and cells "
                  "park on one. Non-zero = tilted-angle SSAW, a different "
                  "mechanism: the nodes cross the flow and drag held cells across "
-                 "the channel, so displacement grows with length. A positive "
-                 "angle deflects towards the left wall.",
+                 "the channel, so displacement grows with length instead of "
+                 "saturating. A positive angle deflects towards the left wall. "
+                 "Type an exact value — the separation window can be under a "
+                 "degree wide.",
         )
         inlet = st.selectbox(
             "Inlet focusing", ["sheath_sides", "uniform", "centre", "side"], index=0,
@@ -195,7 +202,15 @@ def page_sorter() -> None:
         st.error(
             "Some cells never reached the outlet in the time simulated. The "
             "metrics above are computed at their last position, so treat them as "
-            "unreliable — lower the flow rate or shorten the channel.",
+            "unreliable — "
+            + (
+                "the tilt is the likely cause: a tilted wave pushes along the "
+                "flow as well as across it, and at this angle that axial "
+                "component can hold cells against the stream. Reduce the tilt "
+                "angle."
+                if out["diagnostics"].get("tilt_angle_deg")
+                else "lower the flow rate or shorten the channel."
+            ),
             icon="🚫",
         )
 

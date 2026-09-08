@@ -390,9 +390,14 @@ Unit-bearing values are written as strings and checked with `pint`. Writing
 | `inlet_viability` | `0.95` | fraction of the sample already alive before the device |
 | `track_viability` | `true` | compute thermal, shear and cavitation damage per cell |
 | `populations` | MCF-7 + RBC | list of `{cell_type, count, target}` |
-| `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre` |
+| `tilt_angle_deg` | `0.0` | IDT tilt. 0 = conventional SSAW; non-zero = **tilted-angle SSAW, a different mechanism**. Positive deflects towards −x. Not available with `mode: fem` |
+| `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre`, `side` |
+| `inlet_side` | `left` | which wall the sample enters on, for `inlet: side` |
 | `inlet_band` | `0.15` | inlet stream width, as a fraction of the channel |
-| `collection_fraction` | `0.333` | central outlet width / channel width |
+| `outlet_layout` | `centre_band` | `centre_band` (three outlets, collect at the node) or `lateral_split` (two outlets, one divider) |
+| `collection_fraction` | `0.333` | central outlet width / channel width — `centre_band` only |
+| `split_position` | `0.5` | divider position / channel width — `lateral_split` only |
+| `collect_side` | `right` | which side of the divider is collected — `lateral_split` only |
 | `mode` | `analytic` | `analytic` or `fem` |
 | `integration` | `overdamped` | `overdamped` or `inertial` |
 | `enable_vertical_arf` | `false` | FEM vertical force — see [§11](#11-reading-results-honestly) |

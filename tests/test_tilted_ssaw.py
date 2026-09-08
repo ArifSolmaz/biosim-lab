@@ -188,3 +188,34 @@ def test_a_tilt_into_the_inlet_wall_is_flagged() -> None:
         warnings.simplefilter("always")
         _sim(tilt_angle_deg=-10.0, inlet_side="left").run()
     assert not any("deflects cells toward" in str(w.message) for w in caught)
+
+
+def test_the_trap_window_can_be_narrower_than_a_degree() -> None:
+    """Why the app takes a typed angle rather than a coarse slider.
+
+    A white cell and a red cell differ by ~0.2 deg in how much tilt a node can
+    hold them through. Any control that steps in half a degree cannot express
+    the angle that separates them, so the widget must accept a typed value.
+    """
+    sim = _sim()
+    kw = _criterion_kwargs(sim)
+    limits = {
+        name: float(np.degrees(max_trappable_tilt(
+            float(get_cell(name).r), phi=sim.phi_for(get_cell(name)), **kw)))
+        for name in ("wbc", "rbc")
+    }
+    window = limits["wbc"] - limits["rbc"]
+    assert 0.0 < window < 0.5, f"window is {window:.3f} deg: {limits}"
+
+
+@pytest.mark.parametrize("tilt", [-89.0, -45.0, 45.0, 89.0])
+def test_extreme_tilts_do_not_crash(tilt: float) -> None:
+    """The widget's own limits must be survivable.
+
+    At a steep angle the wave pushes along the flow nearly as hard as across it
+    and cells can stall, which is physical rather than a fault — but it must
+    produce metrics and a warning, not an exception.
+    """
+    outcome = _run(_sim(tilt_angle_deg=tilt, channel_length="1 mm"))
+    assert "efficiency_percent" in outcome.metrics
+    assert "all_cells_exited" in outcome.metrics

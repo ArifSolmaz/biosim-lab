@@ -349,7 +349,12 @@ Birim taşıyan değerler dize olarak yazılır ve `pint` ile denetlenir.
 | `fluid` | `water` | `water`, `pbs`, `dmem` |
 | `populations` | MCF-7 + RBC | `{cell_type, count, target}` listesi |
 | `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre` |
-| `collection_fraction` | `0.333` | merkezi çıkış genişliği / kanal genişliği |
+| `tilt_angle_deg` | `0.0` | IDT eğimi. 0 = klasik SSAW; sıfırdan farklı = **eğik açılı SSAW, farklı bir mekanizma**. Pozitif değer −x yönüne saptırır. `mode: fem` ile kullanılamaz |
+| `inlet_side` | `left` | `inlet: side` için numunenin girdiği duvar |
+| `outlet_layout` | `centre_band` | `centre_band` (üç çıkış, düğümden topla) veya `lateral_split` (iki çıkış, tek ayırıcı) |
+| `collection_fraction` | `0.333` | merkezi çıkış genişliği / kanal genişliği — yalnız `centre_band` |
+| `split_position` | `0.5` | ayırıcı konumu / kanal genişliği — yalnız `lateral_split` |
+| `collect_side` | `right` | ayırıcının hangi tarafı toplanır — yalnız `lateral_split` |
 | `mode` | `analytic` | `analytic` ya da `fem` |
 | `integration` | `overdamped` | `overdamped` ya da `inertial` |
 | `enable_vertical_arf` | `false` | FEM dikey kuvveti — bkz. [§11](#11-sonuçları-dürüstçe-okumak) |
