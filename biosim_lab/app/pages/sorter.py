@@ -81,11 +81,35 @@ def page_sorter() -> None:
                  "so the honest baseline is not 100 %.",
         )
         inlet = st.selectbox(
-            "Inlet focusing", ["sheath_sides", "uniform", "centre"], index=0
+            "Inlet focusing", ["sheath_sides", "uniform", "centre", "side"], index=0,
+            help="side = the whole sample enters along one wall, which is what a "
+                 "two-outlet chip does; it gives every cell the full channel "
+                 "width to migrate across.",
         )
-        collection_fraction = st.slider(
-            "Collection outlet width (fraction of channel)", 0.05, 0.9, 1 / 3, 0.01
+        inlet_side = "left"
+        if inlet == "side":
+            inlet_side = st.selectbox("Which wall the sample enters on", ["left", "right"])
+
+        outlet_layout = st.selectbox(
+            "Outlet layout", ["centre_band", "lateral_split"], index=0,
+            help="centre_band = three outlets, the middle one collects at the "
+                 "node. lateral_split = two outlets divided by one line, so "
+                 "large cells leave on one side and everything else on the other.",
         )
+        collection_fraction, split_position, collect_side = 1 / 3, 0.5, "right"
+        if outlet_layout == "centre_band":
+            collection_fraction = st.slider(
+                "Collection outlet width (fraction of channel)", 0.05, 0.9, 1 / 3, 0.01
+            )
+        else:
+            split_position = st.slider(
+                "Divider position (fraction of channel)", 0.05, 0.95, 0.40, 0.01,
+                help="Put it BETWEEN where the two populations end up, not on "
+                     "the node: cells stop a few microns short of the node, so "
+                     "a divider on it collects nothing. Read the positions off "
+                     "the outlet histogram.",
+            )
+            collect_side = st.selectbox("Collection outlet side", ["right", "left"])
         n_cells = st.slider("Cells per population", 50, 600, 300, 50)
 
         st.subheader("Uncertainty")
@@ -111,6 +135,7 @@ def page_sorter() -> None:
             frequency_mhz, voltage_pp, flow_ul_min, width_um, height_um, length_mm,
             n_cells, collection_fraction, inlet, mode, target, background,
             fem_resolution, temperature_c, inlet_viability, rf_power, int(seed),
+            inlet_side, outlet_layout, split_position, collect_side,
         )
     m, d = out["metrics"], out["diagnostics"]
 
@@ -173,8 +198,7 @@ def page_sorter() -> None:
          "Outlet histogram", "Force profile", "Size distribution", "Per-population",
          "Uncertainty", "Data"]
     )
-    half = 0.5 * collection_fraction * width_um * 1e-6
-    bounds = (out["node_offset"] - half, out["node_offset"] + half)
+    bounds = tuple(out["collection_bounds"])
 
     with tabs[0]:
         st.plotly_chart(

@@ -123,7 +123,6 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     nodes = node_positions(params.channel_width, sim.wavelength,
                            node_offset=sim.node_offset)
-    half = 0.5 * params.collection_fraction * params.channel_width
 
     x = np.linspace(0.0, params.channel_width, 400)
     profiles = {
@@ -142,7 +141,7 @@ def main() -> None:
             outcome.tracks.trajectories, channel_width=params.channel_width,
             channel_length=params.channel_length, node_positions=nodes,
             alive=alive,
-            collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+            collection_bounds=sim.collection_bounds,
         ),
         "02_cross_section": cross_section_figure(
             outcome.tracks.trajectories, channel_width=params.channel_width,
@@ -153,7 +152,7 @@ def main() -> None:
         "02_live_count": cumulative_count_figure(
             outcome.tracks.trajectories, outcome.cells,
             channel_length=params.channel_length,
-            collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+            collection_bounds=sim.collection_bounds,
         ),
         "02_trajectories": trajectory_figure(
             outcome.tracks.trajectories, node_positions=nodes,
@@ -163,7 +162,7 @@ def main() -> None:
         ),
         "02_outlet_histogram": outlet_histogram_figure(
             outcome.cells, channel_width=params.channel_width,
-            collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+            collection_bounds=sim.collection_bounds,
         ),
         "02_force_profile": force_profile_figure(x, profiles, node_positions=nodes),
         "02_size_distribution": size_distribution_figure(outcome.cells),

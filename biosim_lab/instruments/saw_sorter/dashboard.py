@@ -129,7 +129,6 @@ def build_dashboard(params: SAWSorterParams) -> Any:
 
     def _live_view(result):
         sim, outcome = result
-        half = 0.5 * sim.params.collection_fraction * sim.params.channel_width
         return pn.pane.Plotly(
             live_view_figure(
                 outcome.tracks.trajectories,
@@ -139,7 +138,7 @@ def build_dashboard(params: SAWSorterParams) -> Any:
                     sim.params.channel_width, sim.wavelength, node_offset=sim.node_offset
                 ),
                 alive=outcome.cells["alive"].to_numpy(),
-                collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+                collection_bounds=sim.collection_bounds,
             ),
             config={"displayModeBar": False},
             sizing_mode="stretch_width",
@@ -166,12 +165,11 @@ def build_dashboard(params: SAWSorterParams) -> Any:
 
     def _live_count(result):
         sim, outcome = result
-        half = 0.5 * sim.params.collection_fraction * sim.params.channel_width
         return pn.pane.Plotly(
             cumulative_count_figure(
                 outcome.tracks.trajectories, outcome.cells,
                 channel_length=sim.params.channel_length,
-                collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+                collection_bounds=sim.collection_bounds,
             ),
             config={"displayModeBar": False},
             sizing_mode="stretch_width",
@@ -196,12 +194,11 @@ def build_dashboard(params: SAWSorterParams) -> Any:
 
     def _histogram(result):
         sim, outcome = result
-        half = 0.5 * sim.params.collection_fraction * sim.params.channel_width
         return pn.pane.Plotly(
             outlet_histogram_figure(
                 outcome.cells,
                 channel_width=sim.params.channel_width,
-                collection_bounds=(sim.node_offset - half, sim.node_offset + half),
+                collection_bounds=sim.collection_bounds,
             ),
             config={"displayModeBar": False},
             sizing_mode="stretch_width",

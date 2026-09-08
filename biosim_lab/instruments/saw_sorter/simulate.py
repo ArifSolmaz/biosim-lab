@@ -7,6 +7,24 @@ Geometry and frame
 analytic Poiseuille profile while the acoustic radiation force displaces them
 along ``x``; the simulation ends when a cell reaches ``z = channel_length``.
 
+Outlet layouts
+--------------
+Two chip topologies are supported, chosen with ``outlet_layout``:
+
+* ``centre_band`` (default) — three outlets. A band centred on the pressure node
+  creams off the cells that reached it; the sample usually enters at both walls
+  (``inlet="sheath_sides"``).
+* ``lateral_split`` — two outlets divided by a single line across the channel.
+  The sample enters along one wall (``inlet="side"``), large cells cross toward
+  the node and small ones do not, so one side of the divider holds the large
+  cells and the other holds everything else.
+
+For a lateral split the divider does **not** belong on the node: cells approach a
+node asymptotically and settle a few microns short of it, so a divider placed on
+it collects nothing (the model warns rather than reporting a bare zero). Put it
+between the two populations' landing positions --- see
+``examples/09_two_outlet_split.py``, which sweeps it.
+
 Sorting metrics
 ---------------
 With a target population T and a background population B, and a collection
@@ -144,14 +162,34 @@ class SAWSorterParams(BaseConfigModel):
             Population(cell_type="rbc", count=200, target=False),
         ]
     )
-    inlet: Literal["sheath_sides", "uniform", "centre"] = "sheath_sides"
+    inlet: Literal["sheath_sides", "uniform", "centre", "side"] = "sheath_sides"
+    inlet_side: Literal["left", "right"] = Field(
+        "left", description="which wall the sample hugs when inlet='side'"
+    )
     inlet_band: float = Field(
         0.15, gt=0, le=0.5, description="width of the inlet band as a fraction of the channel"
     )
 
     # -- outlets
+    outlet_layout: Literal["centre_band", "lateral_split"] = Field(
+        "centre_band",
+        description="centre_band: three outlets, the middle one collects at the node. "
+        "lateral_split: two outlets divided by one line across the channel",
+    )
     collection_fraction: float = Field(
-        1.0 / 3.0, gt=0, lt=1, description="width of the central collection outlet / channel"
+        1.0 / 3.0, gt=0, lt=1,
+        description="width of the central collection outlet / channel; "
+        "centre_band layout only",
+    )
+    split_position: float = Field(
+        0.5, gt=0, lt=1,
+        description="where the divider sits, as a fraction of the channel width; "
+        "lateral_split layout only",
+    )
+    collect_side: Literal["left", "right"] = Field(
+        "right",
+        description="which side of the divider is the collection outlet; "
+        "lateral_split layout only",
     )
 
     # -- model options
@@ -231,6 +269,31 @@ class SAWSorterSimulation:
         )
         self._field_model: SAWFieldModel | None = None
         self._force_interp: dict[str, Any] = {}
+
+    # -- outlets ----------------------------------------------------------
+    @property
+    def collection_bounds(self) -> tuple[float, float]:
+        """``(lo, hi)`` in metres of the collection outlet, whatever the layout.
+
+        One definition, used by the outlet assignment and by every figure that
+        shades the collected region. It was previously recomputed at seven call
+        sites, which is how a second layout would have ended up drawn correctly
+        in some plots and wrongly in others.
+
+        ``centre_band`` is the three-outlet chip: a band centred on the pressure
+        node creams off the cells that reached it. ``lateral_split`` is the
+        two-outlet chip: one divider across the channel, everything on the
+        chosen side is collected --- the layout you get when the sample enters
+        along one wall and the large cells cross the channel to the node while
+        the small ones do not.
+        """
+        p = self.params
+        w = p.channel_width
+        if p.outlet_layout == "lateral_split":
+            divider = p.split_position * w
+            return (divider, w) if p.collect_side == "right" else (0.0, divider)
+        half = 0.5 * p.collection_fraction * w
+        return (self.node_offset - half, self.node_offset + half)
 
     # -- wave numbers -----------------------------------------------------
     @property
@@ -323,6 +386,14 @@ class SAWSorterSimulation:
         band = p.inlet_band * w
         if p.inlet == "uniform":
             return self.rng.uniform(radii, w - radii)
+        if p.inlet == "side":
+            # The whole sample enters hugging one wall, which is what a
+            # two-outlet chip does: it gives every cell the full channel width
+            # to migrate across, so the distance travelled --- and therefore the
+            # size selectivity --- is as large as the geometry allows.
+            if p.inlet_side == "left":
+                return self.rng.uniform(radii, band)
+            return self.rng.uniform(w - band, w - radii)
         if p.inlet == "centre":
             # size=n is required: both bounds are scalars here, so without it
             # Generator.uniform returns a single float rather than one position
@@ -660,9 +731,26 @@ class SAWSorterSimulation:
                 x_out[i] = pos[i, -1, 0]
                 y_out[i] = pos[i, -1, 1]
 
-        half = 0.5 * p.collection_fraction * p.channel_width
-        lo, hi = self.node_offset - half, self.node_offset + half
+        lo, hi = self.collection_bounds
         outlet = np.where((x_out >= lo) & (x_out <= hi), "collect", "waste")
+
+        if p.outlet_layout == "lateral_split" and not (outlet == "collect").any():
+            # A divider placed at or beyond the node collects nothing, and the
+            # reason is not obvious: cells approach the node asymptotically and
+            # stop a few microns short of it, so "at the node" is already too
+            # far. The bare 0 % / nan this produces otherwise looks like a
+            # broken run rather than a divider in the wrong place.
+            reached = float(np.min(np.abs(x_out - self.node_offset)))
+            warnings.warn(
+                f"the collection outlet caught no cells: the divider sits at "
+                f"{p.split_position * p.channel_width * 1e6:.0f} um and nothing "
+                f"crossed it. Cells stop short of the node rather than on it "
+                f"(the closest stopped {reached * 1e6:.1f} um short), so place the "
+                "divider between the two populations' final positions --- read "
+                "them off the outlet histogram.",
+                RegimeWarning,
+                stacklevel=2,
+            )
 
         df = tracks.final.copy()
         df["x_outlet_m"] = x_out

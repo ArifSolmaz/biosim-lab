@@ -769,6 +769,49 @@ Acoustic streaming (matters below ~1 µm particles), cell–cell acoustic
 interaction, cell deformability, and the membrane/nucleus structure for
 acoustics. `docs/physics.md` §5 has the full list with references.
 
+### Two-outlet sorting: large cells one side, everything else the other
+
+The default chip has **three** outlets and creams the large cells off the middle,
+at the pressure node. Many real devices are **two**-outlet instead: the sample
+enters along one wall, large cells cross the channel toward the node, small ones
+do not, and one divider separates the two streams. Set:
+
+```yaml
+params:
+  inlet: side            # the whole sample hugs one wall
+  inlet_side: left
+  outlet_layout: lateral_split
+  split_position: 0.45   # divider, as a fraction of the channel width
+  collect_side: right    # which side is the collection outlet
+```
+
+or pick *Outlet layout → lateral_split* in the web app, which reveals a divider
+slider in place of the collection-band width.
+
+**The divider does not go on the node.** Cells approach a node asymptotically and
+settle a few microns short of it, so a divider placed exactly on the node
+collects nothing — the model warns rather than reporting a bare 0 % recovery.
+Put it between the two populations' landing positions, which
+`examples/09_two_outlet_split.py` sweeps for you:
+
+| divider (µm) | recovery | purity |
+|---|---|---|
+| 60 | 100.0 % | 73.9 % |
+| 90 | 100.0 % | 92.3 % |
+| 120 | 98.0 % | 98.7 % |
+| 135 | 92.3 % | 99.6 % |
+| 150 (on the node) | 0.0 % | — |
+
+That is the recovery-versus-purity trade-off made explicit: the divider is the
+knob, and there is no setting that maximises both. In this geometry MCF-7 land
+at 144 ± 8 µm and red cells at 53 ± 24 µm, so anywhere from 90 to 135 µm is
+defensible depending on which you care about.
+
+A one-side inlet is worth having on its own, incidentally: it gives every cell
+the full channel width to migrate across, so the separation is as strong as the
+geometry allows, whereas `sheath_sides` starts cells at *both* walls and halves
+the distance available.
+
 ### Which of the 38 assumptions actually matter
 
 The Material provenance page lists every number that could not be traced to a

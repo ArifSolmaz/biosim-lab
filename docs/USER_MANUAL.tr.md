@@ -676,6 +676,49 @@ En büyüğü: buradaki hiçbir şey sürüş voltajından akustik basıncı ön
 Doğrusal bir kalibrasyon (15 Vpp → 0.45 MPa) yerine geçer ve *her* akustik
 kuvveti ölçekler. Çipiniz için ölçüp `pressure_amplitude` verin.
 
+### İki çıkışlı ayırma: büyük hücreler bir tarafa, geri kalanı diğerine
+
+Varsayılan çip **üç** çıkışlıdır ve büyük hücreleri ortadan, basınç düğümünden
+toplar. Gerçek cihazların çoğu ise **iki** çıkışlıdır: numune tek bir duvar
+boyunca girer, büyük hücreler kanalı geçip düğüme doğru göç eder, küçükler etmez
+ve tek bir ayırıcı iki akımı böler. Ayarlayın:
+
+```yaml
+params:
+  inlet: side            # numunenin tamamı tek duvara yaslanır
+  inlet_side: left
+  outlet_layout: lateral_split
+  split_position: 0.45   # ayırıcı, kanal genişliğinin kesri olarak
+  collect_side: right    # hangi taraf toplama çıkışı
+```
+
+ya da web arayüzünde *Outlet layout → lateral_split* seçin; toplama bandı
+genişliği yerine bir ayırıcı kaydırıcısı belirir.
+
+**Ayırıcı düğümün üzerine konmaz.** Hücreler düğüme asimptotik olarak yaklaşır ve
+birkaç mikron berisinde durur; bu yüzden tam düğüme konan bir ayırıcı hiçbir şey
+toplamaz — model, çıplak bir %0 geri kazanım raporlamak yerine uyarır. Ayırıcıyı
+iki popülasyonun indiği konumların arasına koyun; `examples/09_two_outlet_split.py`
+bunu sizin için tarar:
+
+| ayırıcı (µm) | geri kazanım | saflık |
+|---|---|---|
+| 60 | %100.0 | %73.9 |
+| 90 | %100.0 | %92.3 |
+| 120 | %98.0 | %98.7 |
+| 135 | %92.3 | %99.6 |
+| 150 (düğümün üzerinde) | %0.0 | — |
+
+Geri kazanım–saflık ödünleşimi böylece açık hale gelir: ayırıcı düğmedir ve
+ikisini birden en yükseğe çıkaran bir ayar yoktur. Bu geometride MCF-7'ler
+144 ± 8 µm'de, alyuvarlar 53 ± 24 µm'de iner; yani hangisini önemsediğinize göre
+90–135 µm arası her yer savunulabilir.
+
+Bu arada tek taraflı giriş kendi başına da değerlidir: her hücreye göç etmek için
+kanalın tam genişliğini verir, yani ayrım geometrinin izin verdiği kadar güçlü
+olur; `sheath_sides` ise hücreleri **iki** duvardan başlatır ve kullanılabilir
+mesafeyi yarıya indirir.
+
 ### 38 varsayımdan hangileri gerçekten önemli
 
 Malzeme kaynakları sayfası, DOI'ye dayandırılamayan her sayıyı listeler. Bu

@@ -37,6 +37,10 @@ def run_sorter(
     inlet_viability: float,
     rf_power: float,
     seed: int,
+    inlet_side: str = "left",
+    outlet_layout: str = "centre_band",
+    split_position: float = 0.5,
+    collect_side: str = "right",
 ) -> dict[str, Any]:
     """Run one sorter experiment. Arguments are primitives so caching works."""
     from biosim_lab.instruments.saw_sorter.simulate import (
@@ -55,7 +59,11 @@ def run_sorter(
         channel_length=length_mm * 1e-3,
         flow_rate=flow_ul_min * UL_MIN,
         inlet=inlet,
+        inlet_side=inlet_side,
+        outlet_layout=outlet_layout,
         collection_fraction=collection_fraction,
+        split_position=split_position,
+        collect_side=collect_side,
         mode=mode,
         fem_resolution=fem_resolution,
         fem_grid=(201, 33),
@@ -78,6 +86,7 @@ def run_sorter(
         "alive": outcome.cells["alive"].to_numpy(),
         "wavelength": sim.wavelength,
         "node_offset": sim.node_offset,
+        "collection_bounds": sim.collection_bounds,
         "kappa_f": sim.fluid.kappa,
         "phi": {
             label: sim.phi_for(get_cell(pop.cell_type))

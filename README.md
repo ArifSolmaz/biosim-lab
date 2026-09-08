@@ -278,6 +278,7 @@ python examples/05_impedance_rtca.py            # Cell Index, Nyquist/Bode, IC50
 python examples/06_imaging_demo.py              # sayım + takip, sentetik veriyle
 python examples/07_assumption_sensitivity.py   # hangi kaynaksız sayı sonucu değiştiriyor?
 python examples/08_pipeline_sort_count_track.py # üç cihaz tek iş akışı + hata bütçesi
+python examples/09_two_outlet_split.py          # iki çıkışlı ayırma: ayırıcı nereye?
 ```
 
 Şekiller `assets/` altına hem etkileşimli HTML hem PNG olarak yazılır.
