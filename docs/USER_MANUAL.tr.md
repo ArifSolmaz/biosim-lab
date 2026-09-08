@@ -659,6 +659,67 @@ En büyüğü: buradaki hiçbir şey sürüş voltajından akustik basıncı ön
 Doğrusal bir kalibrasyon (15 Vpp → 0.45 MPa) yerine geçer ve *her* akustik
 kuvveti ölçekler. Çipiniz için ölçüp `pressure_amplitude` verin.
 
+### 38 varsayımdan hangileri gerçekten önemli
+
+Malzeme kaynakları sayfası, DOI'ye dayandırılamayan her sayıyı listeler. Bu
+dürüst bir açıklamadır ama eyleme dönük değildir: neyin bilinmediğini söyler,
+bu bilgisizliğin neye mal olduğunu değil. Sıralamak için:
+
+```bash
+python examples/07_assumption_sensitivity.py
+```
+
+Kaynaksız her değeri ±%5 oynatır ve **normalize edilmiş esnekliği**
+`(dY/Y)/(dX/X)` raporlar. Boyutsuz olduğu için bir yoğunlukla bir viskozite tek
+eksende karşılaştırılabilir. Esneklik 1 ise girdideki %10 hata cevapta %10 hata
+verir; 0 ise o girdi önemsizdir.
+
+Çalıştırmadan önce bilinmeye değer iki sonuç:
+
+* **CTC/RBC ayrımını tek bir varsayım oynatıyor**: MCF-7 hücre yoğunluğu
+  (esneklik 0.94). Hücre yarıçapı dağılımı −0.16 ile uzak ikinci. Geri kalanı ya
+  akustik model tarafından hiç kullanılmıyor ya da ölçümün çözünürlüğünün
+  altında. Yani "önce neyi ölçmeliyim?" sorusunun cevabı otuz sekiz değil, tek
+  bir madde: hücre hattınızı yoğunluk gradyanında bantlayın.
+* **Sıralama modelin değil, çalışma noktasının bir özelliğidir.** Tasarım
+  noktasında ayırıcı hedef hücrelerin neredeyse tamamını topluyor; bu tavana
+  dayanmak onu her şeye karşı duyarsız kılıyor (en büyük esneklik 0.007). Marjinal
+  bir noktada aynı sayı **130 kat daha fazla** önem kazanıyor. Ölçüldüğü çalışma
+  noktası belirtilmeden verilen bir duyarlılık anlamsızdır — taramayı gerçekte
+  çalıştığınız noktada yapın.
+
+Tarama, kolayca yanlış yapılan iki konuda dikkatli davranır. Oynatılmış koşular
+temel koşunun rastgele tohumunu yeniden kullanır; böylece fark, yeniden
+örnekleme gürültüsünü değil parametrenin etkisini yalıtır. Anlamlılık ise ham
+metriğin yayılımına değil, tohumlar arasındaki **eşleşmiş farka** bakılarak
+kararlaştırılır; ham yayılım büyük bir çarpanla yanlış ölçüdür ve gerçek etkileri
+eler.
+
+### Cihazları zincirlemek ve hata bütçesi
+
+Ayırma, sayma ve takip burada ayrı cihazlar; ama gerçek bir deney bunları arka
+arkaya çalıştırır. Yalnızca zincirlendiklerinde görünür olan iki şey var:
+
+```bash
+python examples/08_pipeline_sort_count_track.py
+```
+
+**Ayırıcı popülasyonun yalnızca sayısını değil, kendisini değiştirir.** Radyasyon
+kuvveti hücre hacmiyle, sürüklenme ise yarıçapla ölçeklenir; dolayısıyla göç hızı
+`r²` ile gider ve toplama boyut seçicidir. Örnekte yüklenen süspansiyonun ortalama
+çapı 11.7 µm ve CV'si 0.54 iken sayıcıya ulaşan 18.3 µm ve CV 0.12 —
+**ortalamada +%56 ve 4.5 kat daha dar**. Yüklenen dağılıma göre ayarlanmış bir
+sayıcı yanlış popülasyonu ölçüyor olurdu. Bu yüzden `CountStage` boyut dağılımını
+bir varsayılandan değil, kendisine verilen örnekten alır.
+
+**Belirsizlikler birleşir ve bir aşama baskın çıkar.** Her aşama farklı türde hata
+katar: ayırma *binom* (sonlu sayıda hücre çıkışa ya ulaşır ya ulaşmaz), sayma
+*Poisson* (görüş alanındaki `1/√N`), takip *örnekten örneğe*. Bağımsız oldukları
+için karelerin toplamı olarak birleşirler — %3 ile %4, %7 değil %5 eder — ve
+toplam genellikle tek bir aşamanın hâkimiyetindedir. Özet o aşamayı adıyla
+söyler. Eyleme dönük kısım budur: ayırmayla sınırlı bir ölçümü daha fazla görüş
+alanı görüntüleyerek kurtaramazsınız.
+
 ---
 
 ## 12. Sorun giderme

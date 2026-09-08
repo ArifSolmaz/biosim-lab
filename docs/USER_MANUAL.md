@@ -540,7 +540,8 @@ The repository already contains everything Streamlit Community Cloud needs.
 
 | File | Role |
 |---|---|
-| `streamlit_app.py` | the entry point, at the repository root |
+| `streamlit_app.py` | the entry point and router, at the repository root |
+| `biosim_lab/app/` | the app itself: one module per page under `app/pages/`, cached simulation wrappers in `app/runners.py`, formatting helpers in `app/shared.py` |
 | `requirements.txt` | the Python dependencies — **the full set that works on a managed host** |
 | `packages.txt` | the system libraries apt must install first (OpenGL, X11, xvfb) |
 | `.streamlit/config.toml` | theme matching the figure palette, upload limit |
@@ -662,7 +663,7 @@ The free tier gives roughly 1 GB of RAM.
   returning to a previous slider position is instant and the host is not asked
   to recompute the same thing twice.
 - **The sliders are capped**: 600 cells per population, mesh resolution 64,
-  30 tracker frames, 512-pixel images. Raise them in `streamlit_app.py` if you
+  30 tracker frames, 512-pixel images. Raise them in `biosim_lab/app/pages/` if you
   are hosting somewhere larger.
 - **PyVista is the heaviest import.** It is present and works off-screen, but
   importing VTK costs a few hundred megabytes of resident memory. If the app is
@@ -793,6 +794,68 @@ voltage. A linear calibration (15 Vpp → 0.45 MPa) stands in, and it scales
 Acoustic streaming (matters below ~1 µm particles), cell–cell acoustic
 interaction, cell deformability, and the membrane/nucleus structure for
 acoustics. `docs/physics.md` §5 has the full list with references.
+
+### Which of the 38 assumptions actually matter
+
+The Material provenance page lists every number that could not be traced to a
+DOI. That is an honest disclosure but not an actionable one: it says what is
+unknown, not what the ignorance costs. To rank them:
+
+```bash
+python examples/07_assumption_sensitivity.py
+```
+
+It perturbs each unsourced value by ±5 % and reports the **normalised
+elasticity** `(dY/Y)/(dX/X)` — dimensionless, so a density and a viscosity can
+be compared on one axis. An elasticity of 1 means a 10 % error in that input
+gives a 10 % error in the answer; 0 means it does not matter.
+
+Two results are worth knowing before you run it:
+
+* **Exactly one assumption moves the CTC/RBC separation**: the MCF-7 cell
+  density (elasticity 0.94). Cell-radius spread is a distant second at −0.16.
+  Everything else is either unused by the acoustic model or below the resolution
+  of the measurement. So the answer to "what should I measure first?" is one
+  item, not thirty-eight — band your cell line on a density gradient.
+* **The ranking is a property of the operating point, not of the model.** At the
+  design point the sorter recovers essentially every target cell, and sitting
+  against that ceiling makes it insensitive to everything (largest elasticity
+  0.007). At a marginal point the same number matters **130× more**. Quoting a
+  sensitivity without the operating point it was measured at is meaningless —
+  run the scan where you actually operate.
+
+The scan is careful about two things that are easy to get wrong. Perturbed runs
+reuse the baseline's random seed, so the difference isolates the parameter
+instead of measuring resampling noise; and significance is judged on the *paired
+difference* across seeds, not on the spread of the raw metric, which is the
+wrong yardstick by a large factor and rejects real effects.
+
+### Chaining instruments, and the error budget
+
+Sorting, counting and tracking are separate instruments here, but a real
+experiment runs them in sequence. Two things only become visible when they are
+chained:
+
+```bash
+python examples/08_pipeline_sort_count_track.py
+```
+
+**The sorter changes the population, not just its size.** Radiation force scales
+with cell volume while drag scales with radius, so migration speed goes as `r²`
+and collection is size-selective. In the worked example the loaded suspension has
+a mean diameter of 11.7 µm with a CV of 0.54; what reaches the counter is
+18.3 µm with a CV of 0.12 — **+56 % in the mean and 4.5× narrower**. A counter
+gated on the loaded distribution would be measuring the wrong population.
+`CountStage` therefore takes its size distribution from the sample it is handed,
+not from a default.
+
+**The uncertainties compose, and one stage dominates.** Each stage contributes a
+different kind of error: sorting a *binomial* one (a finite number of cells
+either reach the outlet or do not), counting a *Poisson* one (`1/√N` cells in the
+field of view), tracking a *sample-to-sample* one. They are independent, so they
+add in quadrature — 3 % and 4 % make 5 %, not 7 % — and the total is usually
+dominated by one stage. The summary names it. That is the actionable part:
+imaging more fields of view cannot rescue a sorting-limited measurement.
 
 ---
 

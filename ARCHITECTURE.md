@@ -70,10 +70,13 @@ biosim_lab/
       curves.py     # Plotly (eğri, heatmap, histogram, Nyquist/Bode, plaka haritası)
       dashboard.py  # Panel panosu (kaydırıcılar → canlı yeniden hesap)
       napari_layers.py  # opsiyonel Napari katmanları
+    sensitivity.py # kaynaksız değerleri etkilerine göre sıralar (ortak tohum + eşleşmiş fark)
+    statistics.py  # Wilson aralığı, tekrar özeti (Student t)
     plugin.py      # Instrument(ABC), optional_import, discover_instruments
   instruments/
     saw_sorter/    # AŞAMA 1 — tam
       viability.py            # CEM43 termal doz, kayma, kavitasyon; canlı/ölü
+      calibration.py          # boncuk yörüngesinden akustik enerji yoğunluğu (Barnkob 2010)
       physics/acoustics.py    # Gor'kov, ARF, kontrast faktörü, SAW alanı
       physics/drag.py         # Stokes sürüklenme, Re denetimi
       physics/secondary.py    # Bjerknes, yerçekimi/kaldırma, duvar itme (varsayılan kapalı)
@@ -84,6 +87,12 @@ biosim_lab/
     impedance_rtca/  # AŞAMA 2 — iskelet + çalışan minimal örnek
     cell_counter/    # AŞAMA 3 — iskelet + sentetik demo
     cell_tracker/    # AŞAMA 3 — iskelet + sentetik demo
+  pipeline.py    # Sample/Stage/Pipeline: cihazları zincirler, hata bütçesini taşır
+  stages.py      # SortStage / CountStage / TrackStage — cihazları saran ince adaptörler
+  app/           # Streamlit ön yüzü: sayfa başına bir modül
+    shared.py      # biçimlendirme, indirme düğmeleri, uyarı gösterimi
+    runners.py     # st.cache_data ile önbelleklenmiş simülasyon sarmalayıcıları
+    pages/         # overview, sorter, rtca, counter, tracker, materials, environment
   solvers/
     solver_openfoam/ # AŞAMA 4 — yalnızca iskelet + C++/controlDict şablonları
     solver_elmer/    # AŞAMA 4 — yalnızca iskelet + .sif şablonu
