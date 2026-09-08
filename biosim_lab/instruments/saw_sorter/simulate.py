@@ -96,6 +96,7 @@ from biosim_lab.core.particles import (
     make_state,
 )
 from biosim_lab.core.plugin import ConfigurationError, RegimeWarning
+from biosim_lab.core.samples import compose, dilution_report
 from biosim_lab.core.statistics import replicate, summary_table, wilson_interval
 from biosim_lab.instruments.saw_sorter import viability as viability_model
 from biosim_lab.instruments.saw_sorter.fem_model import SAWFieldModel, pressure_from_voltage
@@ -127,6 +128,13 @@ class Population(BaseConfigModel):
 
     cell_type: str = Field(..., description="key from core.materials.CELL_TYPES")
     count: int = Field(200, ge=1, description="number of simulated cells")
+    abundance_per_ml: float | None = Field(
+        None, ge=0.0,
+        description="how many of these are in one mL of the REAL sample. Separate "
+        "from `count`, which is only how many to simulate: a rare population needs "
+        "many simulated cells for a usable probability and has almost none in the "
+        "tube. Give it for every population to get metrics at the real ratio",
+    )
     target: bool = Field(False, description="True for the population to be collected")
     label: str | None = Field(None, description="display name; defaults to cell_type")
 
@@ -779,6 +787,9 @@ class SAWSorterSimulation:
             "tilt_angle_deg": p.tilt_angle_deg,
             "tilt": self.tilt_report(),
         }
+        physiological = self.physiological_report(cells)
+        if physiological is not None:
+            diagnostics["physiological"] = physiological
         if self._field_model is not None:
             diagnostics["fem"] = self._field_model.results().diagnostics
 
@@ -786,6 +797,73 @@ class SAWSorterSimulation:
             tracks=tracks, cells=cells, metrics=metrics, field=field_ds,
             diagnostics=diagnostics, viability=viability,
         )
+
+    def physiological_report(self, cells: pd.DataFrame) -> dict[str, Any] | None:
+        """Re-express the result at the sample's real composition.
+
+        Returns ``None`` unless every population declares ``abundance_per_ml``.
+
+        Simulated counts are chosen for statistics, not realism: a run with 300
+        tumour cells and 300 red cells says nothing about a tube holding one
+        tumour cell per billion. What transfers between the two is each
+        population's *probability* of reaching the collection outlet, which is
+        what the simulation actually measures. This applies those probabilities
+        to the real abundances.
+
+        It also checks the sample is dilute enough for the model to apply at all.
+        Whole blood is 45 % cells by volume --- about two radii between
+        neighbours --- where particle-particle scattering and streaming dominate
+        and none of that is modelled here.
+        """
+        p = self.params
+        abundances = {
+            pop.resolved_label(): pop.abundance_per_ml
+            for pop in p.populations
+            if pop.abundance_per_ml is not None
+        }
+        if len(abundances) != len(p.populations):
+            return None
+
+        by_cell_type = {
+            pop.cell_type: float(pop.abundance_per_ml or 0.0) for pop in p.populations
+        }
+        probability = {
+            str(label): float((group["outlet"] == "collect").mean())
+            for label, group in cells.groupby("label")
+        }
+        targets = {pop.resolved_label() for pop in p.populations if pop.target}
+
+        simulated_counts = {
+            str(label): int(len(group)) for label, group in cells.groupby("label")
+        }
+        report = compose(
+            probability, abundances, targets=targets,
+            simulated_counts=simulated_counts,
+        )
+        report["simulated_counts"] = simulated_counts
+        report["collection_probability"] = probability
+        dilution = dilution_report(by_cell_type)
+        report["dilution"] = {
+            "volume_fraction_percent": 100.0 * dilution.volume_fraction,
+            "mean_separation_radii": dilution.mean_separation_radii,
+            "required_dilution": dilution.required_dilution,
+            "is_dilute": dilution.is_dilute,
+            "summary": str(dilution),
+        }
+        if not dilution.is_dilute:
+            warnings.warn(
+                f"the declared sample is not a dilute suspension: "
+                f"{100 * dilution.volume_fraction:.3g} % cells by volume, only "
+                f"{dilution.mean_separation_radii:.1f} particle radii between "
+                f"neighbours. This model treats cells as independent, which they "
+                f"are not at that spacing --- particle-particle scattering and "
+                f"acoustic streaming are not included. Dilute about "
+                f"{dilution.required_dilution:.0f}x, or treat the numbers as an "
+                "upper bound on what the device can do.",
+                RegimeWarning,
+                stacklevel=2,
+            )
+        return report
 
     def tilt_report(self) -> dict[str, Any]:
         """The design window for a tilted device: which cells a node can hold.

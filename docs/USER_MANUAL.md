@@ -839,6 +839,78 @@ the full channel width to migrate across, so the separation is as strong as the
 geometry allows, whereas `sheath_sides` starts cells at *both* walls and halves
 the distance available.
 
+### Rare-cell separation: tumour cells out of blood
+
+The worked examples separate 300 tumour cells from 300 red cells. A patient
+sample is nothing like that — about 5×10⁹ red cells per mL against single-digit
+circulating tumour cells, a ratio near **1 : 10⁹**, at **45 % cells by volume**.
+Three things follow, and the 50:50 bench hides all of them.
+
+**Whole blood cannot go in.** Not a throughput limit, a modelling one: at 45 % by
+volume the cells sit about two radii apart, where particle–particle scattering
+and acoustic streaming dominate and none of that is in this model. Every
+published acoustophoretic CTC protocol lyses the red cells first
+([Li et al. 2015](https://doi.org/10.1073/pnas.1504484112);
+[Anal Chem 93:17076](https://doi.org/10.1021/acs.analchem.1c04050)). `rbc_lysis()`
+does it, and it takes the sample from 45.4 % to 0.48 % — from impossible to just
+inside the dilute limit.
+
+```python
+from biosim_lab.core import samples
+blood = samples.whole_blood_with_ctc("mcf7")
+print(samples.dilution_report(blood))            # NOT dilute, dilute ~110x
+print(samples.dilution_report(samples.rbc_lysis(blood)))
+```
+
+**The real ratio cannot be simulated.** Ten tumour cells at that abundance means
+tracking ten billion red cells. What transfers instead is each population's
+*probability* of reaching the collection outlet. Give every population an
+`abundance_per_ml` and `diagnostics["physiological"]` applies those probabilities
+to the real tube.
+
+**Purity is the wrong headline.** At these ratios every device looks terrible on
+purity; the number that matters is **log₁₀ depletion** of the background.
+
+#### Validation against a published device
+
+`protocols.li_2015_tassaw()` encodes the tilted-angle SAW separator of Li et al.
+— 19.573 MHz, 800 × 110 µm, ~5° tilt, RBC-lysed blood at 20 µL/min:
+
+| | model | published |
+|---|---|---|
+| cancer-cell recovery | 73 % | 83 % |
+| leukocytes removed | 67 % | 90 % |
+| background depletion | 1.17 log | 1.0 log |
+
+Close, with two honest caveats: the model raises `k·a = 0.97 > 0.1`, so Gor'kov
+is well outside its long-wavelength range at 20 MHz, and the acoustic pressure is
+assumed because the paper reports RF power (35–38 dBm), which nothing here
+converts.
+
+That second gap can be closed from the data. Sweeping the drive to reproduce the
+published recovery lands at **p₀ ≈ 0.24–0.30 MPa, not the 0.45 MPa** the project's
+15 Vpp calibration assumes — evidence that the voltage-to-pressure assumption is
+roughly 1.5× too high, and the only external check on it in the package.
+
+#### Two results worth knowing before you plan a run
+
+**More power is worse.** Recovery saturates near 73 % once the target is fully
+deflected; past that, extra drive only pushes leukocytes across the divider too
+and removal collapses from 91 % to 27 %. The useful operating point is the
+*lowest* drive that still collects the target.
+
+**You cannot claim more depletion than your ensemble can resolve.** With a few
+hundred simulated cells per population, a background that loses every simulated
+cell reports *infinite* depletion — which is never true; it means the probability
+is below what that many cells can measure. `compose()` takes the simulated counts
+and reports `background_depletion_log10_demonstrated`, a Wilson upper bound. A few
+hundred cells demonstrate about 2 logs, no matter how good the point estimate looks.
+
+**And the practical conclusion:** single-stage acoustophoresis gives ~1 log of
+depletion; the two-step bulk device gets 2.66 logs at 42 % recovery. Neither is a
+clean isolation on its own — both are enrichment stages feeding a downstream
+identification step. Plan for that.
+
 ### Tilted-angle SSAW: a different mechanism, not a different outlet
 
 Everything above assumes the standing wave runs **straight** across the channel.

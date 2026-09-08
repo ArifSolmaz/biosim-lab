@@ -280,6 +280,7 @@ python examples/07_assumption_sensitivity.py   # hangi kaynaksız sayı sonucu d
 python examples/08_pipeline_sort_count_track.py # üç cihaz tek iş akışı + hata bütçesi
 python examples/09_two_outlet_split.py          # iki çıkışlı ayırma: ayırıcı nereye?
 python examples/10_tilted_angle_ssaw.py         # eğik açılı SSAW: tutulma sınırı
+python examples/11_ctc_from_blood.py            # kandan CTC: gerçek oranlar + yayımlanmış protokol
 ```
 
 Şekiller `assets/` altına hem etkileşimli HTML hem PNG olarak yazılır.
