@@ -22,7 +22,9 @@ Acoustic conventions
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from typing import Any
 
 import numpy as np
@@ -603,6 +605,55 @@ def get_substrate(key: str) -> Substrate:
         return SUBSTRATES[key]
     except KeyError:
         raise KeyError(f"unknown substrate {key!r}; available: {sorted(SUBSTRATES)}") from None
+
+
+_TABLES: dict[str, dict[str, Any]] = {}
+
+
+def _table(group: str) -> dict[str, Any]:
+    """The lookup dict for a group name, resolved lazily."""
+    if not _TABLES:
+        _TABLES.update({"fluid": FLUIDS, "cell": CELL_TYPES, "substrate": SUBSTRATES})
+    try:
+        return _TABLES[group]
+    except KeyError:
+        raise KeyError(f"unknown group {group!r}; expected one of {sorted(_TABLES)}") from None
+
+
+@contextmanager
+def perturbed(changes: Iterable[tuple[str, str, str, float]]) -> Iterator[None]:
+    """Temporarily replace library values, then put the library back.
+
+    Each change is ``(group, material, property, new_magnitude)``, e.g.
+    ``("fluid", "pbs", "density", 1010.0)``. This exists so a sensitivity study
+    can ask what an unsourced number is actually worth: vary it, re-run, and see
+    whether the answer moves.
+
+    The replacement keeps the original provenance, so a perturbed assumption is
+    still labelled an assumption. Derived quantities such as ``Fluid.kappa`` are
+    properties computed from these values, so they follow automatically.
+
+    Restores on the way out even if the body raises, which matters because the
+    tables are module-level globals shared by everything in the process.
+    """
+    changes = list(changes)
+    originals: list[tuple[dict[str, Any], str, Any]] = []
+    try:
+        for group, material, prop, magnitude in changes:
+            table = _table(group)
+            if material not in table:
+                raise KeyError(f"unknown {group} {material!r}; available: {sorted(table)}")
+            obj = table[material]
+            old = getattr(obj, prop, None)
+            if not isinstance(old, Value):
+                raise KeyError(f"{group} {material!r} has no scalar property {prop!r}")
+            originals.append((table, material, obj))
+            new_value = Value(float(magnitude), old.unit, old.prov)
+            table[material] = replace(obj, **{prop: new_value})
+        yield
+    finally:
+        for table, material, obj in reversed(originals):
+            table[material] = obj
 
 
 def _iter_values(obj: Any) -> list[tuple[str, Value]]:
