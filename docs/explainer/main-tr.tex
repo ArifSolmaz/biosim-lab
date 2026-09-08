@@ -600,6 +600,80 @@ Kontrast faktörünün aslında bize \emph{karşı} çalıştığına dikkat edi
 alyuvarın $\Phi$'si daha yüksektir (0,252'ye karşı 0,179), çünkü suya göre bir
 tümör hücresinden daha yoğun ve daha serttir. Boyut yine de onu ona bir ezer.
 
+\section{Sesi eğmek: ayırmanın ikinci yolu}
+\label{sec:tilt}
+
+Buraya kadar her şey sesin kanalı \emph{dik} kestiğini varsaydı. O zaman sessiz
+çizgiler akışa paraleldir; hücre yana kayar, bir sessiz çizgiye varır ve
+\textbf{durur}. Kanalı ne kadar uzatırsanız, ne kadar sert sürerseniz sürün, o
+hücre en yakın sessiz çizgiden öteye gitmez.
+
+Şimdi vericileri birkaç derece döndürün; sessiz çizgiler akış boyunca değil,
+akışa hafif bir açıyla uzansın.
+
+\begin{analogy}
+Yürüyen bir bandın üzerine çapraz gerilmiş bir halat düşünün. Durursanız bant
+sizi halata götürür. Tutunabiliyorsanız halat, bant hareket ettiği sürece sizi
+yana yürütür --- ve ne kadar yol alırsanız o kadar yana çıkarsınız.
+Tutunamıyorsanız halatın altından kayar, düz gidersiniz.
+\end{analogy}
+
+Eğik bir sessiz çizgide tutulan hücre yana şu hızla kayar:
+
+\begin{equation}
+\frac{\mathrm{d}x}{\mathrm{d}z} = -\tan\theta
+\qquad\Longrightarrow\qquad
+\text{yanal yol} \;\approx\; L\tan\theta
+\label{eq:tilt-drift}
+\end{equation}
+
+Yer değiştirme artık sessiz çizgide durmak yerine \textbf{kanalın uzunluğuyla}
+büyür.
+
+\subsection*{Soru değişiyor}
+
+Dik ayırma \emph{ne kadar hızlı hareket ediyor?} diye sorar. Eğik ayırma
+\textbf{ses ona tutunabiliyor mu?} diye sorar. Hareket eden bir çizgide hücreyi
+tutmak, onu kanal boyunca yana sürüklemek demektir ve sesin tutuş gücü sınırlıdır.
+İtme ile bu sürüklenmenin eşitlendiği yeri bulun, hücrenin dayanabileceği eğimi
+elde edersiniz:
+
+\begin{equation}
+\frac{\sin\theta}{\cos^{2}\theta} \;\le\;
+\frac{\pi p_0^2\,\kappa_f\,\Phi\,a^2}{9\,\mu\,\lambda\,u}
+\label{eq:trap}
+\end{equation}
+
+Sağ tarafa bakın: $a^2$ taşıyor --- \S\ref{sec:r2}'deki aynı $r^2$. Büyük
+hücreler tutunur, küçükler kayar. Ayrımı yapan \emph{budur}.
+
+\begin{center}\small
+\begin{tabular}{lrr}
+\toprule
+Hücre & Yarıçap & Tutunma sınırı \\
+\midrule
+MCF-7 tümör hücresi & \SI{9,00}{\micro\metre} & $16,5^\circ$ \\
+Akyuvar & \SI{4,25}{\micro\metre} & $2,6^\circ$ \\
+Alyuvar & \SI{2,78}{\micro\metre} & $2,4^\circ$ \\
+Trombosit & \SI{1,19}{\micro\metre} & $0,5^\circ$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+$2,6^\circ$ ile $16,5^\circ$ arasındaki herhangi bir açı tümör hücrelerini kanal
+boyunca taşır ve kan hücrelerinin düz geçmesine izin verir.
+
+\begin{warnbox}
+Sınırın ötesinde cihaz \textbf{sessizce hiçbir şey yapmaz}. Tutunamayan hücre bir
+sessiz çizgiden diğerine kayar, itmeler yol boyunca birbirini götürür ve hücre
+neredeyse hiç sapmadan akıp gider --- makine ise tam olarak çalışıyormuş gibi
+uğuldar. Daha büyük açı daha sert itmez; itmeyi tümüyle bırakır.
+\end{warnbox}
+
+Kullanışlı aralığın ne kadar dar olabildiğine de dikkat edin: akyuvarla alyuvar
+arasında $0,2^\circ$ var. Yarım derecelik adımlarla ilerleyen bir ayar, onları
+ayıran açıyı ifade edemez; yazılımın elle yazılan bir sayı almasının nedeni budur.
+
 \section{Ses nereden geliyor: çip üzerinde bir deprem}
 
 \SI{300}{\micro\meter} genişliğinde bir kanalın içinde duran bir ses dalgasına
@@ -1668,23 +1742,68 @@ nedenidir.}
 
 \subsection*{Gerçekçi bir kan örneğinde}
 
-Yukarıdaki gösterim 50:50 karışım kullanır; bu kullanışlıdır ve gerçekçi
-değildir. Tümör hücreleri alyuvar, akyuvar ve trombositten oluşan tam bir kan
-arka planına \%1 oranında katıldığında aynı cihaz şunu verir:
+Yukarıdaki gösterim 50:50 bir karışım kullanıyor. Bu hem kullanışlı hem de
+yalnızca gerçekdışı değil --- cihazı fazlasıyla iyi gösteriyor.
+
+Gerçek kan mililitrede yaklaşık $5\times10^9$ alyuvar taşır. Metastatik kanserli
+bir hastada aynı mililitrede belki \emph{beş} dolaşan tümör hücresi vardır. Bu
+oran yaklaşık
+
+\begin{equation*}
+1 \;:\; 1\,000\,000\,000
+\end{equation*}
+
+ve gösterimi iki ayrı şekilde bozar.
+
+\textbf{Birincisi, kanı olduğu gibi koyamazsınız.} Debi yüzünden değil --- kan
+\emph{hacimce} $\%45$ hücredir. Hücreler birbirine yaklaşık iki yarıçap
+uzaklıktadır; birbirlerinden ses saçacak ve çevrelerindeki suyu karıştıracak
+kadar yakın. Bunların hiçbiri bu modelde yok. Bu türden her yayımlanmış protokol
+önce alyuvarları kimyasal olarak eritir; bu, örneği $\%45$'ten $\%0,5$'e indirir
+ve yazılımın bildiği fiziğin içine geri getirir.
+
+\textbf{İkincisi, saflık işe yarar bir kelime olmaktan çıkar.} Milyarda bir tümör
+hücresiyle başlayın, geri kalanın $\%90$'ını uzaklaştıran bir cihaz çalıştırın,
+yüz milyonda birde bitirin. Bu gerçek, kullanışlı, on kat bir iyileşmedir ve
+saflık hâlâ $\%0,000001$'dir. Dürüst sayı, arka plandan kaç kat on
+uzaklaştırdığınızdır:
 
 \begin{center}\small
-\begin{tabular}{lr}
+\begin{tabular}{lrr}
 \toprule
-Geri kazanım & $\%100$ \\
-Toplanan kesrin saflığı & $\%10$ \\
-\textbf{Zenginleşme} & $\mathbf{10\times}$ \\
+& Bu model & Yayımlanmış cihaz \\
+\midrule
+Tümör hücresi geri kazanımı & $\%73$ & $\%83$ \\
+Uzaklaştırılan akyuvar & $\%67$ & $\%90$ \\
+\textbf{Uzaklaştırılan arka plan} & $\mathbf{1,2}$ \textbf{basamak}
+& $\mathbf{1,0}$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Klinik olarak önemli olan sayı zenginleşmedir: bir sonraki aşamaya verilen örnek,
-giren kandan on kat daha zengin tümör hücresi içerir ve hiçbiri kaybolmamıştır.
-Gerçek iş akışları böyle birkaç aşamayı zincirler.
+\begin{plain}
+Bir basamak bir hücre ayırıcı değildir. Bir hattın tek bir aşamasıdır. En iyi
+yayımlanmış iki aşamalı akustik cihaz $2,7$ basamak başarır ve bunu yaparken
+tümör hücrelerinin yarısından fazlasını kaybeder. Biri size sesin tek başına
+kandan tümör hücresi arıttığını söylerse, ondan bu sayıyı isteyin.
+\end{plain}
+
+\subsection*{Simüle ettiğinizden fazlasını kanıtlayamazsınız}
+
+Burada adı konmaya değer bir tuzak var. Birkaç yüz kan hücresi simüle edin,
+cihazın hepsini reddettiğini görün; kusursuz ayrım bildirmek cazip gelir.
+
+Asla kusursuz değildir. Simüle edilen 300 hücrenin tamamını kaybetmek, kaçış
+oranının kabaca $300$'de $1$'in altında olduğu anlamına gelir --- sıfır olduğu
+anlamına gelmez. Mililitrede $10^6$ akyuvarda, binde birlik bir kaçış oranı yine
+de toplanan örneğinize bin tane koyar.
+
+\begin{keybox}
+Örneklem büyüklüğünüzün çözebileceğinden fazla ayrımı asla gösteremezsiniz.
+Birkaç yüz simüle hücre, görüntü ne kadar temiz görünürse görünsün, yaklaşık iki
+basamaklık bir iddiayı destekler. Yazılım, gurur okşayan sayıyı değil, bu tavanı
+hesaplayıp bildirir.
+\end{keybox}
 
 \section{Neler varsayıldı, neler yanlış}
 \label{sec:limits}
@@ -1708,6 +1827,37 @@ Bu cihazı yaparsanız voltaja güvenmeyin. Basıncı ölçün --- özellikleri 
 kalibrasyon boncuklarını izleyip ne kadar hızlı hareket ettiklerini uydurarak ---
 ve o ölçülen sayıyı girin. Yazılım tam da bunun için değeri doğrudan kabul eder.
 \end{plain}
+
+Artık bu sayı üzerinde tek bir dış denetim var ve iç açıcı değil. Yayımlanmış bir
+cihazı alıp yazılıma makalenin anlattığı geometriyi ve örneği verip, onların
+gerçekten ölçtüğü geri kazanımı hangi basıncın yeniden ürettiğini sormak şunu
+veriyor:
+
+\begin{equation*}
+p_0 \approx \SI{0,24}{}\text{--}\SI{0,30}{\mega\pascal},
+\qquad\text{varsayılan } \SI{0,45}{\mega\pascal}\text{ yerine.}
+\end{equation*}
+
+Yani kalibrasyon kabaca $1,5$ kat yüksek görünüyor. Bu belgedeki her kuvvet
+$p_0^2$ ile ölçeklendiğinden, itmede iki kat demektir. Buradaki mutlak kuvvetleri
+gösterge sayın; güvenilir kısım hücreler \emph{arasındaki} karşılaştırmalardır ---
+$r^2$ yasasının konusu da zaten odur.
+
+\subsection*{Daha çok güç daha iyi değildir}
+
+Aynı çalışma, gerçekten sezgiye aykırı ve bir laboratuvarda düğmeyi yükseltmeden
+önce bilinmeye değer bir şey ortaya çıkardı.
+
+Hedef hücreler tamamen saptırıldıktan sonra geri kazanım artmayı bırakır --- ama
+\emph{arka plan} daha sert itilmeye devam eder, ta ki akyuvarlar da toplama
+çıkışına geçmeye başlayana kadar. Sürüş yükseldikçe uzaklaştırma $\%91$'den
+$\%27$'ye çöktü.
+
+\begin{warnbox}
+En iyi ayar, elektroniğin verebileceği en yüksek değil, hedefi hâlâ toplayan
+\textbf{en düşük} sürüştür. Daha güçlü alan daha sert ayırmaz; bir noktadan sonra
+daha kötü ayırır.
+\end{warnbox}
 
 \subsection*{Basit model iyimserdir}
 

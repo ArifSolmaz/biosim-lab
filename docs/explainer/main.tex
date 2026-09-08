@@ -599,6 +599,83 @@ Note that the contrast factor actually works \emph{against} us --- the red cell
 has a higher $\Phi$ (0.252 vs 0.179), because it is denser and stiffer relative
 to water than a tumour cell is. Size overwhelms it anyway, ten to one.
 
+\section{Tilting the sound: a second way to sort}
+\label{sec:tilt}
+
+Everything so far assumes the sound runs \emph{straight} across the channel. The
+quiet lines then lie parallel to the flow, and a cell slides sideways until it
+reaches one and \textbf{stops}. However long you make the channel, however hard
+you drive it, that cell goes no further than the nearest quiet line.
+
+Now turn the transducers a few degrees, so the quiet lines run at a slight angle
+to the flow instead of along it.
+
+\begin{analogy}
+Think of a moving walkway with a rope stretched diagonally across it. Stand
+still and the walkway carries you into the rope. If you can hold on, the rope
+walks you sideways for as long as the walkway keeps moving --- and the further
+you travel, the further sideways you end up. If you cannot hold on, you slip
+past and carry straight on.
+\end{analogy}
+
+A cell held on a tilted quiet line drifts sideways at
+
+\begin{equation}
+\frac{\mathrm{d}x}{\mathrm{d}z} = -\tan\theta
+\qquad\Longrightarrow\qquad
+\text{sideways travel} \;\approx\; L\tan\theta
+\label{eq:tilt-drift}
+\end{equation}
+
+for a channel of length $L$. The displacement now grows with \textbf{how long
+the channel is}, instead of stopping at the quiet line.
+
+\subsection*{The question changes}
+
+Straight sorting asks \emph{how fast does it move?}\ Tilted sorting asks
+\textbf{can the sound hold on to it at all?} Holding a cell on a moving line
+means dragging it sideways for the whole channel, and the sound only has so much
+grip. Work out when the push equals that drag and you get the tilt a cell can
+survive:
+
+\begin{equation}
+\frac{\sin\theta}{\cos^{2}\theta} \;\le\;
+\frac{\pi p_0^2\,\kappa_f\,\Phi\,a^2}{9\,\mu\,\lambda\,u}
+\label{eq:trap}
+\end{equation}
+
+Look at the right-hand side: it carries $a^2$ --- the same $r^2$ from
+\S\ref{sec:r2}. Big cells hold on, small cells slip. \emph{That} is the
+separation.
+
+\begin{center}\small
+\begin{tabular}{lrr}
+\toprule
+Cell & Radius & Holds on up to \\
+\midrule
+MCF-7 tumour cell & \SI{9.00}{\micro\metre} & $16.5^\circ$ \\
+White blood cell & \SI{4.25}{\micro\metre} & $2.6^\circ$ \\
+Red blood cell & \SI{2.78}{\micro\metre} & $2.4^\circ$ \\
+Platelet & \SI{1.19}{\micro\metre} & $0.5^\circ$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Any angle between $2.6^\circ$ and $16.5^\circ$ carries the tumour cells across
+the channel and lets the blood cells go straight past.
+
+\begin{warnbox}
+Past the limit, the device \textbf{silently does nothing}. A cell that cannot
+hold on slips from one quiet line to the next, the pushes cancel out over the
+journey, and it flows straight through --- while the machine hums away looking
+exactly as though it is working. A bigger angle does not push harder. It stops
+pushing at all.
+\end{warnbox}
+
+Note also how narrow the useful window can be: white cells and red cells differ
+by $0.2^\circ$. A dial that moves in half-degree steps cannot express the angle
+that separates them, which is why the software takes a typed number.
+
 \section{Where the sound comes from: an earthquake on a chip}
 
 We need a standing sound wave inside a channel \SI{300}{\micro\meter} wide.
@@ -1534,23 +1611,68 @@ is 94\,\% rather than 100\,\%.}
 
 \subsection*{On a realistic blood sample}
 
-The demonstration above uses a 50:50 mixture, which is convenient and not
-realistic. With tumour cells spiked at 1\,\% into a full blood background of red
-cells, white cells and platelets, the same device gives:
+The demonstration above uses a 50:50 mixture. That is convenient, and it is not
+merely unrealistic --- it flatters the device enormously.
+
+Real blood holds about $5\times10^9$ red cells per millilitre. A patient with
+metastatic cancer has perhaps \emph{five} circulating tumour cells in the same
+millilitre. That is a ratio near
+
+\begin{equation*}
+1 \;:\; 1\,000\,000\,000
+\end{equation*}
+
+and it breaks the demonstration in two separate ways.
+
+\textbf{First, you cannot put blood in.} Not because of throughput --- because
+blood is $45\,\%$ cells \emph{by volume}. The cells sit about two radii apart,
+close enough that they scatter sound off each other and stir the water around
+themselves, and none of that is in this model. Every published protocol of this
+kind dissolves the red cells chemically first, which drops the sample from
+$45\,\%$ to $0.5\,\%$ and brings it back inside the physics the software knows.
+
+\textbf{Second, purity stops being a useful word.} Start at one tumour cell in a
+billion, run a device that removes $90\,\%$ of everything else, and you finish at
+one in a hundred million. That is a real, useful, ten-fold improvement, and the
+purity is still $0.000001\,\%$. The honest number is how many factors of ten of
+background you removed:
 
 \begin{center}\small
-\begin{tabular}{lr}
+\begin{tabular}{lrr}
 \toprule
-Recovery & $100\,\%$ \\
-Purity of the collected fraction & $10\,\%$ \\
-\textbf{Enrichment} & $\mathbf{10\times}$ \\
+& This model & Published device \\
+\midrule
+Tumour-cell recovery & $73\,\%$ & $83\,\%$ \\
+White cells removed & $67\,\%$ & $90\,\%$ \\
+\textbf{Background removed} & $\mathbf{1.2}$ \textbf{powers of ten}
+& $\mathbf{1.0}$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Enrichment is the number that matters clinically: the sample handed to the next
-stage is ten times richer in tumour cells than the blood that went in, with none
-of them lost. Real workflows chain several such stages.
+\begin{plain}
+One power of ten is not a cell separator. It is one stage of a pipeline. The
+best published two-stage acoustic device manages $2.7$ powers of ten and loses
+more than half the tumour cells doing it. If someone tells you sound alone
+purifies tumour cells out of blood, ask them for this number.
+\end{plain}
+
+\subsection*{You cannot prove more than you simulated}
+
+There is a trap here worth naming. Simulate a few hundred blood cells, watch the
+device reject every single one, and it is tempting to report perfect separation.
+
+It is never perfect. Losing all 300 simulated cells means the escape rate is
+below roughly $1$ in $300$ --- it does not mean it is zero. At $10^6$ white cells
+per millilitre, an escape rate of $1$ in $1000$ still puts a thousand of them in
+your collected sample.
+
+\begin{keybox}
+You can never demonstrate more separation than your sample size can resolve.
+A few hundred simulated cells support a claim of about two powers of ten, no
+matter how clean the picture looks. The software computes and reports that
+ceiling rather than the flattering number.
+\end{keybox}
 
 \section{What is assumed, and what is wrong}
 \label{sec:limits}
@@ -1575,6 +1697,37 @@ by tracking calibration beads of known properties and fitting how fast they
 move --- and put that measured number in. The software accepts it directly for
 exactly this reason.
 \end{plain}
+
+There is now one external check on that number, and it is not reassuring. Taking
+a published device, feeding the software the geometry and sample the paper
+describes, and asking which pressure reproduces the recovery they actually
+measured gives
+
+\begin{equation*}
+p_0 \approx \SI{0.24}{}\text{--}\SI{0.30}{\mega\pascal},
+\qquad\text{against the assumed } \SI{0.45}{\mega\pascal}.
+\end{equation*}
+
+So the calibration looks roughly $1.5\times$ too high. Every force in this
+document scales with $p_0^2$, so that is a factor of two in the push. Treat
+absolute forces here as indicative and the \emph{comparisons} between cells ---
+which is what the $r^2$ law is about --- as the trustworthy part.
+
+\subsection*{More power is not better}
+
+The same exercise turned up something genuinely counter-intuitive, and worth
+knowing before anyone turns a dial up in a real laboratory.
+
+Past the point where the target cells are fully deflected, recovery stops
+improving --- but the \emph{background} keeps being pushed harder, until the
+white cells start crossing into the collection outlet as well. Removal collapsed
+from $91\,\%$ to $27\,\%$ as the drive went up.
+
+\begin{warnbox}
+The best setting is the \textbf{lowest} drive that still collects the target,
+not the highest one the electronics will deliver. A stronger field does not
+separate harder; past a point it separates worse.
+\end{warnbox}
 
 \subsection*{The simple model is optimistic}
 
