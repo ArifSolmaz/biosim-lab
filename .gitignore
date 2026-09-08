@@ -12,3 +12,11 @@ assets/*.parquet
 .DS_Store
 .pytest_cache/
 .venv-cloud/
+
+# LaTeX build artefacts. The explainer PDFs are committed; the intermediate
+# files that produce them are not — they change on every build and carry no
+# information the .tex does not.
+docs/explainer/*.aux
+docs/explainer/*.log
+docs/explainer/*.out
+docs/explainer/*.toc
