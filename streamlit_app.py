@@ -50,7 +50,7 @@ from biosim_lab.app.pages import (  # noqa: E402
     sorter,
     tracker,
 )
-from biosim_lab.app.shared import CSS  # noqa: E402
+from biosim_lab.app.shared import CSS, warn_if_stale  # noqa: E402
 
 st.markdown(CSS, unsafe_allow_html=True)
 
@@ -70,6 +70,10 @@ def main() -> None:
         st.markdown("### 🔬 biosim-lab")
         choice = st.radio("Instrument", list(PAGES), label_visibility="collapsed")
         st.divider()
+
+    # Before anything else on the page: a stale process invalidates every
+    # number below it, so this must not be tucked away on one tab.
+    warn_if_stale()
 
     PAGES[choice]()
 

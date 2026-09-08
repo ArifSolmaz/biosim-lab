@@ -13,6 +13,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from biosim_lab.app.freshness import stale_modules
 from biosim_lab.core.plugin import ConfigurationError
 from biosim_lab.core.viz.theme import PALETTE
 
@@ -57,6 +58,31 @@ def show_warnings(caught: list[dict[str, Any]]) -> None:
             st.info(f"**Optional back-end missing** — {w['message']}", icon="ℹ️")
 
 
+def warn_if_stale() -> None:
+    """Say so when the process is running code older than the files on disk.
+
+    Streamlit re-runs the entry script but does not re-import a module already
+    in ``sys.modules``, so a deploy that replaces the source without restarting
+    leaves the app executing the previous bytecode. Nothing here can force the
+    re-import; only a restart does. Without this the symptom is a fix that
+    appears to change nothing, and a traceback whose line numbers come from the
+    old code while its source text comes from the new.
+    """
+    stale = stale_modules()
+    if not stale:
+        return
+    listed = "\n".join(f"- `{name}`" for name in stale)
+    st.error(
+        "**This app is running out-of-date code.** These modules were changed "
+        "on disk after the process started, so what is on screen was NOT "
+        f"produced by the current source:\n\n{listed}\n\n"
+        "Restart to pick the change up — on Streamlit Community Cloud that is "
+        "*Manage app* → ⋮ → *Reboot*. Locally, stop and re-run "
+        "`streamlit run streamlit_app.py`.",
+        icon="🔄",
+    )
+
+
 @contextmanager
 def explained_settings() -> Iterator[None]:
     """Render a settings problem as guidance rather than as a stack trace.
@@ -94,4 +120,5 @@ __all__ = [
     "explained_settings",
     "note",
     "show_warnings",
+    "warn_if_stale",
 ]

@@ -131,3 +131,44 @@ def test_impossible_settings_are_explained_not_crashed() -> None:
     assert not at.exception
     assert at.error, "no explanation was rendered"
     assert "cannot be simulated" in at.error[0].value
+
+
+def test_a_stale_process_is_announced_on_the_page() -> None:
+    """Running old bytecode against new source must be visible, not silent.
+
+    This cost two round trips of a real bug report: a fix was deployed, the
+    process kept executing the previous module, and the traceback mixed old line
+    numbers with new source text so the fix looked like it had done nothing.
+    """
+    from biosim_lab.app import shared
+
+    watched = "biosim_lab.instruments.saw_sorter.simulate"
+    original = dict(shared.stale_modules())  # noqa: F841 - ensures import works
+
+    at = AppTest.from_file(APP, default_timeout=300)
+    at.run()
+    assert not at.error, "a clean checkout must not report itself stale"
+
+    # Simulate a deploy replacing the file under a running process.
+    import biosim_lab.app.freshness as freshness
+
+    saved = freshness.AT_IMPORT.get(watched)
+    assert saved is not None, "the watched module must be in the baseline"
+    freshness.AT_IMPORT[watched] = "0" * 12
+    try:
+        assert watched in freshness.stale_modules()
+        at = AppTest.from_file(APP, default_timeout=300)
+        at.run()
+        assert at.error, "no banner was rendered for a stale process"
+        assert "out-of-date code" in at.error[0].value
+        assert "Reboot" in at.error[0].value
+    finally:
+        freshness.AT_IMPORT[watched] = saved
+
+
+def test_the_freshness_baseline_covers_every_watched_module() -> None:
+    """An unhashed module is silently unwatched, which defeats the check."""
+    from biosim_lab.app import freshness
+
+    missing = set(freshness.WATCHED) - set(freshness.AT_IMPORT)
+    assert not missing, f"not hashed at startup: {sorted(missing)}"
