@@ -48,6 +48,11 @@ class CellCounterParams(BaseConfigModel):
     dead_fraction: float = 0.15
     image_size: int = 512
     seed: int | None = 0
+    # Size distribution of the synthesised cells. Exposed so an upstream stage
+    # can hand this instrument the population it actually produced: a sorter
+    # enriches large cells, so what reaches the counter is not what was loaded.
+    radius_mean_px: float = 9.0
+    radius_cv: float = Field(0.18, ge=0.0)
 
 
 class CellCounter(Instrument):
@@ -91,6 +96,8 @@ class CellCounter(Instrument):
                     pixel_size=p.pixel_size,
                     n_cells=p.n_cells,
                     dead_fraction=p.dead_fraction,
+                    radius_mean_px=p.radius_mean_px,
+                    radius_cv=p.radius_cv,
                     seed=p.seed,
                 )
             )
