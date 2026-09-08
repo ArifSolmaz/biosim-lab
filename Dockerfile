@@ -47,6 +47,24 @@ RUN pip install --upgrade pip && \
     (pip install "gmsh>=4.12" "meshio>=5.3" \
      || echo "gmsh unavailable on $(uname -m); using the structured-mesh fallback")
 
+# Cellpose, for deep-learning segmentation. It needs PyTorch, and the default
+# PyPI wheel carries CUDA on BOTH architectures --- aarch64 included, since Torch
+# now ships ARM CUDA builds for GH200-class servers. That is dead weight in a CPU
+# image, so both take the CPU-only index, which publishes x86_64 and aarch64
+# alike (torch 152 MB against a multi-gigabyte CUDA build). Measured on arm64:
+# the CUDA path builds a 12.2 GB image, the CPU index 4.49 GB, against a 3.1 GB
+# baseline with no Cellpose at all.
+#
+# torch and torchvision MUST come from the same index. Mixing them installs
+# cleanly and then fails at *import* with "RuntimeError: operator
+# torchvision::nms does not exist", so a build that looks fine ships broken.
+#
+# Optional in the same way gmsh is: a failure here leaves a missing capability
+# that `biosim doctor` reports, not a broken build.
+RUN ( pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision \
+      && pip install "cellpose>=3.0" ) \
+    || echo "cellpose unavailable on $(uname -m); classical segmentation still works"
+
 COPY . .
 RUN pip install -e .
 

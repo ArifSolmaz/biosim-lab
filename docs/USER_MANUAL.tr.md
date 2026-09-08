@@ -83,6 +83,25 @@ biosim doctor                      # neyin çalıştığını doğrular
 | `pip install -e ".[imaging]"` | Napari görüntüleyici ve `btrack` soy ağaçları |
 | `pip install -e ".[segmentation]"` | Cellpose / StarDist bölütleme arka uçları |
 | `pip install -e ".[dev]"` | pytest, ruff, mypy |
+| `pip install -e ".[all]"` | yukarıdakilerin tümü — ~200 paket, PyTorch dahil |
+
+### Barındırılan uygulamaya neyin konamayacağı ve nedeni
+
+Web arayüzü bunların hiçbirini kurmaz; ikisi ise bütçe ne olursa olsun orada
+asla çalışamaz. Varsayım değil, ölçüm:
+
+| Bileşen | Barındırılabilir mi? | Gerçek kısıt |
+|---|---|---|
+| **napari** | asla | bir **masaüstü Qt uygulaması** — HTML sayfasına değil, işletim sistemi penceresine çizer. Boyutun önemi yok |
+| **StarDist** | hayır | TensorFlow gerektirir; **Python 3.14 için tekerlek yayınlanmıyor** (3.13 için var). Streamlit Cloud 3.14 çalıştırır |
+| **Cellpose** | hayır | 3.14'te sorunsuz çalışır ama **2.6 GB tepe RSS** ve ilk kullanımda **1.15 GB model indirmesi**. 188 MB'lık tekerlek yanıltıcı |
+| **Gmsh** | hayır | tek bir sistem kütüphanesi ister: `libGLU.so.1`. Hiçbir PyPI paketi onu içermez ve apt ile kurmak için `packages.txt` eklemek dağıtımı bozan şeydi |
+
+Yani **"hepsi" ancak Docker'da (ya da yerel kurulumda) bulunur.** İmaj,
+Cellpose'u yalnızca CPU'lu bir PyTorch derlemesiyle kurar; varsayılan tekerlek
+CPU imajının kullanamayacağı ~2.5 GB CUDA taşır. `torch` ve `torchvision`
+**aynı** dizinden gelmelidir — karıştırmak sorunsuz kurulur ve içe aktarmada
+`RuntimeError: operator torchvision::nms does not exist` ile patlar.
 
 ### Kurulumu denetleyin
 

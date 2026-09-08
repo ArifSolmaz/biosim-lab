@@ -86,6 +86,28 @@ biosim doctor                      # confirms what works
 | `pip install -e ".[imaging]"` | Napari viewer and `btrack` lineage trees |
 | `pip install -e ".[segmentation]"` | Cellpose / StarDist segmentation back-ends |
 | `pip install -e ".[dev]"` | pytest, ruff, mypy |
+| `pip install -e ".[all]"` | everything above — ~200 packages, pulls PyTorch |
+
+### What cannot go on the hosted app, and why
+
+The web app deliberately installs none of these, and two of them could never
+work there whatever the budget. Measured rather than assumed:
+
+| Back-end | Hosted? | The actual constraint |
+|---|---|---|
+| **napari** | never | a **desktop Qt application** — it renders into an OS window, not an HTML page. Size is irrelevant |
+| **StarDist** | no | needs TensorFlow, which publishes **no wheels for Python 3.14** (3.13 has them). Streamlit Cloud runs 3.14 |
+| **Cellpose** | no | works fine on 3.14, but **2.6 GB peak RSS** and a **1.15 GB model download** on first use. The 188 MB wheel is misleading |
+| **Gmsh** | no | needs exactly one system library, `libGLU.so.1`. No PyPI package ships it, and a `packages.txt` to apt-install it is what broke the deploy — see [§9](#9-publishing-your-own-copy-on-streamlit) |
+
+So **Docker (or a local install) is where "all of them" lives.** The image
+installs Cellpose with a CPU-only PyTorch build; the default wheel bundles
+~2.5 GB of CUDA that a CPU image cannot use. Note `torch` and `torchvision` must
+come from the **same** index — mixing them installs cleanly and then fails at
+import with `RuntimeError: operator torchvision::nms does not exist`.
+
+Cellpose downloads its model on first use, so the first segmentation in a fresh
+container needs a network connection and a while.
 
 ### Check the install
 
