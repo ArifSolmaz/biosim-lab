@@ -4,18 +4,18 @@ import numpy as np
 import pytest
 
 from biosim_lab.core.config import ExperimentConfig
+from biosim_lab.core.imaging.segmentation import available_backends, segment
+from biosim_lab.core.imaging.synthetic import (
+    SyntheticImageSpec,
+    synthetic_field,
+    synthetic_movie,
+)
 from biosim_lab.instruments.cell_counter import CellCounter
 from biosim_lab.instruments.cell_counter.counting import (
     NEUBAUER_DEPTH_M,
     concentration_from_field,
     counting_uncertainty,
     field_volume_ml,
-)
-from biosim_lab.instruments.cell_counter.segmentation import available_backends, segment
-from biosim_lab.instruments.cell_counter.synthetic import (
-    SyntheticImageSpec,
-    synthetic_field,
-    synthetic_movie,
 )
 from biosim_lab.instruments.cell_tracker import CellTracker
 from biosim_lab.instruments.cell_tracker.tracking import fit_msd
@@ -58,7 +58,7 @@ def test_unknown_backend_is_rejected():
 
 
 def test_missing_optional_backends_explain_the_extra():
-    from biosim_lab.instruments.cell_counter.segmentation import segment_cellpose
+    from biosim_lab.core.imaging.segmentation import segment_cellpose
 
     ok, _ = available_backends()["cellpose"]
     if ok:  # pragma: no cover
@@ -137,3 +137,63 @@ def test_msd_fit_identifies_ballistic_motion():
     msd = pd.DataFrame({"lag_s": lag, "msd_m2": 1e-12 * lag**2, "n_samples": 10})
     alpha, _ = fit_msd(msd)
     assert alpha == pytest.approx(2.0, abs=1e-6)
+
+
+# -- the shared imaging core ---------------------------------------------------
+
+
+def test_imaging_moved_to_core_and_old_paths_still_import():
+    import biosim_lab.core.imaging as core
+    from biosim_lab.instruments.cell_counter import segmentation as old_seg
+    from biosim_lab.instruments.cell_counter import synthetic as old_syn
+
+    assert old_seg.segment is core.segment
+    assert old_syn.synthetic_field is core.synthetic_field
+
+
+def test_fill_holes_matches_scipy():
+    from scipy import ndimage as ndi
+
+    from biosim_lab.core.imaging.segmentation import _fill_holes
+
+    rng = np.random.default_rng(3)
+    for _ in range(50):
+        mask = ndi.binary_opening(rng.random((60, 80)) > rng.uniform(0.3, 0.7))
+        assert np.array_equal(_fill_holes(mask), ndi.binary_fill_holes(mask))
+
+
+def test_static_background_replaces_the_gaussian_estimate():
+    """For a fixed camera the empty frame is the background; subtract it exactly."""
+    from skimage.filters import gaussian
+
+    field = synthetic_field(SyntheticImageSpec(n_cells=40, shape=(256, 256), seed=2))
+    image = field["image"]
+    estimate = gaussian(image, sigma=30.0, preserve_range=True)
+    a = segment(image)
+    b = segment(image, background=estimate, threshold=a.parameters["threshold"])
+    assert np.array_equal(a.labels, b.labels)
+    assert b.parameters["background_sigma"] is None
+    with pytest.raises(ValueError, match="background shape"):
+        segment(image, background=estimate[:10])
+
+
+def test_close_gaps_rejoins_a_track_split_by_an_occlusion():
+    import pandas as pd
+
+    from biosim_lab.instruments.cell_tracker.tracking import close_gaps
+
+    frames = np.arange(40)
+    cell = pd.DataFrame({"frame": frames, "x": 5.0 + 3.0 * frames, "y": 100.0})
+    hidden = (frames >= 15) & (frames < 27)  # behind another cell for 12 frames
+    before = cell[frames < 15].assign(particle=1)
+    after = cell[frames >= 27].assign(particle=2)
+    elsewhere = pd.DataFrame({"frame": np.arange(27, 40), "x": 50.0, "y": 300.0,
+                              "particle": 3})
+    tracks = pd.concat([before, after, elsewhere], ignore_index=True)
+    assert hidden.sum() == 12
+
+    joined = close_gaps(tracks, max_gap=20, max_distance=4.0)
+    assert joined.loc[joined["y"] == 100.0, "particle"].nunique() == 1
+    assert set(joined.loc[joined["y"] == 300.0, "particle"]) == {3}
+    # a gap longer than max_gap stays open
+    assert close_gaps(tracks, max_gap=5, max_distance=4.0)["particle"].nunique() == 3

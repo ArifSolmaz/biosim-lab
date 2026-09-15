@@ -372,6 +372,33 @@ paths = save_result(result, "results/", "my_run")
 again  = load_result(paths["fields"])
 ```
 
+### Counting a sort from its video
+
+A published capture efficiency was *counted*, usually from a microscope video
+of the outlets (Zhang et al. 2023 by cell size, Li et al. 2015 by a
+fluorescent stain). `biosim_lab.video_readout` repeats that step on a
+simulated sort, so you can see what the counting itself does to the number:
+
+```python
+from biosim_lab.video_readout import CameraSpec, film_sorter, count_film
+
+film = film_sorter(params, camera=CameraSpec(cells_in_view=6), seed=0)
+size = count_film(film, "size")            # Otsu on log(diameter), per track
+stain = count_film(film, "fluorescence")   # Otsu on the stained channel
+print(size.summary())
+size.error_budget   # cells never counted (and how many were occluded by
+                    # another cell), extra tracks, identity swaps, misclassified,
+                    # wrong outlet
+```
+
+`film_sorter` renders brightfield and fluorescence frames of the last 250 µm
+before the outlets, segments them with one fixed threshold and a static
+background, and links the detections with trackpy at a frame rate chosen so
+linking is unambiguous. `count_film` never sees the simulation's labels; they
+are used only to score it. Rendering is the slow part (roughly 15 ms per
+frame, tens of thousands of frames for a few hundred cells), and counting is
+instant, so film once and count as many ways as you like.
+
 ---
 
 ## 7. Configuration file reference

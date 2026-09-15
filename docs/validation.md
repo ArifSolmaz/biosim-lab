@@ -118,6 +118,35 @@ puanlanır:
 | Ölçülen hız | 0.1446 µm/dk (gerçek 0.1430 — **%1 hata**) |
 | MSD üsteli | 1.89 (kalıcı yürüyüş, beklendiği gibi süperdifüzif) |
 
+### Ayırmayı videosundan saymak / Counting a sort from its video (Aşama 3 ek bağlantı)
+
+`biosim_lab.video_readout`, Zhang 2023 cihazının (benchmark_02, 200 MCF-7 +
+400 PBMC) çıkışından önceki 250 µm'yi filme alır ve yakalama verimini
+yalnızca görüntülerden sayar; simülasyonun etiketleri yalnızca puanlamada
+kullanılır (`examples/13_sorter_video_readout.py`, 12 413 kare, 683 kare/s):
+
+| Ölçüt | Video (boyutla) | Video (floresanla) | Simülasyon |
+|---|---|---|---|
+| Yakalama verimi | %99.5 [97.2, 99.9] | %99.5 | %99.5 |
+| Kontaminasyon | %15.8 | %16.7 | %18.5 |
+| Sayılan hücre | %94.3 | %94.3 | — |
+| Doğru sınıflanan | %98.8 | %99.5 | — |
+| Çıkış uyumu | %100 | %100 | — |
+
+Kaçırılan 34 hücrenin 34'ü **örtüşme** (projeksiyonda başka bir hücreyle üst
+üste): akustik düğümler hücreleri çizgiye dizer, farklı yükseklikteki hücreler
+birbirini sollar. Toplama çıkışına giden PBMC'ler %17.6, atığa gidenler %3.7
+oranında kaçırılır — kirleticiler büyük MCF-7'lerle aynı orta çizgidedir ve
+onların arkasında kalır. **Videodan sayım kontaminasyonu sistematik olarak
+düşük gösterir** (18.5 → 15.8). Bu, Zhang'ın bildirdiği ~%1.5 ile modelin
+%17–31'i arasındaki farkın yönündedir ama onu açıklayacak büyüklükte değildir.
+
+Testler (`tests/test_video_readout.py`): video sayımı simülasyona yakın düşer;
+simülasyonun etiketleri tersine çevrildiğinde videonun sayıları **değişmez**,
+yalnızca puanı düşer (sayım gerçeği görmez); bağlama belirsiz olmasın diye
+arama yarıçapı `2 r_min`'in altında kalır; her hücre giriş anında
+simülasyondaki anahtarlama fazına kilitlidir.
+
 ## İnterdijital elektrot / Interdigitated electrode (Aşama 2)
 
 `tests/test_ide_electrode.py`, iki bağımsız yolu karşılaştırır:
