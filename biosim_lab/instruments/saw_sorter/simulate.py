@@ -1671,6 +1671,10 @@ class SAWSorterSimulation:
         df["is_target"] = df["label"].isin(
             [pop.resolved_label() for pop in p.populations if pop.target]
         )
+        if "entry_offset" in state.extra:
+            # Where in the switching cycle each cell came in: needed to replay the
+            # run as a continuous stream on one clock (biosim_lab.video_readout).
+            df["entry_offset_s"] = np.asarray(state.extra["entry_offset"], dtype=float)
         return df
 
     def _assess_viability(

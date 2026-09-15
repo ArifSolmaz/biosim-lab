@@ -202,6 +202,62 @@ eksik olduğunu söyleyen bir hata alırsınız.
 
 ---
 
+## Sıralayıcı videosundan sayım / Counting a sort from its video — Aşama 3 ek bağlantı
+
+`biosim_lab.video_readout` — cihazların üstündeki iş akışı katmanında; sıralayıcı
+ile takipçiyi birbirini `import` ettirmeden buluşturur.
+
+Makalelerde yakalama verimi çipin bildirdiği bir sayı değildir, **videodan
+sayılır**: Zhang et al. (2023) orta çizgiye toplanan hücreleri mikroskopta sayar
+ve popülasyonları *boyutla* ayırır; Li et al. (2015) kalseinle boyanmış hücreleri
+*floresanla* sayar. Bu modül o adımı geri koyar:
+
+1. `film_sorter(params)` — sıralayıcıyı simüle eder (ya da hazır bir `outcome`
+   alır), çıkıştan önceki son 250 µm'nin parlak alan + floresan videosunu üretir.
+   Hücreler kanala **sürekli akış** olarak girer (pencerede Poisson akışı) ve
+   `alternating_baw` kipinde her hücrenin giriş anı, simülasyonda aldığı
+   **anahtarlama fazına kilitlenir** — videodaki hücre simülasyondakinin aynısını yapar.
+   Kare hızı kendiliğinden seçilir: en hızlı hücre karede en küçük hücre yarıçapı
+   kadar ilerler, arama yarıçapı 1.5 adım olur ve iki hücrenin yaklaşabileceği
+   `2 r_min`'in altında kalır.
+2. Her kare `core.imaging.segment` ile ayrılır — **tüm video için tek eşik ve
+   durağan arka plan** (zamansal medyan), operatörün yapacağı gibi; kare başına
+   Otsu, içinde tam hücre olmayan karede gürültüyü binlerce lekeye böler.
+3. trackpy izleri bağlar; `count_film(film, "size" | "fluorescence")` her izi
+   medyan çapının logaritmasında ya da medyan floresanında **tam 1-B Otsu**
+   ile ikiye ayırır (256 kutulu sürüm, eşit skorlu ilk kutuyu — alt kümenin tam
+   kenarını — döndürüp üst üyesini yanlış sınıflar), çıkışı izin görüş alanını
+   terk ettiği yanal konumdan okur ve makale tanımlarıyla (`metrics.paper_metrics`)
+   yakalama verimi / kontaminasyon hesaplar.
+   Bir örtüşmenin ikiye böldüğü iz parçaları **boşluk kapatma** ile birleştirilir
+   (`cell_tracker.tracking.close_gaps`: parçanın kendi hızıyla öngörülen yere
+   `max_gap` kare içinde başlayan parça onun devamıdır; Jaqaman 2008).
+4. Simülasyonun etiketleri **yalnızca puanlamada** kullanılır; her iz, sayım
+   çizgisini geçerken üzerinde durduğu hücreyle eşlenir. Hiç sayılmayan hücreler
+   (başka bir hücreyle örtüşenler ayrı sayılır), fazla izler, kimlik takasları,
+   yanlış sınıflananlar, çıkışı uyuşmayanlar → `error_budget`.
+   `tests/test_video_readout.py` gerçeği karıştırınca videonun sayılarının
+   değişmediğini, yalnızca puanının düştüğünü zorunlu kılar.
+
+| `CameraSpec` | Varsayılan | Not |
+|---|---|---|
+| `pixel_size` | 1 µm | nesne düzleminde |
+| `window_length` | 250 µm | çıkış düzleminde biter |
+| `frame_rate` | otomatik | `u_max / r_min` |
+| `cells_in_view` | 6 | akış yoğunluğu; kalabalık → üst üste binme |
+| `fluorescence_contrast` | 0.6 | yalnızca hedef hücreler boyalı |
+
+```python
+from biosim_lab.video_readout import film_sorter, count_film
+film = film_sorter(params, seed=0)          # render + segment + link (dakikalar)
+for by in ("size", "fluorescence"):          # aynı videodan iki sayım, anında
+    print(count_film(film, by).summary())
+```
+
+Tam örnek: `examples/13_sorter_video_readout.py`.
+
+---
+
 ## `openfoam` / `elmer` — Aşama 4, **yalnızca iskelet**
 
 Arayüz sözleşmesi, C++ kuvvet modeli taslağı, `controlDict` ve `.sif`

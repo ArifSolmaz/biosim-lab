@@ -1077,6 +1077,87 @@ def force_timeline_figure(
                    yaxis_title="force across the channel (pN)", dark=dark)
 
 
+def video_frame_figure(
+    image: np.ndarray,
+    *,
+    pixel_size: float,
+    tracks: pd.DataFrame | None = None,
+    collection_band: tuple[float, float] | None = None,
+    margin_px: int = 0,
+    exit_col: float | None = None,
+    colors: dict[str, str] | None = None,
+    dark: bool = False,
+    title: str = "Synthetic microscope frame",
+) -> go.Figure:
+    """One frame of a camera looking down a channel, with tracks drawn over it.
+
+    *image* rows run across the channel and columns along the flow. *tracks*
+    is a long table (``frame``, ``particle``, ``x``, ``y`` in pixels, and a
+    ``label`` per row) drawn as one line per track, coloured by label; the
+    collection band is given in micrometres from the channel wall. *colors*
+    overrides the categorical colour of any label (e.g. grey for tracks that
+    were not counted).
+    """
+    px_um = pixel_size * UM
+    rows, cols = image.shape
+    x_um = np.arange(cols) * px_um
+    y_um = (np.arange(rows) - margin_px) * px_um
+    fig = go.Figure(go.Heatmap(
+        x=x_um, y=y_um, z=image, colorscale="gray", showscale=False,
+        hovertemplate="along %{x:.0f} µm<br>across %{y:.0f} µm<br>%{z:.2f}<extra></extra>",
+    ))
+    if tracks is not None and len(tracks):
+        shown: set[str] = set()
+        for pid, g in tracks.sort_values("frame").groupby("particle"):
+            label = str(g["label"].iloc[0])
+            fig.add_trace(go.Scatter(
+                x=g["x"] * px_um, y=(g["y"] - margin_px) * px_um, mode="lines",
+                line={"color": (colors or {}).get(label) or color_for(label, dark=dark),
+                      "width": 2},
+                name=label, legendgroup=label, showlegend=label not in shown,
+                hovertemplate=f"<b>{label}</b> track {int(pid)}<extra></extra>",
+            ))
+            shown.add(label)
+    line = {"color": "#e8a33d", "width": 1, "dash": "dot"}
+    if collection_band is not None:
+        for edge in collection_band:
+            fig.add_hline(y=edge, line=line)
+    if exit_col is not None:
+        fig.add_vline(x=exit_col * px_um, line=line)
+    # True aspect ratio: shrink the plotting area to the image, never pad the range.
+    fig.update_xaxes(range=[x_um[0], x_um[-1]], constrain="domain", showgrid=False)
+    fig.update_yaxes(range=[y_um[-1], y_um[0]], scaleanchor="x", scaleratio=1,
+                     constrain="domain", showgrid=False)
+    fig = _finish(fig, title=title, xaxis_title="along the flow (µm)",
+                  yaxis_title="across the channel (µm)", dark=dark)
+    fig.update_layout(height=720, width=max(420, int(720 * cols / rows) + 260))
+    return fig
+
+
+def readout_comparison_figure(
+    measured: dict[str, float],
+    reference: dict[str, float],
+    keys: Sequence[tuple[str, str]],
+    *,
+    measured_name: str = "video",
+    reference_name: str = "simulation",
+    dark: bool = False,
+    title: str = "Counted from the video vs the simulation",
+) -> go.Figure:
+    """Grouped bars of the same percentages from two sources (``keys``: key, label)."""
+    labels = [text for _, text in keys]
+    fig = go.Figure()
+    for name, values in ((reference_name, reference), (measured_name, measured)):
+        fig.add_trace(go.Bar(
+            x=labels, y=[values.get(k, np.nan) for k, _ in keys], name=name,
+            marker_color=color_for(name, dark=dark),
+            text=[f"{values.get(k, np.nan):.1f}" for k, _ in keys], textposition="outside",
+            hovertemplate=f"<b>{name}</b><br>%{{x}}: %{{y:.1f}} %<extra></extra>",
+        ))
+    fig.update_layout(barmode="group")
+    return _finish(fig, title=title, yaxis_title="percent", dark=dark)
+
+
 __all__ = [
     "trajectory_figure",
     "live_view_figure",
@@ -1096,4 +1177,6 @@ __all__ = [
     "add_phase_bands",
     "lateral_timeline_figure",
     "force_timeline_figure",
+    "video_frame_figure",
+    "readout_comparison_figure",
 ]

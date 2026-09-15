@@ -91,6 +91,76 @@ def link_detections(
     return linked.reset_index(drop=True)
 
 
+def close_gaps(
+    tracks: pd.DataFrame,
+    *,
+    max_gap: int,
+    max_distance: float,
+    speed_tolerance: float = 0.15,
+    velocity_frames: int = 5,
+) -> pd.DataFrame:
+    """Join track pieces that an occlusion split in two (gap closing).
+
+    Frame-to-frame linking ends a track when its cell vanishes for longer than
+    ``memory`` --- typically because it passed behind, or merged into, another
+    cell --- and starts a new one when it reappears. For cells that move
+    steadily (in a flow, say) the two pieces can be rejoined: from the last
+    ``velocity_frames`` positions of a piece that ends, predict where the cell
+    is ``g`` frames later; a piece starting ``g <= max_gap`` frames later within
+    ``max_distance + speed_tolerance * |v| g`` pixels of that prediction is its
+    continuation. Candidate joins are accepted closest first, each end and
+    each start at most once --- the gap-closing step of Jaqaman et al. (2008),
+    doi:10.1038/nmeth.1237, with the cost reduced to predicted distance.
+
+    Returns a copy of *tracks* with the ``particle`` ids of joined pieces merged.
+    """
+    if not len(tracks):
+        return tracks.copy()
+    ordered = tracks.sort_values(["particle", "frame"])
+    ends, starts = [], []
+    for pid, g in ordered.groupby("particle"):
+        f = g["frame"].to_numpy(dtype=float)
+        xy = g[["x", "y"]].to_numpy(dtype=float)
+        tail = slice(max(0, len(g) - velocity_frames), len(g))
+        span = f[tail][-1] - f[tail][0]
+        v = (xy[tail][-1] - xy[tail][0]) / span if span > 0 else np.zeros(2)
+        ends.append((pid, f[-1], xy[-1], v))
+        starts.append((pid, f[0], xy[0]))
+
+    pairs: list[tuple[float, Any, Any]] = []
+    start_frames = np.array([s[1] for s in starts])
+    start_xy = np.array([s[2] for s in starts])
+    for pid, fe, xye, v in ends:
+        gap = start_frames - fe
+        ok = np.flatnonzero((gap > 0) & (gap <= max_gap))
+        if ok.size == 0:
+            continue
+        predicted = xye + np.outer(gap[ok], v)
+        dist = np.hypot(*(start_xy[ok] - predicted).T)
+        allowed = max_distance + speed_tolerance * float(np.hypot(*v)) * gap[ok]
+        for j in np.flatnonzero(dist <= allowed):
+            if starts[ok[j]][0] != pid:
+                pairs.append((float(dist[j]), pid, starts[ok[j]][0]))
+
+    successor: dict[Any, Any] = {}
+    has_predecessor: set[Any] = set()
+    for _, a, b in sorted(pairs, key=lambda p: p[0]):
+        if a not in successor and b not in has_predecessor:
+            successor[a] = b
+            has_predecessor.add(b)
+    root: dict[Any, Any] = {}
+    for pid in ordered["particle"].unique():
+        if pid in has_predecessor:
+            continue
+        node = pid
+        while node is not None and node not in root:
+            root[node] = pid
+            node = successor.get(node)
+    out = tracks.copy()
+    out["particle"] = out["particle"].map(lambda p: root.get(p, p))
+    return out
+
+
 @dataclass
 class TrackMetrics:
     """Per-track motility summary plus the ensemble MSD."""
@@ -267,6 +337,7 @@ def build_lineage(tracks: pd.DataFrame) -> Any:
 
 __all__ = [
     "link_detections",
+    "close_gaps",
     "TrackMetrics",
     "track_metrics",
     "ensemble_msd",

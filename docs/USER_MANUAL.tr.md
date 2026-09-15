@@ -330,6 +330,32 @@ lam = saw_wavelength(6.632e6, 3979.0)                                  # 600 µm
 Her fizik fonksiyonu **birimsiz SI `float`** alır ve SI döndürür. Birimler
 yapılandırma sınırında denetlenir, sayısal çekirdeğin içinde değil.
 
+### Bir ayırmayı videosundan saymak
+
+Yayımlanmış bir yakalama verimi *sayılmıştır*, çoğunlukla çıkışların mikroskop
+videosundan (Zhang et al. 2023 hücre boyuyla, Li et al. 2015 floresan boyayla).
+`biosim_lab.video_readout` bu adımı simüle edilmiş bir ayırmada tekrarlar;
+böylece sayımın kendisinin sayıyı nasıl değiştirdiği görülür:
+
+```python
+from biosim_lab.video_readout import CameraSpec, film_sorter, count_film
+
+film = film_sorter(params, camera=CameraSpec(cells_in_view=6), seed=0)
+boy = count_film(film, "size")             # iz başına log(çap) üzerinde Otsu
+boya = count_film(film, "fluorescence")    # boyalı kanalda Otsu
+print(boy.summary())
+boy.error_budget   # hiç sayılmayan hücreler (kaçı başka bir hücreyle örtüştü),
+                   # fazla izler, kimlik takasları, yanlış sınıflananlar, yanlış çıkış
+```
+
+`film_sorter` çıkıştan önceki son 250 µm'nin parlak alan ve floresan
+karelerini üretir, bunları tek sabit eşik ve durağan arka planla segmente eder
+ve tespitleri, bağlamanın belirsiz olmayacağı biçimde seçilmiş bir kare hızında
+trackpy ile bağlar. `count_film` simülasyonun etiketlerini hiç görmez; onlar
+yalnızca puanlamada kullanılır. Yavaş olan kısım görüntü üretimidir (kare başına
+~15 ms, birkaç yüz hücre için on binlerce kare); sayım anlıktır. Bir kez çekin,
+istediğiniz kadar farklı biçimde sayın.
+
 ---
 
 ## 7. Yapılandırma dosyası referansı

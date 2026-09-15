@@ -21,9 +21,9 @@ def page_environment() -> None:
     )
 
     from biosim_lab.core.geometry import gmsh_available
+    from biosim_lab.core.imaging.segmentation import available_backends
     from biosim_lab.core.plugin import optional_import
     from biosim_lab.core.solver import solver_report
-    from biosim_lab.instruments.cell_counter.segmentation import available_backends
 
     left, right = st.columns([1, 2])
     left.metric("biosim-lab version", __version__)

@@ -30,7 +30,7 @@ measured instrument data.
 - [Çalışma kipleri / Operating modes](#çalışma-kipleri--operating-modes)
 - [Literatür doğrulaması / Literature benchmarks](#literatür-doğrulaması--literature-benchmarks-aşama-1b)
 - [Fizik / Physics](#fizik--physics)
-- [Bilmeniz gereken beş sonuç / Five findings you should know](#bilmeniz-gereken-beş-sonuç--five-findings-you-should-know)
+- [Bilmeniz gereken altı sonuç / Six findings you should know](#bilmeniz-gereken-altı-sonuç--six-findings-you-should-know)
 - [Örnekler / Examples](#örnekler--examples)
 - [Komut satırı / CLI](#komut-satırı--cli)
 - [Docker](#docker)
@@ -145,8 +145,9 @@ params:
 |---|---|---|---|
 | `saw_sorter` | Akustik hücre ayırıcı | **Tam** | CTC/kan hücresi ayrımı, üç kip: duran SAW (`ssaw`), eğik açılı SAW (`tassaw`), zaman-anahtarlamalı iki frekanslı hacim dalgası (`alternating_baw`). Gor'kov kuvveti, analitik + FEM, RK4/adaptif entegrasyon, makale metrikleri, parametre taraması, canlı pano, **iki makaleye karşı doğrulanmış** |
 | `impedance_rtca` | xCELLigence RTCA | **Minimal çalışır** | Altın interdijital elektrot (Olthuis hücre sabiti) + Giaever–Keese hücre katmanı; isteğe bağlı elektro-kuasistatik FEM; Cell Index ve normalleştirilmiş CI, \|Z\|(f) spektrumu, 4PL IC50; gerçek RTCA CSV/XLSX (geniş/uzun format) + plaka düzeniyle ölçülmüş veride IC50 |
-| `cell_counter` | Countess / Cellometer | **İskelet + demo** | Watershed segmentasyon, Neubauer geometrisiyle konsantrasyon, tripan mavisi canlılık |
-| `cell_tracker` | Incucyte / CellTracker | **İskelet + demo** | trackpy bağlama, hız / persistans / MSD |
+| `cell_counter` | Countess / Cellometer | **İskelet + demo** | Watershed segmentasyon (Cellpose/StarDist opsiyonel), Neubauer geometrisiyle konsantrasyon, tripan mavisi canlılık, boyut dağılımı |
+| `cell_tracker` | Incucyte / CellTracker | **İskelet + demo** | trackpy bağlama, hız / yön / persistans / MSD; btrack soy ağacı arayüzü |
+| ↳ `video_readout` | ayırıcının çıkış kamerası | **Demo** | Ayırıcının çıkış bölgesinin sentetik videosu → segmentasyon → izler → boyut ya da floresanla sınıflama → **yakalama verimi videodan**, hücre hücre hata bütçesiyle |
 
 Çözücü arka uçları / solver back-ends:
 
@@ -270,7 +271,7 @@ Helmholtz çözümünden **kendiliğinden çıkar**.
 
 ---
 
-## Bilmeniz gereken beş sonuç / Five findings you should know
+## Bilmeniz gereken altı sonuç / Six findings you should know
 
 Bunlar geliştirme sırasında ortaya çıktı ve tasarımınızı doğrudan etkiler.
 
@@ -365,6 +366,26 @@ yardım ederdi. Makalenin iddiası birincil radyasyon kuvvetiyle açıklanamıyo
 `tests/test_benchmarks.py::test_counterfactual_follows_gorkov` modelin bu yönü
 tutarlı biçimde verdiğini zorunlu kılar.
 
+### 6. Videodan sayım kontaminasyonu düşük gösterir
+
+Makalelerde yakalama verimi mikroskop videosundan sayılır. `video_readout`
+aynı sayımı simüle edilmiş ayırmada yapar (Zhang 2023 cihazı, 600 hücre,
+yalnızca görüntülerden; `examples/13_sorter_video_readout.py`):
+
+| | Video (boyutla) | Video (floresanla) | Simülasyon |
+|---|---|---|---|
+| Yakalama verimi | %99.5 | %99.5 | %99.5 |
+| Kontaminasyon | **%15.8** | **%16.7** | %18.5 |
+
+Kaçırılan hücrelerin tamamı örtüşmedir: akustik düğümler hücreleri çizgiye
+dizer ve farklı yükseklikteki hücreler birbirini sollar. Toplama çıkışına giden
+PBMC'ler büyük MCF-7'lerle aynı orta çizgide ilerler ve **%17.6** oranında
+onların arkasında kaybolur; atığa gidenler yalnızca %3.7. Yani video sayımı,
+kirleticileri tam da sayılmaları gereken yerde kaçırır. Etki makalenin ~%1.5'i
+yönündedir ama modelle arasındaki farkı kapatacak büyüklükte değildir (bulgu 5
+ve [REPORT.md](benchmarks/REPORT.md)). Seyreltmek yardım eder: aynı hücreler
+görüş alanında 3 hücreyle çekilince sayım %99'a çıkar.
+
 ---
 
 ## Örnekler / Examples
@@ -382,6 +403,7 @@ python examples/09_two_outlet_split.py          # iki çıkışlı ayırma: ayı
 python examples/10_tilted_angle_ssaw.py         # eğik açılı SSAW: tutulma sınırı
 python examples/11_ctc_from_blood.py            # kandan CTC: gerçek oranlar + yayımlanmış protokol
 python examples/12_alternating_baw.py           # iki frekanslı BAW: zaman izleri, pencere, RK4 vs LSODA
+python examples/13_sorter_video_readout.py      # ayırmayı videosundan say: boyut vs floresan, kalabalık
 ```
 
 Şekiller `assets/` altına hem etkileşimli HTML hem PNG olarak yazılır.

@@ -16,6 +16,8 @@ import xarray as xr
 from pydantic import Field
 
 from biosim_lab.core.config import BaseConfigModel, ExperimentConfig, Length
+from biosim_lab.core.imaging.segmentation import segment
+from biosim_lab.core.imaging.synthetic import SyntheticImageSpec, synthetic_field
 from biosim_lab.core.io import read_image_stack
 from biosim_lab.core.plugin import Instrument, InstrumentResult
 from biosim_lab.instruments.cell_counter.counting import (
@@ -23,8 +25,6 @@ from biosim_lab.instruments.cell_counter.counting import (
     count_field,
     counting_uncertainty,
 )
-from biosim_lab.instruments.cell_counter.segmentation import segment
-from biosim_lab.instruments.cell_counter.synthetic import SyntheticImageSpec, synthetic_field
 
 
 class CellCounterParams(BaseConfigModel):

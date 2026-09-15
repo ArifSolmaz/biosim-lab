@@ -17,10 +17,10 @@ import xarray as xr
 from pydantic import Field
 
 from biosim_lab.core.config import BaseConfigModel, ExperimentConfig, Length, Time
+from biosim_lab.core.imaging.segmentation import segment
+from biosim_lab.core.imaging.synthetic import SyntheticImageSpec, synthetic_movie
 from biosim_lab.core.io import read_image_stack
 from biosim_lab.core.plugin import Instrument, InstrumentResult
-from biosim_lab.instruments.cell_counter.segmentation import segment
-from biosim_lab.instruments.cell_counter.synthetic import SyntheticImageSpec, synthetic_movie
 from biosim_lab.instruments.cell_tracker.tracking import (
     detections_from_labels,
     link_detections,

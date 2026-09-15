@@ -15,10 +15,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from biosim_lab.core.config import ExperimentConfig
+from biosim_lab.core.imaging.segmentation import available_backends
 from biosim_lab.core.io import save_result
 from biosim_lab.core.viz.napari_layers import napari_available
 from biosim_lab.instruments.cell_counter import CellCounter
-from biosim_lab.instruments.cell_counter.segmentation import available_backends
 from biosim_lab.instruments.cell_tracker import CellTracker
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets"

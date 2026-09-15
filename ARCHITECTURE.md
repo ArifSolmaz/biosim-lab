@@ -26,6 +26,10 @@
 CLI /   │  cli.py      biosim run|dashboard|doctor|list|sweep   │
 Panel   │  core/viz/dashboard.py  (Panel + Plotly, tarayıcı)    │
         └───────────────────────┬──────────────────────────────┘
+        ┌───────────────────────▼──────────────────────────────┐
+WORK-   │ pipeline.py │ stages.py │ video_readout.py            │
+FLOWS   │  cihazları zincirleyen tek yer (sayım ← sıralama)     │
+        └───────────────────────┬──────────────────────────────┘
                                 │ Instrument ABC
         ┌───────────────────────▼──────────────────────────────┐
 INSTRU- │ saw_sorter │ impedance_rtca │ cell_counter │ tracker  │
@@ -43,8 +47,12 @@ SOLVERS │ builtin (scikit-fem, analytic) │ openfoam │ elmer     │
         └──────────────────────────────────────────────────────┘
 ```
 
-Ok yönü tek yönlüdür: **instruments → core → solvers**. Çekirdek hiçbir zaman bir
-cihaz eklentisini `import` etmez; cihazlar birbirini `import` etmez.
+Ok yönü tek yönlüdür: **workflows → instruments → core → solvers**. Çekirdek
+hiçbir zaman bir cihaz eklentisini `import` etmez; cihazlar birbirini `import`
+etmez. İki cihazın buluştuğu yer (ör. sıralayıcının çıkış videosunu hücre
+takipçisiyle saymak) cihazların üstündeki iş akışı katmanıdır. İki cihazın
+paylaştığı kod (görüntü segmentasyonu, sentetik mikroskop görüntüsü) çekirdeğe
+iner: `core/imaging/`.
 
 ---
 
@@ -71,6 +79,10 @@ biosim_lab/
       curves.py     # Plotly (eğri, heatmap, histogram, Nyquist/Bode, plaka haritası)
       dashboard.py  # Panel panosu (kaydırıcılar → canlı yeniden hesap)
       napari_layers.py  # opsiyonel Napari katmanları
+    imaging/       # sayıcı ve takipçinin ortak görüntü çekirdeği
+      segmentation.py  # watershed (varsayılan) + Cellpose/StarDist; sabit eşik ve
+                       # durağan arka plan (video için), seyrek karede kırpılmış iş
+      synthetic.py     # bilinen doğruluklu sentetik parlak alan görüntüsü / film
     sensitivity.py # kaynaksız değerleri etkilerine göre sıralar (ortak tohum + eşleşmiş fark)
     statistics.py  # Wilson aralığı, tekrar özeti (Student t)
     plugin.py      # Instrument(ABC), optional_import, discover_instruments
@@ -97,10 +109,13 @@ biosim_lab/
       physics.py      # Giaever–Keese, CPE arayüzü, IDE hücre sabiti (Olthuis), Wagner sayısı
       fem_model.py    # IDE birim hücresinde elektro-kuasistatik Poisson (Robin arayüz)
       instrument.py   # plaka, Cell Index / NCI, IC50, ölçülmüş veri + plaka düzeni
-    cell_counter/    # AŞAMA 3 — iskelet + sentetik demo
-    cell_tracker/    # AŞAMA 3 — iskelet + sentetik demo
+    cell_counter/    # AŞAMA 3 — iskelet + sentetik demo (Neubauer, tripan mavisi)
+    cell_tracker/    # AŞAMA 3 — iskelet + sentetik demo (trackpy; btrack arayüzü)
   pipeline.py    # Sample/Stage/Pipeline: cihazları zincirler, hata bütçesini taşır
   stages.py      # SortStage / CountStage / TrackStage — cihazları saran ince adaptörler
+  video_readout.py # sıralayıcının çıkış bölgesinin sentetik videosu → segmentasyon →
+                   # trackpy izleri → boyut/floresanla sınıflama → videodan
+                   # yakalama verimi + hücre hücre hata bütçesi
   app/           # Streamlit ön yüzü: sayfa başına bir modül
     shared.py      # biçimlendirme, indirme düğmeleri, uyarı gösterimi
     runners.py     # st.cache_data ile önbelleklenmiş simülasyon sarmalayıcıları
@@ -255,7 +270,7 @@ ExperimentConfig ──► materials.py (MCF-7, RBC: ρ, β, r-dağılımı, DOI
 | 1 | `saw_sorter` tam: analitik + FEM, üç kip (ssaw, tassaw, alternating_baw), metrikler, tarama, pano, testler | **Tam** |
 | 1B | Literatür doğrulaması: Li 2015 (taSSAW), Zhang 2023 (alternatif frekanslı BAW) | **Tam** — `benchmarks/REPORT.md` |
 | 2 | `impedance_rtca`: interdijital elektrot + Giaever–Keese, elektro-kuasistatik FEM, Cell Index/NCI, IC50, RTCA parser (geniş/uzun, plaka düzeni) | **Minimal çalışır** |
-| 3 | `cell_counter`, `cell_tracker`: watershed + trackpy, sentetik veri üreteci | **İskelet + demo** |
+| 3 | `cell_counter`, `cell_tracker`: watershed + trackpy, sentetik veri üreteci; ortak `core/imaging`; sıralayıcı videosundan yakalama verimi (`video_readout`) | **İskelet + demo** |
 | 4 | `solver_openfoam`, `solver_elmer` | **Yalnızca iskelet + şablon** |
 
 ---
@@ -336,3 +351,11 @@ Bunların hepsi kodda da belgelidir; buradaki liste tam kümedir.
    kontrast faktörü küçüktür. Zhang 2023 Şekil 1'deki sıralamayla (kanser > PBMC)
    sıkıştırılabilirlik farkı ayrışmaya yardım etmez, zarar verir; benzer boyutlu
    CTC/PBMC ayrışması iddiası bu modelle yeniden üretilemez (REPORT.md, karşıt-olgu).
+
+15. **Sentetik video ideal bir mikroskoptur** (`video_readout`). Hücreler, kanal
+   derinliğindeki yüksekliklerinden bağımsız olarak odakta, tek biçimli diskler
+   olarak çizilir; odak dışı bulanıklık, hücre dokusu, kırılma haleleri ve
+   hareket bulanıklığı yoktur. Kare hızı bağlamayı belirsiz kılmayacak kadar
+   yüksek seçilir (Zhang cihazında ~680 kare/s); daha yavaş bir kamera daha çok
+   kimlik takası ve kayıp verir. Bu yüzden videonun hata bütçesi bir **alt
+   sınırdır**: gerçek bir kayıt en az bu kadar örtüşme kaybı yaşar.

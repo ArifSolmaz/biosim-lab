@@ -72,10 +72,10 @@ def list_plugins() -> None:
 def doctor() -> None:
     """Report which back-ends are installed and which features they unlock."""
     from biosim_lab.core.geometry import gmsh_available
+    from biosim_lab.core.imaging.segmentation import available_backends
     from biosim_lab.core.plugin import optional_import
     from biosim_lab.core.solver import solver_report
     from biosim_lab.core.viz.napari_layers import napari_available
-    from biosim_lab.instruments.cell_counter.segmentation import available_backends
 
     console.print(f"[bold]biosim-lab {__version__}[/bold]")
 
