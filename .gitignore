@@ -24,3 +24,5 @@ docs/explainer/*.aux
 docs/explainer/*.log
 docs/explainer/*.out
 docs/explainer/*.toc
+.coverage
+coverage.xml

@@ -19,6 +19,9 @@ jobs:
   # ---------------------------------------------------------------------------
   test:
     name: tests (py${{ matrix.python }})
+    # The suite takes ~6 minutes; a hang should fail in minutes, not the
+    # six-hour runner default.
+    timeout-minutes: 40
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -68,6 +71,7 @@ jobs:
   # optional back-end present. That claim is only true if something checks it.
   minimal:
     name: tests with no optional back-end
+    timeout-minutes: 40
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

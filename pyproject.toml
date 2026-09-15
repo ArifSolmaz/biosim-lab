@@ -75,7 +75,10 @@ segmentation = [
 movie = ["imageio-ffmpeg>=0.4.9"]
 fenicsx = ["fenics-dolfinx>=0.8"]
 openfoam = ["fluidfoam>=0.2.5"]
-dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.4", "mypy>=1.10"]
+# streamlit is here because the suite tests the web app (tests/test_streamlit_app.py)
+# and asserts that everything requirements.txt lists imports; without it those
+# tests skip or fail in any environment installed from `.[dev]`, which is CI.
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.4", "mypy>=1.10", "streamlit>=1.49"]
 docs = ["mkdocs>=1.6", "mkdocs-material>=9.5"]
 # "all" now means all. It previously omitted `segmentation`, so the extra named
 # all was the one that did not install the deep-learning segmenters. Note it
@@ -120,6 +123,9 @@ testpaths = ["tests"]
 # The repository root, so tests can import the `benchmarks` package (Stage 1B).
 pythonpath = ["."]
 addopts = "-q --strict-markers"
+# A test still running after 15 minutes dumps every thread's stack to the log,
+# so a hang in CI shows WHERE it hangs instead of a silent six-hour job.
+faulthandler_timeout = 900
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]

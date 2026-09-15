@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import math
+import multiprocessing
 import os
 import warnings
 from collections.abc import Callable, Iterable, Sequence
@@ -181,7 +182,14 @@ def parallel_map(fn: Callable[[Any], Any], items: Sequence[Any], *,
     n = int(env) if env else (workers or min(8, os.cpu_count() or 1))
     if n <= 1 or len(items) <= 1:
         return [fn(x) for x in items]
-    with ProcessPoolExecutor(max_workers=n) as pool:
+    # "spawn", not the Linux default "fork": by the time a benchmark runs, the
+    # parent has imported numpy/BLAS, bokeh and friends, which start threads,
+    # and forking a multi-threaded process can deadlock the child on a lock a
+    # vanished thread held. That is how CI's py3.11 job hung for hours with no
+    # output while macOS (spawn by default) never showed it. Spawn costs a
+    # second of start-up per worker and cannot deadlock that way.
+    ctx = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=n, mp_context=ctx) as pool:
         return list(pool.map(fn, items))
 
 
