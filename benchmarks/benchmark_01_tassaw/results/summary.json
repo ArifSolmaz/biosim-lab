@@ -1,0 +1,430 @@
+{
+  "benchmark": "benchmark_01_tassaw",
+  "paper": {
+    "doi": "10.1073/pnas.1504484112",
+    "citation": "Li P, Mao Z, Peng Z, et al. (2015) Acoustic separation of circulating tumor cells. PNAS 112(16):4970-4975"
+  },
+  "quick": false,
+  "calibration": {
+    "reference_pressure_Pa": 441406.25,
+    "bracket_Pa": [
+      433789.0625,
+      449023.4375
+    ],
+    "target_optimum_tilt_deg": 5.0,
+    "tilt_grid_deg": [
+      1.0,
+      1.5,
+      2.0,
+      2.5,
+      3.0,
+      3.5,
+      4.0,
+      4.5,
+      5.0,
+      5.5,
+      6.0,
+      6.5,
+      7.0,
+      7.5,
+      8.0,
+      8.5,
+      9.0,
+      9.5,
+      10.0,
+      10.5,
+      11.0,
+      11.5,
+      12.0
+    ],
+    "reference_power_dbm": 35.0,
+    "reference_idt_length_mm": 10.0,
+    "method": "bisection on the grid optimum of Delta Y(theta) at 75 uL/min"
+  },
+  "configured_reference_pressure_Pa": 441400.0,
+  "reanchored": {
+    "power_dbm": 35.32142857142857,
+    "offset_db": 2.1785714285714306,
+    "table": [
+      {
+        "line": "MCF-7",
+        "recovery_rate_percent": 98.0,
+        "background_removal_percent": 92.97658862876254
+      },
+      {
+        "line": "HeLa",
+        "recovery_rate_percent": 34.0,
+        "background_removal_percent": 92.25589225589226
+      },
+      {
+        "line": "UACC903M-GFP",
+        "recovery_rate_percent": 78.33333333333333,
+        "background_removal_percent": 92.97658862876254
+      },
+      {
+        "line": "LNCaP",
+        "recovery_rate_percent": 78.33333333333333,
+        "background_removal_percent": 92.97658862876254
+      }
+    ]
+  },
+  "table1": [
+    {
+      "line": "MCF-7",
+      "recovery_rate_percent": 100.0,
+      "background_removal_percent": 69.89966555183946
+    },
+    {
+      "line": "HeLa",
+      "recovery_rate_percent": 86.0,
+      "background_removal_percent": 70.37037037037037
+    },
+    {
+      "line": "UACC903M-GFP",
+      "recovery_rate_percent": 99.33333333333333,
+      "background_removal_percent": 69.89966555183946
+    },
+    {
+      "line": "LNCaP",
+      "recovery_rate_percent": 99.33333333333333,
+      "background_removal_percent": 69.89966555183946
+    }
+  ],
+  "figures": {
+    "fig2a": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/fig2a_tilt.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/fig2a_tilt.png"
+    },
+    "fig2b": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/fig2b_idt_length.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/fig2b_idt_length.png"
+    },
+    "fig3": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/fig3_power.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/fig3_power.png"
+    },
+    "table1": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/table1.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/table1.png"
+    },
+    "table1_reanchored": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/table1_reanchored.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/table1_reanchored.png"
+    },
+    "beads": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/beads.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_01_tassaw/results/figures/beads.png"
+    }
+  },
+  "runtime_s": 219.0024812221527,
+  "checks": [
+    {
+      "case": "2A",
+      "quantity": "optimum tilt at 75 uL/min",
+      "kind": "calibration",
+      "ours": 5.0,
+      "paper": 5.0,
+      "unit": "deg",
+      "tolerance": null,
+      "note": "fitted: the reference pressure was chosen to put it here",
+      "cause": "",
+      "status": "CALIBRATION",
+      "passed": null,
+      "deviation": null
+    },
+    {
+      "case": "2A",
+      "quantity": "Delta Y at the optimum, 75 uL/min",
+      "kind": "quantity",
+      "ours": 598.0914828887127,
+      "paper": 600.0,
+      "unit": "um",
+      "tolerance": 60.0,
+      "note": "tolerance: 10 % of the stated value (not a percentage metric)",
+      "cause": "the lateral room is bounded by the 800 um channel: MCF-7 cells entering across the ~200 um sample stream reach the far wall, so the gap between population MEANS saturates near 500 um. Li's 2-D single-trajectory model measured it between two cells from one inlet point; the sample-stream width (2.5:1 sheath ratio) is included here and not there. Table S1 cell properties unknown.",
+      "status": "PASS",
+      "passed": null,
+      "deviation": -1.908517111287324
+    },
+    {
+      "case": "2A",
+      "quantity": "optimum tilt falls as flow rises",
+      "kind": "trend",
+      "ours": "30, 10, 5, 4, 3.5 deg at 25, 50, 75, 100, 125 uL/min",
+      "paper": "decreasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2A",
+      "quantity": "above 75 uL/min Delta Y falls even at the optimum",
+      "kind": "trend",
+      "ours": "598 -> 548 -> 472 um at 75, 100, 125 uL/min",
+      "paper": "decreasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "S2",
+      "quantity": "optimum tilt rises with power",
+      "kind": "trend",
+      "ours": "3.5, 5, 10 deg at 33, 35, 37 dBm",
+      "paper": "increasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2B",
+      "quantity": "IDT length at maximum Delta Y",
+      "kind": "range",
+      "ours": 10.0,
+      "paper": "8-10",
+      "unit": "mm",
+      "tolerance": null,
+      "note": "lengths within 2 % of the maximum: 10-10 mm",
+      "cause": "the fall-off at long IDTs rests on the ASSUMED scaling p0^2 ~ 1/L (the paper states that longer IDTs lower the energy density, not how); a weaker dependence moves the maximum to longer IDTs",
+      "status": "PASS",
+      "passed": null,
+      "deviation": 0.0
+    },
+    {
+      "case": "2B",
+      "quantity": "an interior maximum exists",
+      "kind": "trend",
+      "ours": "max at 10 mm",
+      "paper": "interior",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "3",
+      "quantity": "recovery rises with power",
+      "kind": "trend",
+      "ours": "2 -> 100 %",
+      "paper": "increasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "3",
+      "quantity": "WBC removal falls with power",
+      "kind": "trend",
+      "ours": "100 -> 18 %",
+      "paper": "decreasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "3",
+      "quantity": "a low-power regime: removal ~99 %, recovery 60-80 %",
+      "kind": "trend",
+      "ours": "33-33 dBm (rec 58-58 %, removal 99-99 %)",
+      "paper": "exists",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "3",
+      "quantity": "a high-power regime: recovery > 90 %, removal ~90 %",
+      "kind": "trend",
+      "ours": "35-40 dBm (rec 94-100 %, removal 18-93 %)",
+      "paper": "exists",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "beads",
+      "quantity": "9.9 vs 7.3 um PS: best min(recovery, removal)",
+      "kind": "claim",
+      "ours": "86.0 % at 34.5 dBm",
+      "paper": ">= 97 %",
+      "unit": "",
+      "tolerance": null,
+      "note": "tested on the Li 2015 geometry: the Ding 2014 device the result comes from is not specified in this paper, so this checks feasibility only",
+      "cause": "",
+      "status": "NOT REPRODUCED",
+      "passed": false,
+      "deviation": null
+    },
+    {
+      "case": "beads",
+      "quantity": "10 um PS bead held by a node at the 5 deg design tilt (35 dBm)",
+      "kind": "claim",
+      "ours": "largest holdable tilt 6.9 deg",
+      "paper": "held (deflected)",
+      "unit": "",
+      "tolerance": null,
+      "note": "Li calibrated their model on these beads (SI Fig. S1, not available), which requires them to be deflected at the design point; this checks only that, not the calibration data",
+      "cause": "",
+      "status": "REPRODUCED",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "Table 1",
+      "quantity": "MCF-7 recovery vs paper mean of 3 run(s)",
+      "kind": "quantity",
+      "ours": 100.0,
+      "paper": 90.3,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "model over-predicts; MCF-7 diameter is the library's 18 um (Hartono 2011), between the paper's 16 and 20 um; Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 9.700000000000003
+    },
+    {
+      "case": "Table 1",
+      "quantity": "MCF-7 recovery in the stated 83-96 % band",
+      "kind": "range",
+      "ours": 100.0,
+      "paper": "83-96",
+      "unit": "%",
+      "tolerance": null,
+      "note": "",
+      "cause": "model over-predicts; MCF-7 diameter is the library's 18 um (Hartono 2011), between the paper's 16 and 20 um; Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 4.0
+    },
+    {
+      "case": "Table 1",
+      "quantity": "HeLa recovery vs paper mean of 3 run(s)",
+      "kind": "quantity",
+      "ours": 86.0,
+      "paper": 87.7,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "model under-predicts; cell diameter is an ASSUMPTION for this line (the paper gives only '16 or 20 um' without mapping them); Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "PASS",
+      "passed": null,
+      "deviation": -1.7000000000000028
+    },
+    {
+      "case": "Table 1",
+      "quantity": "HeLa recovery in the stated 83-96 % band",
+      "kind": "range",
+      "ours": 86.0,
+      "paper": "83-96",
+      "unit": "%",
+      "tolerance": null,
+      "note": "",
+      "cause": "model under-predicts; cell diameter is an ASSUMPTION for this line (the paper gives only '16 or 20 um' without mapping them); Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "PASS",
+      "passed": null,
+      "deviation": 0.0
+    },
+    {
+      "case": "Table 1",
+      "quantity": "UACC903M-GFP recovery vs paper mean of 3 run(s)",
+      "kind": "quantity",
+      "ours": 99.33333333333333,
+      "paper": 84.3,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "model over-predicts; cell diameter is an ASSUMPTION for this line (the paper gives only '16 or 20 um' without mapping them); Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 15.033333333333331
+    },
+    {
+      "case": "Table 1",
+      "quantity": "UACC903M-GFP recovery in the stated 83-96 % band",
+      "kind": "range",
+      "ours": 99.33333333333333,
+      "paper": "83-96",
+      "unit": "%",
+      "tolerance": null,
+      "note": "",
+      "cause": "model over-predicts; cell diameter is an ASSUMPTION for this line (the paper gives only '16 or 20 um' without mapping them); Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 3.3333333333333286
+    },
+    {
+      "case": "Table 1",
+      "quantity": "LNCaP recovery vs paper mean of 1 run(s)",
+      "kind": "quantity",
+      "ours": 99.33333333333333,
+      "paper": 90.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "model over-predicts; cell diameter is an ASSUMPTION for this line (the paper gives only '16 or 20 um' without mapping them); Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 9.333333333333329
+    },
+    {
+      "case": "Table 1",
+      "quantity": "LNCaP recovery in the stated 83-96 % band",
+      "kind": "range",
+      "ours": 99.33333333333333,
+      "paper": "83-96",
+      "unit": "%",
+      "tolerance": null,
+      "note": "",
+      "cause": "model over-predicts; cell diameter is an ASSUMPTION for this line (the paper gives only '16 or 20 um' without mapping them); Table S1 compressibility unavailable; the divider position is an ASSUMPTION (channel midline)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 3.3333333333333286
+    },
+    {
+      "case": "Table 1",
+      "quantity": "WBC removal (mean over the four runs)",
+      "kind": "quantity",
+      "ours": 70.01734175647219,
+      "paper": 90.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "leukocyte size spread is the library's 18 % CV around the stated 12 um (an ASSUMPTION); the paper attributes lost removal to large WBCs such as monocytes, so the tail of that distribution sets this number",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": -19.98265824352781
+    }
+  ]
+}

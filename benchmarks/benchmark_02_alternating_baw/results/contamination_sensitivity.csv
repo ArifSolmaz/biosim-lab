@@ -1,0 +1,6 @@
+variant,capture_efficiency_percent,contamination_rate_percent
+baseline (config.yaml),99.5,17.25
+"inlet band exactly y0 < W/3, as stated",99.5,19.0
+inlet confined to y0 < W/6 (sheath 5:1),99.5,4.75
+every cell enters at the end of 3 MHz,99.5,30.25
+PBMC size CV 10 %,99.5,14.000000000000002

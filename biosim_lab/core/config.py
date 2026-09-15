@@ -76,6 +76,8 @@ Density = Annotated[float, SI("kg/m**3")]
 Viscosity = Annotated[float, SI("Pa*s")]
 Conductivity = Annotated[float, SI("S/m")]
 Temperature = Annotated[float, SI("K")]
+EnergyDensity = Annotated[float, SI("J/m**3")]
+Compressibility = Annotated[float, SI("1/Pa")]
 
 
 class BaseConfigModel(BaseModel):
@@ -159,4 +161,6 @@ __all__ = [
     "Viscosity",
     "Conductivity",
     "Temperature",
+    "EnergyDensity",
+    "Compressibility",
 ]

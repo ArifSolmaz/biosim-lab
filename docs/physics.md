@@ -114,6 +114,46 @@ deneye karşı doğrulanmamıştır; `a ≪ d ≪ λ` varsayar.
 **Kaynak:** Crum (1975), JASA 57:1363, `doi:10.1121/1.380614`.
 **Uygulama:** `physics/secondary.py::secondary_bjerknes_force`.
 
+### 1.8 Hacim akustik dalgası (BAW) ve zaman anahtarlaması — `mode: alternating_baw`
+
+Sert duvarlı (silisyum/cam) bir kanalın genişliği boyunca `n`'inci yarım-dalga
+rezonansı `p(y) = p_a cos(nπy/W)`: duvarlarda antinot, düğümler
+`y = (2m+1)W/(2n)`. `n = 1` tek orta düğüm, `n = 3` üç düğüm (W/6, W/2, 5W/6).
+Frekans → mod eşlemesi `n = round(2Wf/c_f)`; %15'ten fazla sapma uyarı verir.
+
+```
+F_y = 4π Φ_B a³ k_n E_ac sin(2 k_n y),     E_ac = p_a² / (4 ρ_f c_f²)
+```
+
+Bu, §1.3'teki yasanın `λ = 2W/n` ve orijini düğümden duvara taşınmış hâlidir
+(`tests/test_baw.py` ikisini 1e-10 bağıl hassasiyetle eşitler). Stokes
+sürüklenmesiyle dengelendiğinde kapalı form yörünge:
+
+```
+tan(k_n y(t)) = tan(k_n y₀) · exp(t/τ),     τ = 3μ / (4 Φ_B (k_n a)² E_ac)
+```
+
+`E_ac ∝ U_pp²` (aynı frekansta ölçülmüş). Orantı sabiti cihaza özgüdür; Zhang
+2023 vermediği için benchmark_02 onu makalenin sözel tasarım kuralından
+(`design.separation_rule_energy`) türetir ve **CALIBRATED** diye etiketler.
+
+Anahtarlama: fazlar döngüsel (`switching.Schedule`); her hücre kendi giriş
+anındaki fazdan başlar (`entry: random`). En az iki çevrim zorunludur
+(`min_cycles`, makale Sec. 4.2): en hızlı hücre daha azını görürse yapılandırma
+reddedilir.
+
+**Kaynaklar:** Bruus 2012, `doi:10.1039/c2lc21068a` (eq. 32–33); Barnkob et al.
+2010, `doi:10.1039/b920376a` (eq. 6, Fig. 7); Zhang et al. 2023,
+`doi:10.3390/ijms24043338`. **Uygulama:** `physics/baw.py`, `switching.py`.
+
+### 1.9 RF gücünden basınca — `power_drive`
+
+`p₀ = p_ref √((P/P_ref)(L_ref/L))`. `p₀² ∝ P` enerji korunumudur (`E_ac ∝ P`);
+`p₀² ∝ 1/L_IDT` Li 2015'in "daha uzun IDT, aynı güçte daha düşük enerji
+yoğunluğu" cümlesinin en basit okumasıdır ve **ASSUMPTION**'dır. `p_ref`
+her zaman bir ölçüm ya da raporlanmış bir kalibrasyondur (`reference_source`
+alanı zorunlu). **Uygulama:** `physics/acoustics.py::pressure_from_rf_power`.
+
 ---
 
 ## 2. Akışkanlar / Fluid mechanics
@@ -156,6 +196,23 @@ Parçacık hız gevşeme süresi `τ_p = 2ρ_p r²/(9μ)`. 18 µm'lik bir hücre
 ~2×10⁻⁵ s; kanal geçiş süresi ~0.4 s. `Stk = τ_p/t_geçiş ≈ 5×10⁻⁵ ≪ 1`, bu
 yüzden atalet düşürülür ve `v = u_f + F/(6πμr)` kullanılır. `mode="inertial"`
 tam ODE'yi çözer; test ikisinin küçük `Stk`'de 1e-3 içinde uyuştuğunu gösterir.
+
+### 2.3b Zaman entegrasyonu: adaptif ve sabit adımlı RK4
+
+`LagrangianTracker.run(integrator="solve_ivp" | "rk4", dt=..., breakpoints=...)`.
+Kuvvet zamanda parçalı olduğunda (frekans anahtarlaması) adaptif çözücü ya
+süreksizliğin üzerinden atlar ya da adımını küçülterek boğulur; sabit adımlı
+klasik RK4 (Butcher, `doi:10.1002/9781119121534`) her anahtarlama anına *tam
+olarak* denk gelecek şekilde adım atar ve hiçbir adım bir süreksizliği kesmez.
+Aşama zamanları segmentin içine `1e-9·h` kadar çekilir; böylece anahtarlama
+anında kuvvet doğru taraftan okunur. Çıkış düzlemini geçen parçacıklar
+dondurulup aktif kümeden düşürülür (`finished=`), herkes çıkınca integrasyon
+biter — sonucu değiştirmez, BAW koşusunu ~6× hızlandırır.
+
+Duvar: parçacık **merkezi** duvara en fazla yarıçapı kadar yaklaşır
+(`wall_clearance=True`). Merkezin duvar düzlemine kıstırılması, kaymaz duvarda
+hızın sıfır olması nedeniyle duvara itilen hücreyi sonsuza dek durdurur; eğik
+SSAW'da bu sayısal artefakt geri kazanımı `NaN` yapıyordu.
 
 ### 2.4 Akustik akış (streaming) — modellenmiyor
 

@@ -121,9 +121,9 @@ def test_fem_and_analytic_modes_agree_on_the_ordering_not_the_magnitude(sorter_p
     small ones do not — and the FEM mode must never be the *more* optimistic of
     the two.
     """
-    analytic = sorter_params.model_copy(update={"mode": "analytic"})
+    analytic = sorter_params.model_copy(update={"field_model": "analytic"})
     fem = sorter_params.model_copy(
-        update={"mode": "fem", "fem_resolution": 32, "fem_grid": (161, 25)}
+        update={"field_model": "fem", "fem_resolution": 32, "fem_grid": (161, 25)}
     )
     _, out_a = _run(analytic)
     _, out_f = _run(fem)
@@ -144,7 +144,7 @@ def test_fem_and_analytic_modes_agree_on_the_ordering_not_the_magnitude(sorter_p
 def test_vertical_fem_force_is_off_by_default_because_it_strands_cells(sorter_params):
     """Enabling the vertical Gor'kov force without a lift force traps cells at a wall."""
     fem = sorter_params.model_copy(
-        update={"mode": "fem", "fem_resolution": 32, "fem_grid": (161, 25)}
+        update={"field_model": "fem", "fem_resolution": 32, "fem_grid": (161, 25)}
     )
     assert fem.enable_vertical_arf is False
     _, baseline = _run(fem)

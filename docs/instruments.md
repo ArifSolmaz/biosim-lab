@@ -24,14 +24,24 @@ ayırıcılar. Cihaz kavramı: Li et al. (2015), PNAS 112:4970,
 | `fluid` / `substrate` | `water` / `linbo3_128yx` | `core.materials` anahtarları |
 | `inlet` | `sheath_sides` | `uniform`, `centre` de var |
 | `collection_fraction` | 1/3 | Merkezi toplama çıkışının genişliği / kanal |
-| `mode` | `analytic` | `fem` de var — bkz. aşağıdaki uyarı |
+| `mode` | `ssaw` | Çalışma kipi: `ssaw`, `tassaw` (eğik açılı, `tilt_angle_deg ≠ 0`), `alternating_baw` (`switching` bloğu gerekir) |
+| `field_model` | `analytic` | `fem` de var (yalnızca `ssaw`) — bkz. aşağıdaki uyarı. 0.2 öncesi `mode: analytic/fem` yazımı hâlâ okunur |
+| `power_drive` | — | Sürüşü dBm olarak ver: `power_dbm`, `reference_pressure` @ `reference_power_dbm`, `reference_idt_length`, `reference_source` |
+| `switching` | — | `phases`: her faz için `frequency`, `duration`, `voltage_pp`, `reference_energy_density` @ `reference_voltage_pp`, `energy_source`; `min_cycles` (≥ 2), `entry` (`random`/`fixed`), `integrator` (`rk4`/`solve_ivp`), `time_step` |
+| `sheath_ratio` | — | Kılıf:numune debi oranı; verilirse giriş bandı Poiseuille akısından **türetilir** |
+| `inlet_weighting` | `uniform` | `flux`: hücre konumları yerel hıza göre ağırlıklı (çıkışta sayılan oranlar için doğru olan) |
+| `inlet_x` | — | Açık başlangıç konumları (W'nin kesri) — yörünge şekilleri için |
+| `record_forces` | `false` | Her kuvveti ve Stokes sürüklenmesini yörünge boyunca sakla |
 | `enable_gravity` / `_wall_repulsion` / `_secondary_bjerknes` | `false` | İsteğe bağlı ikincil etkiler |
 | `enable_vertical_arf` | `false` | FEM'in dikey kuvveti; açarsanız `all_cells_exited`'ı kontrol edin |
-| `populations` | MCF-7 + RBC | `cell_type`, `count`, `target` |
+| `populations` | MCF-7 + RBC | `cell_type`, `count`, `target`; isteğe bağlı `diameter`, `diameter_cv`, `density`, `compressibility` geçersiz kılmaları — **`override_source` zorunlu** (DOI varsa `override_doi`) |
 
 ### Çıktılar
 
-`metrics`: `efficiency_percent` (geri kazanım), `purity_percent`,
+`metrics`: makale adlarıyla `capture_efficiency_percent`,
+`contamination_rate_percent`, `recovery_rate_percent`,
+`background_removal_percent`, `separation_distance_um` (tanımlar:
+`metrics.py`), ayrıca `efficiency_percent` (geri kazanım), `purity_percent`,
 `enrichment_fold`, `channel_reynolds`, `particle_reynolds`,
 `all_cells_exited`, ve `per_population` altında popülasyon başına
 toplanma oranı, yer değiştirme ve çıkış konumu istatistikleri.
@@ -50,6 +60,31 @@ hangi çıkışa gittiği.
 * **20 MHz + 300 µm tek düğümlü değildir** — üç düğüm sığar, platform uyarır.
 * **`enable_vertical_arf` açıkken hücreler tavana yığılabilir**; bu 2-B kesit
   modelinde dengeleyici kaldırma kuvveti olmamasının sonucudur.
+
+### Kipler / Modes
+
+```yaml
+# eğik açılı SSAW (Li 2015) — tam örnek: benchmarks/benchmark_01_tassaw/config.yaml
+mode: tassaw
+tilt_angle_deg: -5.0
+power_drive: {power_dbm: 37.5, reference_pressure: 0.4414 MPa, reference_power_dbm: 35,
+              reference_idt_length: 10 mm, reference_source: "..."}
+
+# alternatif frekanslı BAW (Zhang 2023) — tam örnek: benchmarks/benchmark_02_alternating_baw/config.yaml
+mode: alternating_baw
+switching:
+  phases:
+    - {frequency: 1 MHz, duration: 0.8 s, voltage_pp: 9 V,
+       reference_energy_density: 41.06 J/m^3, reference_voltage_pp: 9 V, energy_source: "..."}
+    - {frequency: 3 MHz, duration: 1.4 s, voltage_pp: 110 V,
+       reference_energy_density: 19.94 J/m^3, reference_voltage_pp: 110 V, energy_source: "..."}
+```
+
+`alternating_baw` tanıları (`diagnostics["switching"]`): fazlar, rezonans
+frekansları, düğümler, E_ac ve p_a, en hızlı/medyan hücrenin gördüğü çevrim
+sayısı ve makalenin W/6 tasarım kuralının popülasyon başına sağlanıp
+sağlanmadığı. `design.operating_window()` bir taramadan yüksek verim / düşük
+kontaminasyon penceresini ve Youden-optimum ayarı çıkarır.
 
 ### Parametre taraması
 

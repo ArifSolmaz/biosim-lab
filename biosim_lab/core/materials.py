@@ -98,6 +98,32 @@ _HARTONO2011 = Provenance(
     citation="Hartono et al. (2011), On-chip measurements of cell compressibility via "
     "acoustic radiation force, Lab Chip 11:4072",
 )
+_MULLER2012 = Provenance(
+    doi="10.1103/PhysRevE.86.056307",
+    citation="Muller et al. (2012), PRE 86:056307 — polystyrene properties used for "
+    "acoustophoresis calibration",
+)
+_DING2014 = Provenance(
+    doi="10.1073/pnas.1413325111",
+    citation="Ding et al. (2014), Cell separation using tilted-angle standing surface "
+    "acoustic waves, PNAS 111:12992 — 9.9 um vs 7.3 um polystyrene separation (the result "
+    "is restated in the text of Li et al. 2015, doi:10.1073/pnas.1504484112)",
+)
+_LI2015_BEAD = Provenance(
+    doi="10.1073/pnas.1504484112",
+    citation="Li et al. (2015), PNAS 112:4970 — 'After calibrating the simulation model "
+    "with 10-um-diameter polystyrene (PS) beads'",
+)
+#: The measurement the Zhang 2023 cell entries rest on. Its text gives the cell-line
+#: diameter RANGE (14.8-19.6 um) and the unit of compressibility; the per-cell values
+#: exist only as box plots in their Fig. 1. Numbers read off a plot are not citable
+#: as values, so every per-cell number taken from it is an ASSUMPTION that says so.
+_ZHANG2023_FIG1 = (
+    "Zhang et al. (2023), Int J Mol Sci 24:3338, doi:10.3390/ijms24043338. The text states "
+    "only the cell-line diameter range (14.8-19.6 um); this per-cell value is the box-plot "
+    "position in their Fig. 1 and is therefore not a stated number. Their Fig. 1 also shows "
+    "the cancer lines to be MORE compressible than PBMCs (approx. 4.3 vs 4.0-4.1 e-10 1/Pa)."
+)
 # ---------------------------------------------------------------------------
 # fluids
 # ---------------------------------------------------------------------------
@@ -410,8 +436,11 @@ HELA = CellType(
 A549 = CellType(
     key="a549",
     name="A549 lung carcinoma",
-    radius_mean=V(7.75e-6, "m", Provenance(
-        assumption="A549 suspension diameter is reported between 14 and 17 um; 15.5 um used.",
+    radius_mean=V(9.8e-6, "m", Provenance(
+        assumption="19.6 um diameter = the upper end of the 14.8-19.6 um cell-line range "
+        "stated in the text of Zhang et al. 2023 (doi:10.3390/ijms24043338); that A549 is "
+        "the largest of their three lines is read from their Fig. 1, not stated. (Other "
+        "reports give 14-17 um; this is a line- and passage-dependent number.)",
     )),
     radius_cv=V(0.12, "dimensionless", _CV_ASSUMPTION),
     density=V(1055.0, "kg/m**3", Provenance(
@@ -424,6 +453,10 @@ A549 = CellType(
     tags=("cancer",),
 )
 
+_BEAD_CV = Provenance(
+    assumption="NIST-traceable beads are specified at CV < 3 %; 2 % on the radius used.",
+)
+
 POLYSTYRENE_BEAD = CellType(
     key="ps_bead",
     name="Polystyrene calibration bead",
@@ -431,19 +464,119 @@ POLYSTYRENE_BEAD = CellType(
         assumption="Nominal 10 um calibration bead; use the vendor certificate for the "
         "actual lot.",
     )),
-    radius_cv=V(0.02, "dimensionless", Provenance(
-        assumption="NIST-traceable beads are specified at CV < 3 %.",
-    )),
-    density=V(1050.0, "kg/m**3", Provenance(
-        doi="10.1103/PhysRevE.86.056307",
-        citation="Muller et al. (2012), PRE 86:056307 — polystyrene properties used for "
-        "acoustophoresis calibration",
-    )),
-    compressibility=V(2.49e-10, "1/Pa", Provenance(
-        doi="10.1103/PhysRevE.86.056307",
-        citation="Muller et al. (2012), PRE 86:056307",
-    )),
+    radius_cv=V(0.02, "dimensionless", _BEAD_CV),
+    density=V(1050.0, "kg/m**3", _MULLER2012),
+    compressibility=V(2.49e-10, "1/Pa", _MULLER2012),
     tags=("calibration",),
+)
+
+PS_BEAD_10UM = CellType(
+    key="ps_10um",
+    name="Polystyrene bead, 10 um (Li 2015 calibration bead)",
+    radius_mean=V(5.0e-6, "m", _LI2015_BEAD),
+    radius_cv=V(0.02, "dimensionless", _BEAD_CV),
+    density=V(1050.0, "kg/m**3", _MULLER2012),
+    compressibility=V(2.49e-10, "1/Pa", _MULLER2012),
+    tags=("calibration",),
+)
+
+PS_BEAD_9P9UM = CellType(
+    key="ps_9p9um",
+    name="Polystyrene bead, 9.9 um",
+    radius_mean=V(4.95e-6, "m", _DING2014),
+    radius_cv=V(0.02, "dimensionless", _BEAD_CV),
+    density=V(1050.0, "kg/m**3", _MULLER2012),
+    compressibility=V(2.49e-10, "1/Pa", _MULLER2012),
+    tags=("calibration",),
+)
+
+PS_BEAD_7P3UM = CellType(
+    key="ps_7p3um",
+    name="Polystyrene bead, 7.3 um",
+    radius_mean=V(3.65e-6, "m", _DING2014),
+    radius_cv=V(0.02, "dimensionless", _BEAD_CV),
+    density=V(1050.0, "kg/m**3", _MULLER2012),
+    compressibility=V(2.49e-10, "1/Pa", _MULLER2012),
+    tags=("calibration",),
+)
+
+_PBMC_DENSITY = Provenance(
+    doi="10.1182/blood.V56.5.866.866",
+    citation="Density-gradient separation practice: mononuclear cells band ABOVE the "
+    "1.077 g/mL Ficoll-Paque layer, so their density is below it; 1.070 g/mL used",
+)
+
+PBMC = CellType(
+    key="pbmc",
+    name="Peripheral blood mononuclear cell (healthy donor)",
+    radius_mean=V(4.0e-6, "m", Provenance(
+        assumption="8 um diameter. " + _ZHANG2023_FIG1,
+    )),
+    radius_cv=V(0.15, "dimensionless", Provenance(
+        assumption="PBMCs mix lymphocytes (~7 um) and monocytes (~10-12 um), so the "
+        "distribution is broader than a clonal line's; 15 % on the radius.",
+    )),
+    density=V(1070.0, "kg/m**3", _PBMC_DENSITY),
+    compressibility=V(4.0e-10, "1/Pa", Provenance(
+        assumption="4.0e-10 1/Pa. " + _ZHANG2023_FIG1,
+    )),
+    tags=("blood", "target_waste"),
+    notes="Separate from `wbc`: a density-gradient PBMC fraction excludes granulocytes, "
+    "which is the background population in the alternating-frequency BAW literature.",
+)
+
+HCT116 = CellType(
+    key="hct116",
+    name="HCT116 colorectal carcinoma",
+    radius_mean=V(7.4e-6, "m", Provenance(
+        assumption="14.8 um diameter = the lower end of the stated range. " + _ZHANG2023_FIG1,
+    )),
+    radius_cv=V(0.12, "dimensionless", _CV_ASSUMPTION),
+    density=V(1068.0, "kg/m**3", Provenance(
+        assumption="Taken equal to the MCF-7 value used here (carcinoma lines cluster at "
+        "1.05-1.08 g/mL); not independently measured.",
+    )),
+    compressibility=V(4.3e-10, "1/Pa", Provenance(
+        assumption="4.3e-10 1/Pa. " + _ZHANG2023_FIG1,
+    )),
+    tags=("ctc", "cancer", "target_collect"),
+)
+
+_LI2015_SIZES = (
+    "Li et al. (2015, doi:10.1073/pnas.1504484112) give the cancer lines they sorted "
+    "'average diameters of 16 or 20 um depending on the cancer cell lines used' without "
+    "saying which line is which; 18 um is the midpoint and is NOT line-specific."
+)
+
+LNCAP = CellType(
+    key="lncap",
+    name="LNCaP prostate carcinoma",
+    radius_mean=V(9.0e-6, "m", Provenance(assumption=_LI2015_SIZES)),
+    radius_cv=V(0.12, "dimensionless", _CV_ASSUMPTION),
+    density=V(1068.0, "kg/m**3", Provenance(
+        assumption="Carcinoma-line density taken equal to MCF-7 here; not measured.",
+    )),
+    compressibility=V(3.9e-10, "1/Pa", Provenance(
+        assumption="Within the cancer-cell range reported by Hartono et al. "
+        "(doi:10.1039/c1lc20241b); LNCaP itself was not in that panel. The Li 2015 values "
+        "sit in their Table S1, which was not available when this entry was written.",
+    )),
+    tags=("ctc", "cancer", "target_collect"),
+)
+
+UACC903M = CellType(
+    key="uacc903m",
+    name="UACC903M melanoma (GFP-tagged in Li 2015)",
+    radius_mean=V(9.0e-6, "m", Provenance(assumption=_LI2015_SIZES)),
+    radius_cv=V(0.12, "dimensionless", _CV_ASSUMPTION),
+    density=V(1068.0, "kg/m**3", Provenance(
+        assumption="Carcinoma-line density taken equal to MCF-7 here; not measured.",
+    )),
+    compressibility=V(3.9e-10, "1/Pa", Provenance(
+        assumption="Within the cancer-cell range reported by Hartono et al. "
+        "(doi:10.1039/c1lc20241b); UACC903M was not in that panel.",
+    )),
+    tags=("ctc", "cancer", "target_collect"),
 )
 
 LIPID_DROPLET = CellType(
@@ -471,7 +604,10 @@ LIPID_DROPLET = CellType(
 
 CELL_TYPES: dict[str, CellType] = {
     c.key: c
-    for c in (RBC, WBC, PLATELET, MCF7, HELA, A549, POLYSTYRENE_BEAD, LIPID_DROPLET)
+    for c in (
+        RBC, WBC, PBMC, PLATELET, MCF7, HELA, A549, HCT116, LNCAP, UACC903M,
+        POLYSTYRENE_BEAD, PS_BEAD_10UM, PS_BEAD_9P9UM, PS_BEAD_7P3UM, LIPID_DROPLET,
+    )
 }
 
 
@@ -573,8 +709,23 @@ GOLD = Substrate(
     )),
 )
 
+SILICON = Substrate(
+    key="silicon",
+    name="Single-crystal silicon (channel wafer of a bulk-acoustic-wave chip)",
+    density=V(2329.0, "kg/m**3", Provenance(
+        assumption="Handbook density of crystalline silicon at 25 degC.",
+    )),
+    speed_of_sound=V(8433.0, "m/s", Provenance(
+        assumption="Longitudinal velocity along <100> from the handbook elastic constant "
+        "C11 = 165.7 GPa; only used to confirm the silicon wall is acoustically hard "
+        "(impedance ~13x water), which is what lets a BAW chip resonate across its width.",
+    )),
+    notes="A hard wall is the precondition for the transverse half-wave resonance used by "
+    "the alternating-frequency BAW sorter; contrast PDMS, which is nearly matched to water.",
+)
+
 SUBSTRATES: dict[str, Substrate] = {
-    s.key: s for s in (LINBO3_128YX, PDMS, GLASS_BOROSILICATE, GOLD)
+    s.key: s for s in (LINBO3_128YX, PDMS, GLASS_BOROSILICATE, GOLD, SILICON)
 }
 
 
@@ -719,16 +870,24 @@ __all__ = [
     "CELL_CULTURE_MEDIUM",
     "RBC",
     "WBC",
+    "PBMC",
     "PLATELET",
     "MCF7",
     "HELA",
     "A549",
+    "HCT116",
+    "LNCAP",
+    "UACC903M",
     "POLYSTYRENE_BEAD",
+    "PS_BEAD_10UM",
+    "PS_BEAD_9P9UM",
+    "PS_BEAD_7P3UM",
     "LIPID_DROPLET",
     "LINBO3_128YX",
     "PDMS",
     "GLASS_BOROSILICATE",
     "GOLD",
+    "SILICON",
     "get_fluid",
     "get_cell",
     "get_substrate",

@@ -117,3 +117,19 @@ puanlanır:
 | Takip geri kazanımı | 67 / 60 iz (parçalanma nedeniyle > 1) |
 | Ölçülen hız | 0.1446 µm/dk (gerçek 0.1430 — **%1 hata**) |
 | MSD üsteli | 1.89 (kalıcı yürüyüş, beklendiği gibi süperdifüzif) |
+
+## Literatür doğrulaması / Literature benchmarks (Aşama 1B)
+
+İki yayımlanmış akustik CTC ayırıcısı referans vaka olarak yeniden üretilir;
+sonuçlar, şekiller ve her sapmanın olası nedeni
+[`benchmarks/REPORT.md`](../benchmarks/REPORT.md) içindedir.
+
+| Vaka | Makale | Kip | Kalibre edilen tek şey |
+|---|---|---|---|
+| `benchmark_01_tassaw` | Li et al. 2015, `doi:10.1073/pnas.1504484112` | `tassaw` | 35 dBm'deki `p₀` — belirtilen optimum eğime (5°) |
+| `benchmark_02_alternating_baw` | Zhang et al. 2023, `doi:10.3390/ijms24043338` | `alternating_baw` | iki modun `E_ac`'si — makalenin sözel tasarım kurallarına |
+
+Kurallar: referans değerler yalnızca metin ve tablolardaki açık sayılardır
+(grafikten okuma yok); nicel sapma **DEVIATION** olarak raporlanır, test
+başarısızlığı değildir; makalenin belirttiği **eğilimler** zorunludur
+(`tests/test_benchmarks.py`). Yeniden üretmek için `biosim benchmark all`.

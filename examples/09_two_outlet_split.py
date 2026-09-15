@@ -40,7 +40,7 @@ BASE = dict(
     flow_rate="5 uL/min",
     fluid="water",
     substrate="linbo3_128yx",
-    mode="analytic",
+    field_model="analytic",
     seed=20260907,
     # The sample enters along one wall, so every cell has the whole channel
     # width to migrate across and the size selectivity is as large as the

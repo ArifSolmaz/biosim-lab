@@ -1,0 +1,74 @@
+# benchmark_02 — alternating-frequency BAW CTC separator of Zhang et al.
+# (2023), Int J Mol Sci 24:3338, doi:10.3390/ijms24043338.
+#
+# Runnable on its own:   biosim run benchmarks/benchmark_02_alternating_baw/config.yaml
+# Full benchmark:        python -m benchmarks.benchmark_02_alternating_baw.run
+#
+# STATED = in the paper's text (quotes in reference.yaml). ASSUMPTION = not in
+# the paper. CALIBRATED = derived here from a rule the paper states in words
+# (never from a result the benchmark then compares against).
+name: zhang2023_alternating_baw_mcf7
+instrument: saw_sorter
+seed: 20230207
+description: >-
+  Zhang et al. 2023 single-piezoceramic chip switched between its 1 MHz and
+  3 MHz channel resonances; MCF-7 against healthy-donor PBMCs at the Fig. 2b,c
+  baseline (1 MHz 0.8 s / 9 Vpp, 3 MHz 1.4 s / 110 Vpp).
+output_dir: runs/   # where `biosim run` writes; results/ holds the benchmark run
+params:
+  mode: alternating_baw
+  channel_width: 737 um              # STATED (Sec. 4.1)
+  channel_height: 50 um              # STATED depth (Sec. 4.1)
+  channel_length: 20 mm              # ASSUMPTION: acoustic region length is not stated; swept in case (d)
+  flow_rate: 150 uL/h                # STATED: 50 uL/h sample + 100 uL/h sheath (Sec. 2.2)
+  sheath_ratio: 2.0                  # STATED 1:2 sample:sheath (Sec. 4.2) -> derives y0 < W/3
+  inlet: side
+  inlet_side: left
+  inlet_weighting: flux
+  fluid: pbs                         # STATED: PBS sheath buffer (Sec. 4.1)
+  substrate: silicon                 # STATED silicon channel, Pyrex lid (Sec. 4.1)
+  temperature: 25 degC               # ASSUMPTION: room temperature
+  outlet_layout: centre_band
+  collection_fraction: 0.3333333333333333   # ASSUMPTION: three equal outlets; the centre one collects
+  track_viability: false
+  switching:
+    integrator: rk4                  # STATED method (Sec. 4.2)
+    time_step: 5 ms                  # converged: 1, 2 and 5 ms give identical metrics (tests/test_baw.py)
+    entry: random                    # cells enter at a random point of the cycle (Sec. 4.2, Fig. 8)
+    min_cycles: 2                    # STATED requirement (Sec. 4.2)
+    phases:
+      - label: 1 MHz
+        frequency: 1 MHz             # STATED
+        duration: 0.8 s              # STATED (Sec. 2.2)
+        voltage_pp: 9 V              # STATED (Sec. 2.2)
+        reference_voltage_pp: 9 V
+        reference_energy_density: 41.06 J/m^3    # CALIBRATED, see energy_source
+        energy_source: >-
+          CALIBRATED from the stated design rule (Sec. 4.2): the geometric mean of
+          the E_ac that moves a mean MCF-7 more than W/6 in 0.8 s (25.2 J/m^3)
+          and the E_ac that would move a mean PBMC that far (66.9 J/m^3), from
+          the closed-form trajectory (doi:10.1039/b920376a).
+      - label: 3 MHz
+        frequency: 3 MHz             # STATED
+        duration: 1.4 s              # STATED (Sec. 2.2)
+        voltage_pp: 110 V            # STATED (Sec. 2.2)
+        reference_voltage_pp: 110 V
+        reference_energy_density: 19.94 J/m^3    # CALIBRATED, see energy_source
+        energy_source: >-
+          CALIBRATED from "contamination ... reached a minimum value when the
+          duration was greater than 1 s" (Sec. 2.2): the E_ac that returns a
+          mean PBMC from 90 % of the way to the W/3 antinode to within 10 % of
+          the W/6 node in 1.0 s. The 90 %/10 % fractions are choices.
+  populations:
+    - cell_type: mcf7                # library: 18 um (Hartono 2011) — inside the stated 14.8-19.6 um range
+      count: 200
+      target: true
+      label: MCF7
+      compressibility: 4.3e-10 1/Pa
+      override_source: >-
+        ASSUMPTION: 4.3e-10 1/Pa, the cancer-line level in the box plots of
+        Zhang 2023 Fig. 1 (not a stated number); the library's MCF-7 value
+        (3.72e-10, Hartono 2011) comes from a different method
+    - cell_type: pbmc                # library: 8 um, 4.0e-10 1/Pa (both ASSUMPTION, Zhang 2023 Fig. 1)
+      count: 400
+      label: PBMC

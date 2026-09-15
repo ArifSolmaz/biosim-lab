@@ -213,7 +213,7 @@ büyükse kimlikler takas olur. Gerçek adım boyuna yaklaştığınızda uygula
 
 ### Malzeme kaynakları
 
-65 fiziksel sabitin tamamı kaynağıyla: 27'si yayımlanmış DOI'li, 38'i gerekçesi
+95 fiziksel sabitin tamamı kaynağıyla: 37'si yayımlanmış DOI'li, 58'i gerekçesi
 yazılı işaretli varsayım. CSV olarak indirilebilir. Bir yöntem bölümünün
 açıklaması gereken liste budur.
 
@@ -368,21 +368,30 @@ Birim taşıyan değerler dize olarak yazılır ve `pint` ile denetlenir.
 | `fluid` | `water` | `water`, `pbs`, `dmem` |
 | `populations` | MCF-7 + RBC | `{cell_type, count, target}` listesi |
 | `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre` |
-| `tilt_angle_deg` | `0.0` | IDT eğimi. 0 = klasik SSAW; sıfırdan farklı = **eğik açılı SSAW, farklı bir mekanizma**. Pozitif değer −x yönüne saptırır. `mode: fem` ile kullanılamaz |
+| `tilt_angle_deg` | `0.0` | IDT eğimi. 0 = klasik SSAW; sıfırdan farklı = **eğik açılı SSAW, farklı bir mekanizma**. Pozitif değer −x yönüne saptırır. `field_model: fem` ile kullanılamaz |
 | `inlet_side` | `left` | `inlet: side` için numunenin girdiği duvar |
 | `outlet_layout` | `centre_band` | `centre_band` (üç çıkış, düğümden topla) veya `lateral_split` (iki çıkış, tek ayırıcı) |
 | `collection_fraction` | `0.333` | merkezi çıkış genişliği / kanal genişliği — yalnız `centre_band` |
 | `split_position` | `0.5` | ayırıcı konumu / kanal genişliği — yalnız `lateral_split` |
 | `collect_side` | `right` | ayırıcının hangi tarafı toplanır — yalnız `lateral_split` |
-| `mode` | `analytic` | `analytic` ya da `fem` |
+| `mode` | `ssaw` | çalışma kipi: `ssaw`, `tassaw` (`tilt_angle_deg ≠ 0` gerekir), `alternating_baw` (`switching` gerekir). Verilmezse eğimden çıkarılır |
+| `field_model` | `analytic` | `analytic` ya da `fem` (FEM yalnız `ssaw`). 0.2 öncesi yapılandırmalar bunu `mode:` diye yazar ve hâlâ okunur |
+| `power_drive` | `null` | sürüşü RF gücü olarak ver: `{power_dbm, reference_pressure, reference_power_dbm, reference_idt_length, reference_source}` → `p₀ = p_ref √((P/P_ref)(L_ref/L))` |
+| `switching` | `null` | yalnız `alternating_baw`: `{phases: [{frequency, duration, voltage_pp, reference_energy_density, reference_voltage_pp, energy_source}, …], min_cycles: 2, entry: random\|fixed, entry_time_in_cycle, integrator: rk4\|solve_ivp, time_step}` |
+| `sheath_ratio` | `null` | kılıf:numune debi oranı; verilirse giriş bandı Poiseuille akısından **türetilir** |
+| `inlet_weighting` | `uniform` | `flux`: giriş konumları yerel hıza göre ağırlıklı (çıkışın saydığı gibi, saniye başına hücre) |
+| `inlet_x` | `null` | açık giriş konumları (W'nin kesri), yörünge şekilleri için |
+| `record_forces` | `false` | her kuvveti ve Stokes sürüklenmesini yörünge boyunca sakla (`outcome.forces`) |
 | `integration` | `overdamped` | `overdamped` ya da `inertial` |
 | `enable_vertical_arf` | `false` | FEM dikey kuvveti — bkz. [§11](#11-sonuçları-dürüstçe-okumak) |
 | `enable_gravity` / `_wall_repulsion` / `_secondary_bjerknes` | `false` | isteğe bağlı ikincil etkiler |
 | `fem_resolution` / `fem_grid` | `40` / `[241, 41]` | ağ ve örnekleme ızgarası |
 | `n_time_samples` / `seed` | `101` / `12345` | |
 
-Hücre türleri: `mcf7`, `hela`, `a549`, `rbc`, `wbc`, `platelet`, `ps_bead`,
-`lipid`.
+Hücre türleri: `mcf7`, `hela`, `a549`, `hct116`, `lncap`, `uacc903m`, `rbc`, `wbc`,
+`pbmc`, `platelet`, `ps_bead`, `ps_10um`, `ps_9p9um`, `ps_7p3um`, `lipid`. Her popülasyon
+`diameter`, `diameter_cv`, `density`, `compressibility` değerlerini geçersiz kılabilir —
+zorunlu `override_source` ile (makaleyse `override_doi` de).
 
 ### `impedance_rtca`
 
@@ -693,7 +702,7 @@ bozar) ve ölen bir hücrenin akustik özelliklerinin değişmesi.
 ### Bir sayıyı aktarmadan önce kaynağını denetleyin
 
 ```bash
-biosim materials            # 38 varsayım, gerekçeleriyle
+biosim materials            # 58 varsayım, gerekçeleriyle
 ```
 
 En büyüğü: buradaki hiçbir şey sürüş voltajından akustik basıncı öngörmez.
@@ -803,7 +812,43 @@ gösterir: bir dalga boyu genişliğindeki 600 µm'lik kanalda dik cihaz hiçbir
 ayırıcıyla %90 geri kazanıma ulaşamazken −10° %100 geri kazanım ve %100 saflık
 verir.
 
-### 38 varsayımdan hangileri gerçekten önemli
+### İki frekanslı BAW: zamanda ayırma
+
+`mode: alternating_baw`, sert duvarlı bir kanalın iki hacim rezonansı arasında
+anahtarlanan tek bir piezoseramiği modeller (Zhang ve ark. 2023,
+doi:10.3390/ijms24043338): 1 MHz orta çizgiye tek düğüm koyar, 3 MHz W/6, W/2,
+5W/6'ya üç düğüm. Düşük mod fazında büyük ve sert hücreler W/6 düğümünden W/6'dan
+fazla uzaklaşır ve yüksek mod onları W/2'ye çeker; küçük hücreler W/6'ya geri
+düşer. Her fazın kendi süresi ve genliği vardır, her hücre çevrime kendi anında
+girer ve en hızlı hücrenin iki çevrimden azını gördüğü yapılandırma, üç çözüm
+yoluyla birlikte reddedilir.
+
+Bir sayıya güvenmeden önce:
+
+* **`E_ac` sizin vermeniz gereken bir cihaz özelliğidir.** Her faz için
+  `reference_voltage_pp`'deki `reference_energy_density`, `U²` ile ölçeklenir.
+  Ölçmediyseniz `design.separation_rule_energy` makalenin W/6 kuralını bir
+  aralığa çevirir ve geometrik ortasını seçer; bunu `energy_source`'a yazın.
+* **Kontaminasyon örnek akışının kenarından gelir.** 1:2 numune:kılıf oranında
+  akış 3 MHz modunun W/3 antinoduna — kararsız bir noktaya — ulaşır; oradan
+  başlayan PBMC'ler toplama çıkışına sızar. Makalenin kendi önerisi olan
+  `y₀ < W/6`, `sheath_ratio: 5` demektir.
+* **`diagnostics["switching"]` içindeki `W/6 kuralı` satırını okuyun.**
+  Popülasyon başına, ortalama boyutlu bir hücrenin düşük mod fazında ne kadar
+  yol aldığını ve kuralın sağlanıp sağlanmadığını söyler.
+* `design.operating_window(df, "V1")` bir taramada yüksek verim / düşük
+  kontaminasyon penceresini, pencere boşsa Youden-optimum ayarı otomatik bulur.
+
+### Literatür doğrulaması
+
+`benchmarks/REPORT.md` bu modeli Li ve ark. 2015 (taSSAW) ve Zhang ve ark. 2023
+(iki frekanslı BAW) ile karşılaştırır: makalelerin metninde verdiği her sayı
+için bizim / makale / sapma, eğrilerini yeniden üreten şekiller ve her sapmanın
+olası nedeni. `biosim benchmark all` yeniden çalıştırır (8 çekirdekte ~12 dk);
+`pytest tests/test_benchmarks.py` belirtilen eğilimleri zorunlu kılar, nicel
+sapmalarda uyarı verir — asla başarısız olmaz.
+
+### 58 varsayımdan hangileri gerçekten önemli
 
 Malzeme kaynakları sayfası, DOI'ye dayandırılamayan her sayıyı listeler. Bu
 dürüst bir açıklamadır ama eyleme dönük değildir: neyin bilinmediğini söyler,

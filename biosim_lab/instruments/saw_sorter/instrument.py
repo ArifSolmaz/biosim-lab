@@ -137,7 +137,7 @@ class SAWSorter(Instrument):
                 "substrate": "linbo3_128yx",
                 "inlet": "sheath_sides",
                 "collection_fraction": 0.3333333333333333,
-                "mode": "analytic",
+                "field_model": "analytic",
                 "populations": [
                     {"cell_type": "mcf7", "count": 300, "target": True},
                     {"cell_type": "rbc", "count": 300, "target": False},

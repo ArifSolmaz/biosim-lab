@@ -4,14 +4,16 @@ title: "biosim-lab: an open-source, plugin-based virtual laboratory instrument p
 abstract: >-
   biosim-lab simulates the analyses performed by commercial bio-instruments —
   impedance-based real-time cell analysis, standing-surface-acoustic-wave cell
-  sorting, automated cell counting and live-cell tracking — using only free and
+  sorting (standing, tilted-angle and alternating-frequency bulk modes),
+  automated cell counting and live-cell tracking — using only free and
   open-source Python tooling, and runs the same analyses on measured instrument
-  data. Every physical constant carries either a DOI or an explicit ASSUMPTION
+  data. Two published acoustic CTC separators are reproduced as literature
+  benchmarks (benchmarks/REPORT.md). Every physical constant carries either a DOI or an explicit ASSUMPTION
   label, and heavy external solvers (OpenFOAM, Elmer) are optional plugins that
   the core works completely without.
 type: software
-version: 0.1.0
-date-released: "2026-09-07"
+version: 0.2.0
+date-released: "2026-09-15"
 license: MIT
 repository-code: "https://github.com/biosim-lab/biosim-lab"
 keywords:
@@ -25,6 +27,64 @@ keywords:
 authors:
   - name: "The biosim-lab contributors"
 references:
+  - type: article
+    title: "Acoustic separation of circulating tumor cells"
+    authors:
+      - family-names: Li
+        given-names: Peng
+      - family-names: Mao
+        given-names: Zhangming
+      - family-names: Peng
+        given-names: Zhangli
+      - family-names: Huang
+        given-names: Tony Jun
+    doi: "10.1073/pnas.1504484112"
+    journal: "Proceedings of the National Academy of Sciences"
+    volume: 112
+    issue: 16
+    start: 4970
+    end: 4975
+    year: 2015
+    notes: "Reference case benchmark_01 (tilted-angle SSAW, mode: tassaw)."
+  - type: article
+    title: "Label-Free Separation of Circulating Tumor Cells and Clusters by Alternating Frequency Acoustic Field in a Microfluidic Chip"
+    authors:
+      - family-names: Zhang
+        given-names: Yan
+      - family-names: Zhang
+        given-names: Ziang
+      - family-names: Zheng
+        given-names: Dongbang
+      - family-names: Huang
+        given-names: Tuchen
+      - family-names: Fu
+        given-names: Qibin
+      - family-names: Liu
+        given-names: Yang
+    doi: "10.3390/ijms24043338"
+    journal: "International Journal of Molecular Sciences"
+    volume: 24
+    issue: 4
+    start: 3338
+    year: 2023
+    notes: "Reference case benchmark_02 (alternating-frequency BAW, mode: alternating_baw)."
+  - type: article
+    title: "Measuring the local pressure amplitude in microchannel acoustophoresis"
+    authors:
+      - family-names: Barnkob
+        given-names: Rune
+      - family-names: Augustsson
+        given-names: Per
+      - family-names: Laurell
+        given-names: Thomas
+      - family-names: Bruus
+        given-names: Henrik
+    doi: "10.1039/b920376a"
+    journal: "Lab on a Chip"
+    volume: 10
+    start: 563
+    year: 2010
+    notes: "Closed-form single-mode trajectory and E_ac ~ U^2, used by the BAW mode."
   - type: article
     title: "Acoustofluidics 7: The acoustic radiation force on small particles"
     authors:

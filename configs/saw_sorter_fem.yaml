@@ -20,7 +20,7 @@ params:
   substrate: linbo3_128yx
   inlet: sheath_sides
   collection_fraction: 0.3333333333333333
-  mode: fem
+  field_model: fem
   fem_resolution: 48
   fem_grid: [241, 33]
   enable_vertical_arf: false   # see SAWSorterSimulation._fem_arf for why

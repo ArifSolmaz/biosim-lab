@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biosim-lab"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source, plugin-based virtual laboratory instrument platform for computational biomedical engineering"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -38,6 +38,12 @@ dependencies = [
     "plotly>=5.20",
     "panel>=1.4",
     "bokeh>=3.4",
+    # tornado 6.5.9 made StaticFileHandler rely on an `allowed_symlink_directory`
+    # attribute set in initialize(); bokeh 3.9's MultiRootStaticHandler overrides
+    # initialize() without setting it, so every Panel static asset returns 500
+    # and `biosim dashboard` serves a blank page. Lift once bokeh sets it.
+    # tests/test_dashboard_serving.py fails if the combination breaks again.
+    "tornado>=6.2,<6.5.9",
     "pyvista>=0.43",
     "scikit-image>=0.22",
     "trackpy>=0.6",
@@ -111,6 +117,8 @@ include = ["biosim_lab*"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
+# The repository root, so tests can import the `benchmarks` package (Stage 1B).
+pythonpath = ["."]
 addopts = "-q --strict-markers"
 filterwarnings = [
     "ignore::DeprecationWarning",
@@ -138,6 +146,10 @@ ignore = [
     # dict(...) reads better than a literal for keyword-style construction here.
     "C408",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Markdown report template: table rows and prose lines are data, not code.
+"benchmarks/make_report.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

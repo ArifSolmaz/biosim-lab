@@ -182,6 +182,45 @@ def acoustic_energy_density(p0: float, kappa_f: float) -> float:
     return 0.25 * float(p0) ** 2 * float(kappa_f)
 
 
+def dbm_to_watt(power_dbm: float) -> float:
+    """``P = 10^((P_dBm - 30) / 10)`` [W] --- the definition of the decibel-milliwatt."""
+    return float(10.0 ** ((float(power_dbm) - 30.0) / 10.0))
+
+
+def pressure_from_rf_power(
+    power_dbm: float,
+    *,
+    idt_length: float,
+    reference_pressure: float,
+    reference_power_dbm: float,
+    reference_idt_length: float,
+) -> float:
+    """Pressure amplitude [Pa] for an RF drive, scaled from one reference point.
+
+    ``p0 = p_ref * sqrt( (P / P_ref) * (L_ref / L) )``
+
+    Two scalings, with different standing:
+
+    * ``p0^2 ∝ P`` is energy conservation: intensity, and hence the acoustic
+      energy density ``E_ac = kappa p0^2 / 4`` (doi:10.1039/c2lc21068a, eq. 33),
+      is proportional to the delivered power, so ``E_ac ∝ U^2 ∝ P``
+      (Barnkob et al. 2010, doi:10.1039/b920376a).
+    * ``p0^2 ∝ 1 / L`` spreads that power over the IDT length. Li et al. (2015,
+      doi:10.1073/pnas.1504484112) state the effect ("the larger IDTs imply a
+      lower energy density for the same power input") but not its form; an
+      inverse proportion is the simplest reading and is an **ASSUMPTION**.
+
+    The reference pair itself is device-specific --- nothing converts a dBm
+    reading to pascals without a measurement --- so ``reference_pressure`` must
+    come from one (e.g. bead tracking, :mod:`..calibration`) or from an
+    explicit, reported calibration.
+    """
+    if min(idt_length, reference_idt_length, reference_pressure) <= 0:
+        raise ValueError("lengths and reference pressure must be positive")
+    ratio = dbm_to_watt(power_dbm) / dbm_to_watt(reference_power_dbm)
+    return float(reference_pressure) * float(np.sqrt(ratio * reference_idt_length / idt_length))
+
+
 # ---------------------------------------------------------------------------
 # geometry of the SSAW field
 # ---------------------------------------------------------------------------
@@ -472,6 +511,8 @@ __all__ = [
     "contrast_factor",
     "effective_contrast_factor",
     "acoustic_energy_density",
+    "dbm_to_watt",
+    "pressure_from_rf_power",
     "saw_wavelength",
     "rayleigh_angle",
     "node_spacing",

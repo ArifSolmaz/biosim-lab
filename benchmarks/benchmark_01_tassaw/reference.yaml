@@ -1,0 +1,123 @@
+# Reference values for benchmark_01 — Li et al. (2015), PNAS 112(16):4970-4975,
+# doi:10.1073/pnas.1504484112.
+#
+# RULE: only numbers stated in the paper's TEXT or TABLES are used as reference
+# values. Nothing is read off a plot. Every entry carries the sentence it comes
+# from and its page, so it can be checked against the PDF.
+
+paper:
+  doi: 10.1073/pnas.1504484112
+  citation: "Li P, Mao Z, Peng Z, et al. (2015) Acoustic separation of circulating tumor cells. PNAS 112(16):4970-4975"
+
+device:            # stated device and operating parameters
+  substrate:
+    value: LiNbO3
+    quote: "We fabricated IDTs with a tilt angle of 5° and 10-mm length on a lithium niobate (LiNbO3) piezoelectric substrate."
+    page: 4972
+  tilt_angle_deg: {value: 5.0, page: 4972, quote: "IDTs with a tilt angle of 5°"}
+  idt_length_mm: {value: 10.0, page: 4972, quote: "IDTs with a tilt angle of 5° and 10-mm length"}
+  channel_height_um:
+    value: 110.0
+    quote: "A polydimethylsiloxane (PDMS) microfluidic channel with height and width of 110 μm and 800 μm, respectively"
+    page: 4972
+  channel_width_um: {value: 800.0, page: 4972}
+  frequency_mhz: {value: 19.573, page: 4973, quote: "the input frequency was 19.573 MHz"}
+  simulation_power_dbm: {value: 35.0, page: 4971, quote: "The power input was set to 35 dBm."}
+  rare_cell_power_dbm:
+    value: [37.0, 38.0]
+    quote: "The power input was set at 37‒38 dBm"
+    page: 4973
+  high_power_dbm: {value: 37.5, page: 4972, quote: "we used the higher input power values (∼37.5 dBm)"}
+  gross_flow_ul_min:
+    value: 75.0
+    quote: "When the gross flow rate is 75 μL/min, the sample flow rate can reach as high as 20 μL/min based on a 2.5:1 sheath-to-sample flow rate ratio"
+    page: 4971
+  sample_flow_ul_min: {value: 20.0, page: 4971}
+  sheath_to_sample: {value: 2.5, page: 4971}
+  note_flow_inconsistency: >-
+    20 uL/min x (1 + 2.5) = 70 uL/min, not 75. The paper states both; this
+    benchmark keeps the stated 75 uL/min gross flow and the stated 2.5:1 ratio
+    (which fixes the width of the sample stream) and records the mismatch.
+
+cells:
+  wbc_diameter_um:
+    value: 12.0
+    quote: "(with average diameters of 16 or 20 μm depending on the cancer cell lines used) from WBCs (diameter ∼12 μm)"
+    page: 4975
+  cancer_diameters_um:
+    value: [16.0, 20.0]
+    quote: "average diameters of 16 or 20 μm depending on the cancer cell lines used"
+    page: 4975
+    note: The paper does not say which line has which diameter.
+  table_s1:
+    value: null
+    note: >-
+      "The physical properties of these cells can be found in Table S1" (p. 4971).
+      The supplementary information was not available to this benchmark, so
+      densities and compressibilities come from the project's material library
+      and are flagged ASSUMPTION there.
+
+results:
+  fig2a_separation_distance_um:
+    value: 600.0
+    quote: "the separation distance for MCF-7 cells and WBCs at a 75 μL/min flow rate can reach ∼600 μm with a tilt angle of ∼5°"
+    page: 4971
+  fig2a_optimum_tilt_deg: {value: 5.0, page: 4971}
+  fig2a_trend_flow:
+    quote: "as the flow rate increases, the tilt angle that achieves the highest separation distance decreases."
+    page: 4971
+  fig2a_trend_above_75:
+    quote: "When flow rates are larger than 75 μL/min, the separation distance becomes smaller even at the optimum tilt angle."
+    page: 4972
+  figS2_trend_power:
+    quote: "For the same flow rate, the simulation indicated that the optimum separation angle increased as the power increased (Fig. S2)."
+    page: 4971
+  fig2b_optimum_idt_length_mm:
+    value: [8.0, 10.0]
+    quote: "Fig. 2B shows that the separation distance reaches a maximum at around an IDT length of 8‒10 mm."
+    page: 4972
+  fig3_low_power:
+    wbc_removal_percent: 99.0
+    recovery_percent: [60.0, 80.0]
+    quote: "At lower input powers, the WBC removal rate could be maintained at ∼99%, but the recovery rate for cancer cells was only 60‒80%."
+    page: 4972
+  fig3_high_power:
+    recovery_min_percent: 90.0
+    wbc_removal_percent: 90.0
+    quote: "Using a higher power input can result in greater than 90% cancer cell recovery and ∼90% removal rate of WBCs."
+    page: 4972
+  fig3_flow_ul_min: {value: 20.0, page: 4973, quote: "under different power inputs at a 20 μL/min flow rate"}
+  beads_calibration_um:
+    value: 10.0
+    quote: "After calibrating the simulation model with 10-μm-diameter polystyrene (PS) beads (SI Text and Fig. S1)"
+    page: 4971
+  beads_separation:
+    efficiency_min_percent: 97.0
+    quote: "we separated 9.9-μm PS beads from 7.3-μm ones, with an efficiency of 97% or higher."
+    page: 4975
+    note: >-
+      This result is from the authors' earlier device (Ding et al. 2014,
+      doi:10.1073/pnas.1413325111), whose geometry is not given in this paper.
+  recovery_band_percent:
+    value: [83.0, 96.0]
+    quote: "Cancer cell recovery rate is >83% (83–96%) and WBC removal rate is ∼90%."
+    page: 4975
+  wbc_removal_percent: {value: 90.0, page: 4975}
+  table1:   # Table 1, p. 4974: (ratio, collection, waste, recovery %)
+    MCF-7:
+      - [40000, 121, 20, 86]
+      - [40000, 90, 11, 89]
+      - [40000, 52, 2, 96]
+    HeLa:
+      - [6000, 907, 165, 85]
+      - [100000, 49, 10, 83]
+      - [40000, 131, 7, 95]
+    UACC903M-GFP:
+      - [100000, 64, 12, 84]
+      - [100000, 36, 7, 84]
+      - [100000, 28, 5, 85]
+    LNCaP:
+      - [20000, 111, 12, 90]
+  recovery_definition:
+    quote: "the recovery rate was obtained by dividing the number of cells in the collection channel by the number of total cells from both outlets."
+    page: 4973

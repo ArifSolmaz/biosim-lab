@@ -66,7 +66,7 @@ def run_sorter(
         collection_fraction=collection_fraction,
         split_position=split_position,
         collect_side=collect_side,
-        mode=mode,
+        field_model=mode,  # "analytic" | "fem"; the operating mode follows the tilt
         fem_resolution=fem_resolution,
         fem_grid=(201, 33),
         populations=[

@@ -1,6 +1,6 @@
 """Ranking the unsourced numbers by how much they actually matter.
 
-The library flags 38 values as ASSUMPTION. That list says what is unknown; the
+The library flags 58 values as ASSUMPTION. That list says what is unknown; the
 sensitivity scan says what the ignorance costs, which is the part a user can act
 on. These tests check the scan measures what it claims to, and --- more
 importantly --- that it cannot silently report a ranking of sampling noise.

@@ -51,7 +51,7 @@ def build_params() -> SAWSorterParams:
         substrate="linbo3_128yx",
         inlet="sheath_sides",
         collection_fraction=1 / 3,
-        mode="analytic",
+        field_model="analytic",
         seed=20260907,
         populations=[
             {"cell_type": "mcf7", "count": 300, "target": True},

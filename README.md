@@ -27,8 +27,10 @@ measured instrument data.
 - [Kurulum / Installation](#kurulum--installation)
 - [Hızlı başlangıç / Quick start](#hızlı-başlangıç--quick-start)
 - [Cihazlar / Instruments](#cihazlar--instruments)
+- [Çalışma kipleri / Operating modes](#çalışma-kipleri--operating-modes)
+- [Literatür doğrulaması / Literature benchmarks](#literatür-doğrulaması--literature-benchmarks-aşama-1b)
 - [Fizik / Physics](#fizik--physics)
-- [Bilmeniz gereken dört sonuç / Four findings you should know](#bilmeniz-gereken-dört-sonuç--four-findings-you-should-know)
+- [Bilmeniz gereken beş sonuç / Five findings you should know](#bilmeniz-gereken-beş-sonuç--five-findings-you-should-know)
 - [Örnekler / Examples](#örnekler--examples)
 - [Komut satırı / CLI](#komut-satırı--cli)
 - [Docker](#docker)
@@ -141,7 +143,7 @@ params:
 
 | Eklenti | Ticari karşılığı | Durum | Ne yapar |
 |---|---|---|---|
-| `saw_sorter` | Akustik hücre ayırıcı | **Tam** | Duran yüzey akustik dalgası ile CTC/kan hücresi ayrımı: Gor'kov kuvveti, analitik + FEM, metrikler, parametre taraması, canlı pano |
+| `saw_sorter` | Akustik hücre ayırıcı | **Tam** | CTC/kan hücresi ayrımı, üç kip: duran SAW (`ssaw`), eğik açılı SAW (`tassaw`), zaman-anahtarlamalı iki frekanslı hacim dalgası (`alternating_baw`). Gor'kov kuvveti, analitik + FEM, RK4/adaptif entegrasyon, makale metrikleri, parametre taraması, canlı pano, **iki makaleye karşı doğrulanmış** |
 | `impedance_rtca` | xCELLigence RTCA | **Minimal çalışır** | Giaever–Keese elektrot modeli, Cell Index eğrisi, \|Z\|(f) spektrumu, 4PL IC50 |
 | `cell_counter` | Countess / Cellometer | **İskelet + demo** | Watershed segmentasyon, Neubauer geometrisiyle konsantrasyon, tripan mavisi canlılık |
 | `cell_tracker` | Incucyte / CellTracker | **İskelet + demo** | trackpy bağlama, hız / persistans / MSD |
@@ -155,6 +157,68 @@ params:
 | `builtin_stokes` | akış | **Her zaman kurulu** |
 | `openfoam` | akustik akış (streaming) | Opsiyonel — Aşama 4, yalnızca iskelet + şablon |
 | `elmer` | piezoelektrik IDT | Opsiyonel — Aşama 4, yalnızca iskelet + şablon |
+
+---
+
+## Çalışma kipleri / Operating modes
+
+`saw_sorter` üç farklı cihazı tek arayüzden simüle eder; `mode` alanı seçer.
+One instrument, three devices, selected by `mode`:
+
+| `mode` | Cihaz / device | Mekanizma / mechanism | Örnek yapılandırma |
+|---|---|---|---|
+| `ssaw` | Duran SAW, düğüm düzlemleri akışa paralel | Hücre düğüme göç eder ve durur | [`configs/ctc_vs_rbc.yaml`](configs/ctc_vs_rbc.yaml) |
+| `tassaw` | Eğik açılı SAW (Li 2015) | Düğüm düzlemleri akışa θ açılı; hücre çok sayıda düğüm–karın bölgesinden geçer, sapma birikir | [`benchmarks/benchmark_01_tassaw/config.yaml`](benchmarks/benchmark_01_tassaw/config.yaml) |
+| `alternating_baw` | Tek piezoseramik, iki rezonans arasında zaman anahtarlaması (Zhang 2023) | 1 MHz: tek düğüm W/2; 3 MHz: W/6, W/2, 5W/6. Her fazın kendi genliği ve süresi; hücre başına en az iki çevrim zorunlu | [`benchmarks/benchmark_02_alternating_baw/config.yaml`](benchmarks/benchmark_02_alternating_baw/config.yaml) |
+
+```yaml
+params:
+  mode: alternating_baw
+  channel_width: 737 um
+  sheath_ratio: 2.0              # 1:2 örnek:kılıf → y0 < W/3 bandı akıdan türetilir
+  switching:
+    integrator: rk4              # sabit adım, her anahtarlama anına denk gelir
+    min_cycles: 2
+    phases:
+      - {frequency: 1 MHz, duration: 0.8 s, voltage_pp: 9 V,
+         reference_energy_density: 41.06 J/m^3, reference_voltage_pp: 9 V,
+         energy_source: "kalibrasyon — kaynağını yazın"}
+      - {frequency: 3 MHz, duration: 1.4 s, voltage_pp: 110 V,
+         reference_energy_density: 19.94 J/m^3, reference_voltage_pp: 110 V,
+         energy_source: "kalibrasyon — kaynağını yazın"}
+```
+
+`field_model: analytic | fem` kipten bağımsızdır (FEM yalnızca `ssaw` için).
+0.2 öncesi `mode: analytic/fem` yazımı hâlâ okunur. Sürüş RF gücü olarak da
+verilebilir (`power_drive`: dBm + bir referans basınç). Metrikler makalelerin
+kendi adlarıyla: `capture_efficiency_percent`, `contamination_rate_percent`,
+`recovery_rate_percent`, `background_removal_percent`, `separation_distance_um`.
+
+---
+
+## Literatür doğrulaması / Literature benchmarks (Aşama 1B)
+
+İki yayımlanmış CTC ayırıcısı referans vaka olarak yeniden üretilir. Tam rapor,
+şekiller ve her sapmanın olası nedeni: **[benchmarks/REPORT.md](benchmarks/REPORT.md)**.
+Two published CTC separators are reproduced as reference cases; full report above.
+
+| | Li et al. 2015 — taSSAW | Zhang et al. 2023 — alternating BAW |
+|---|---|---|
+| DOI | [10.1073/pnas.1504484112](https://doi.org/10.1073/pnas.1504484112) | [10.3390/ijms24043338](https://doi.org/10.3390/ijms24043338) |
+| Kalibre edilen tek şey | 35 dBm'deki basınç — belirtilen optimum eğime (5°) | iki modun E_ac'si — makalenin W/6 tasarım kuralı ve "1 s sonrası minimum" ifadesine |
+| Yeniden üretilen | Fig. 2A/2B/S2/3'ün 8 eğiliminin 8'i; ΔY 598 µm (makale ~600); IDT optimumu 10 mm (makale 8–10) | Table 1 yakalama verimi: MCF7 96.5 / HCT116 93.5 / A549 96.0 % (makale 95.0 / 94.4 / 94.6); Fig. 2 eğilimleri; Fig. 8 mekanizması |
+| Sapma (DEVIATION) | Table 1: model 37.5 dBm'de fazla sürüyor (WBC uzaklaştırma %70, makale ~%90) | PBMC kontaminasyonu %17–31 (makale ~%1.5): örnek akışı kenarı kararsız W/3 antinodunda |
+| Bulgu | 9.9 / 7.3 µm boncuk ayrımı bu geometride ≥%97'ye ulaşmıyor (sonuç başka bir cihazdan) | **Makalenin temel iddiası yeniden üretilemedi** — bkz. bulgu 5 |
+
+Kurallar: referans değerler yalnızca makale **metnindeki ve tablolarındaki**
+açık sayılardır, grafikten değer okunmaz; nicel sapma test başarısızlığı değil
+DEVIATION olarak raporlanır; makalenin belirttiği **eğilimler** testte
+zorunludur (`tests/test_benchmarks.py`).
+
+```bash
+biosim benchmark all            # iki benchmark + REPORT.md (~12 dk, 8 çekirdek)
+biosim benchmark 02 --quick     # hızlı duman testi
+```
 
 ---
 
@@ -186,13 +250,19 @@ integrasyonla bağımsız olarak doğrulanır (`verify_flow_rate()` bağıl hata
 **Giaever–Keese empedans modeli** `doi:10.1073/pnas.88.17.7896` — Bessel
 fonksiyonlu tam çözüm, Ω·cm² birim sisteminde.
 
+**Hacim dalgası rezonansı (BAW)** — `p = p_a cos(nπy/W)`, kuvvet
+`F = 4πΦ_B a³ k_n E_ac sin(2k_n y)` (`doi:10.1039/c2lc21068a`); kapalı form
+yörünge `tan(k_n y) = tan(k_n y₀)·e^{t/τ}` (Barnkob 2010, `doi:10.1039/b920376a`);
+RK4 entegratörü buna karşı < 1 nm doğrulanır. Aynı yasa, yukarıdaki formülün
+`λ = 2W/n` ve orijini duvara taşınmış hâlidir.
+
 **Sızıntılı SAW sınır koşulu** — taban yüzeyinde `v_n = -iω u₀ sin(k_SAW(x−x₀))`;
 Rayleigh kırılım açısı (`θ_R = asin(c_f/c_SAW) ≈ 22°`) elle dayatılmaz,
 Helmholtz çözümünden **kendiliğinden çıkar**.
 
 ---
 
-## Bilmeniz gereken dört sonuç / Four findings you should know
+## Bilmeniz gereken beş sonuç / Five findings you should know
 
 Bunlar geliştirme sırasında ortaya çıktı ve tasarımınızı doğrudan etkiler.
 
@@ -265,6 +335,28 @@ bu yüzden açılırsa hücreler eksenel hızın sıfır olduğu duvara yığıl
 çıkıştan hiç geçmezler. `enable_vertical_arf: true` yaparsanız metriklerdeki
 `all_cells_exited` alanını kontrol edin.
 
+### 5. Sıkıştırılabilirlik farkı, benzer boyutlu CTC'yi PBMC'den ayırmaz — tersine
+
+Gor'kov teorisinde **daha sıkıştırılabilir** bir hücrenin monopol katsayısı
+`f₁ = 1 − κ_p/κ_f` ve dolayısıyla kontrast faktörü **küçüktür**; düğüme daha
+yavaş gider. Zhang et al. (2023) Şekil 1'de kanser hücrelerini PBMC'lerden
+*daha* sıkıştırılabilir ölçer (~4.3 vs ~4.0 ×10⁻¹⁰ Pa⁻¹) ve yine de "benzer
+boyutlu CTC'ler ayrıştırıldı" der. Karşıt-olgu senaryosu (CTC 12 µm, PBMC
+10.5 µm, eşit yoğunluk):
+
+| Kol | En iyi Youden J |
+|---|---|
+| yalnız boyut | %36 — ayrışmıyor |
+| + ölçülen sıkıştırılabilirlik (CTC daha yumuşak) | **%1** — daha kötü |
+| + ters sıkıştırılabilirlik (CTC daha sert) | %70 — daha iyi |
+
+Yani sıkıştırılabilirlik ancak CTC'ler PBMC'lerden **daha sert** olsaydı
+yardım ederdi. Makalenin iddiası birincil radyasyon kuvvetiyle açıklanamıyor;
+ölçülmemiş bir yoğunluk farkı, akustik streaming ya da "sıkıştırılabilirlik"
+ölçümünün farklı bir anlamı gerekir. Bu bir **bulgudur**, model hatası değil:
+`tests/test_benchmarks.py::test_counterfactual_follows_gorkov` modelin bu yönü
+tutarlı biçimde verdiğini zorunlu kılar.
+
 ---
 
 ## Örnekler / Examples
@@ -281,6 +373,7 @@ python examples/08_pipeline_sort_count_track.py # üç cihaz tek iş akışı + 
 python examples/09_two_outlet_split.py          # iki çıkışlı ayırma: ayırıcı nereye?
 python examples/10_tilted_angle_ssaw.py         # eğik açılı SSAW: tutulma sınırı
 python examples/11_ctc_from_blood.py            # kandan CTC: gerçek oranlar + yayımlanmış protokol
+python examples/12_alternating_baw.py           # iki frekanslı BAW: zaman izleri, pencere, RK4 vs LSODA
 ```
 
 Şekiller `assets/` altına hem etkileşimli HTML hem PNG olarak yazılır.
@@ -323,6 +416,7 @@ profili, boyut dağılımı ve popülasyon tablosunu gösterir.
 | `biosim sweep c.yaml -p 'voltage_pp=5 V,15 V'` | Parametre taraması |
 | `biosim dashboard c.yaml` | Panel panosunu tarayıcıda açar |
 | `biosim materials` | Malzeme kütüphanesini DOI / ASSUMPTION etiketleriyle basar |
+| `biosim benchmark [01\|02\|all] [--quick]` | Literatür benchmark'larını çalıştırır, `benchmarks/REPORT.md`'yi yeniden üretir (kaynak ağacından) |
 
 ---
 
@@ -363,7 +457,12 @@ for row in audit():
 ```
 
 En büyük tek varsayım: IDT sürüş voltajını akustik basınca çeviren doğrusal
-kalibrasyon (`PRESSURE_PER_VOLT_ASSUMPTION`, 15 Vpp → 0.45 MPa). Bunu kaldırmak
+kalibrasyon (`PRESSURE_PER_VOLT_ASSUMPTION`, 15 Vpp → 0.45 MPa). Benchmark'lar
+bunu kullanmaz: RF gücünden (`power_drive`) ya da doğrudan enerji
+yoğunluğundan sürer ve referans değeri **CALIBRATED** etiketiyle, hangi
+belirtilmiş kurala dayandığını yazarak verir. Popülasyon başına hücre özelliği
+geçersiz kılmaları (`diameter`, `compressibility`, …) da kaynak (`override_source`)
+belirtilmeden kabul edilmez. Bunu kaldırmak
 Aşama 4'ün (Elmer piezoelektrik çözümü) işidir; o zamana kadar kendi çipiniz
 için `pressure_amplitude` değerini ölçüp doğrudan verin.
 
@@ -379,6 +478,7 @@ için `pressure_amplitude` değerini ölçüp doğrudan verin.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Katmanlar, sözleşmeler, veri akışı, sınırlamalar |
 | [docs/physics.md](docs/physics.md) | Her formül, kaynağı ve geçerlilik sınırı |
 | [docs/validation.md](docs/validation.md) | Ne, neye karşı, hangi toleransla doğrulandı |
+| [benchmarks/REPORT.md](benchmarks/REPORT.md) | Aşama 1B: iki makaleye karşı sonuç / makale / sapma tabloları ve şekiller |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Yeni cihaz eklemek — 10 adım |
 
 ## Uzman olmayanlar için / For non-experts
@@ -415,7 +515,14 @@ Her itme ve her PR'da GitHub Actions altı iş çalıştırır
 
 ## Atıf / Citation
 
-Bkz. [CITATION.cff](CITATION.cff).
+Bkz. [CITATION.cff](CITATION.cff). Literatür benchmark'larının dayandığı makaleler /
+the papers the benchmarks reproduce:
+
+- Li P, Mao Z, Peng Z, et al. (2015) Acoustic separation of circulating tumor cells.
+  *PNAS* 112(16):4970–4975. doi:[10.1073/pnas.1504484112](https://doi.org/10.1073/pnas.1504484112)
+- Zhang Y, Zhang Z, Zheng D, Huang T, Fu Q, Liu Y (2023) Label-free separation of
+  circulating tumor cells and clusters by alternating frequency acoustic field in a
+  microfluidic chip. *Int J Mol Sci* 24(4):3338. doi:[10.3390/ijms24043338](https://doi.org/10.3390/ijms24043338)
 
 ## Lisans / License
 

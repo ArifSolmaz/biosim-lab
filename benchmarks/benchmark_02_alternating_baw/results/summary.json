@@ -1,0 +1,771 @@
+{
+  "benchmark": "benchmark_02_alternating_baw",
+  "paper": {
+    "doi": "10.3390/ijms24043338",
+    "citation": "Zhang Y, Zhang Z, Zheng D, Huang T, Fu Q, Liu Y (2023) Label-Free Separation of Circulating Tumor Cells and Clusters by Alternating Frequency Acoustic Field in a Microfluidic Chip. Int J Mol Sci 24(4):3338"
+  },
+  "quick": false,
+  "calibration": {
+    "E1_J_m3": 41.05849939246613,
+    "E3_J_m3": 19.937419600924052,
+    "rule": {
+      "target_minimum_J_m3": 25.213430055625775,
+      "background_maximum_J_m3": 66.8612072471669,
+      "chosen_J_m3": 41.05849939246613,
+      "margin_factor": 1.6284376739651458,
+      "feasible": true,
+      "rule": "mode 1 for 0.8 s moves a mean mcf7 more than W/6 and a mean pbmc less, starting on the node at W/6 (doi:10.3390/ijms24043338, Sec. 4.2)"
+    },
+    "E3_rule": "mean PBMC from 90 % to 10 % of node-antinode distance in 1.0 s"
+  },
+  "windows": {
+    "fig2b_T1": {
+      "parameter": "T1",
+      "criteria": {
+        "capture_min_percent": 90.0,
+        "contamination_max_percent": 5.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 0.7,
+      "best_capture_percent": 96.0,
+      "best_contamination_percent": 11.75,
+      "best_youden_percent": 84.25
+    },
+    "fig2c_V1": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 90.0,
+        "contamination_max_percent": 5.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 9.0,
+      "best_capture_percent": 99.5,
+      "best_contamination_percent": 17.25,
+      "best_youden_percent": 82.25
+    },
+    "MCF7": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 90.0,
+        "contamination_max_percent": 5.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 9.0,
+      "best_capture_percent": 96.5,
+      "best_contamination_percent": 17.25,
+      "best_youden_percent": 79.25
+    },
+    "HCT116": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 90.0,
+        "contamination_max_percent": 5.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 10.0,
+      "best_capture_percent": 93.5,
+      "best_contamination_percent": 31.25,
+      "best_youden_percent": 62.25
+    },
+    "A549": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 90.0,
+        "contamination_max_percent": 5.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 9.0,
+      "best_capture_percent": 96.0,
+      "best_contamination_percent": 21.25,
+      "best_youden_percent": 74.75
+    }
+  },
+  "contamination_sensitivity": [
+    {
+      "variant": "baseline (config.yaml)",
+      "capture_efficiency_percent": 99.5,
+      "contamination_rate_percent": 17.25
+    },
+    {
+      "variant": "inlet band exactly y0 < W/3, as stated",
+      "capture_efficiency_percent": 99.5,
+      "contamination_rate_percent": 19.0
+    },
+    {
+      "variant": "inlet confined to y0 < W/6 (sheath 5:1)",
+      "capture_efficiency_percent": 99.5,
+      "contamination_rate_percent": 4.75
+    },
+    {
+      "variant": "every cell enters at the end of 3 MHz",
+      "capture_efficiency_percent": 99.5,
+      "contamination_rate_percent": 30.25
+    },
+    {
+      "variant": "PBMC size CV 10 %",
+      "capture_efficiency_percent": 99.5,
+      "contamination_rate_percent": 14.000000000000002
+    }
+  ],
+  "counterfactual": {
+    "size only (equal compressibility)": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 80.0,
+        "contamination_max_percent": 10.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 8.0,
+      "best_capture_percent": 68.5,
+      "best_contamination_percent": 33.0,
+      "best_youden_percent": 35.5
+    },
+    "size + measured compressibility (CTC more compressible)": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 80.0,
+        "contamination_max_percent": 10.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 3.0,
+      "best_capture_percent": 4.0,
+      "best_contamination_percent": 2.75,
+      "best_youden_percent": 1.25
+    },
+    "size + reversed compressibility (CTC less compressible)": {
+      "parameter": "V1",
+      "criteria": {
+        "capture_min_percent": 80.0,
+        "contamination_max_percent": 10.0
+      },
+      "admissible": [],
+      "window": null,
+      "best_setting": 7.0,
+      "best_capture_percent": 83.0,
+      "best_contamination_percent": 12.75,
+      "best_youden_percent": 70.25
+    }
+  },
+  "flow_rates": [
+    {
+      "flow_rate": "150.0 uL/h",
+      "channel_length": "20.0 mm",
+      "T1": 0.8,
+      "T3": 1.4000000000000001,
+      "capture_efficiency_percent": 99.0,
+      "contamination_rate_percent": 19.25,
+      "all_cells_exited": true,
+      "line": "A549",
+      "flow_ul_h": 150.0,
+      "length_mm": 20.0,
+      "T1_s": 0.8,
+      "T3_s": 1.4000000000000001,
+      "duration_scale": 1.0
+    },
+    {
+      "flow_rate": "300.0 uL/h",
+      "channel_length": "20.0 mm",
+      "T1": 0.8,
+      "T3": 1.4000000000000001,
+      "capture_efficiency_percent": 99.0,
+      "contamination_rate_percent": 19.0,
+      "all_cells_exited": true,
+      "line": "A549",
+      "flow_ul_h": 300.0,
+      "length_mm": 20.0,
+      "T1_s": 0.8,
+      "T3_s": 1.4000000000000001,
+      "duration_scale": 1.0
+    },
+    {
+      "flow_rate": "900.0 uL/h",
+      "channel_length": "20.0 mm",
+      "T1": 0.34,
+      "T3": 0.595,
+      "capture_efficiency_percent": 21.0,
+      "contamination_rate_percent": 9.5,
+      "all_cells_exited": true,
+      "line": "A549",
+      "flow_ul_h": 900.0,
+      "length_mm": 20.0,
+      "T1_s": 0.34,
+      "T3_s": 0.595,
+      "duration_scale": 0.42756889642160867
+    },
+    {
+      "flow_rate": "900.0 uL/h",
+      "channel_length": "10.0 mm",
+      "T1": 0.17,
+      "T3": 0.295,
+      "capture_efficiency_percent": 6.0,
+      "contamination_rate_percent": 7.5,
+      "all_cells_exited": true,
+      "line": "A549",
+      "flow_ul_h": 900.0,
+      "length_mm": 10.0,
+      "T1_s": 0.17,
+      "T3_s": 0.295,
+      "duration_scale": 0.21378444821080433
+    },
+    {
+      "flow_rate": "900.0 uL/h",
+      "channel_length": "30.0 mm",
+      "T1": 0.51,
+      "T3": 0.895,
+      "capture_efficiency_percent": 67.5,
+      "contamination_rate_percent": 11.5,
+      "all_cells_exited": true,
+      "line": "A549",
+      "flow_ul_h": 900.0,
+      "length_mm": 30.0,
+      "T1_s": 0.51,
+      "T3_s": 0.895,
+      "duration_scale": 0.641353344632413
+    },
+    {
+      "flow_rate": "900.0 uL/h",
+      "channel_length": "40.0 mm",
+      "T1": 0.68,
+      "T3": 1.195,
+      "capture_efficiency_percent": 93.0,
+      "contamination_rate_percent": 13.5,
+      "all_cells_exited": true,
+      "line": "A549",
+      "flow_ul_h": 900.0,
+      "length_mm": 40.0,
+      "T1_s": 0.68,
+      "T3_s": 1.195,
+      "duration_scale": 0.8551377928432173
+    }
+  ],
+  "separation_rule": {
+    "migration_phase": "1 MHz",
+    "sorting_phase": "3 MHz",
+    "start_um": 122.83333333333333,
+    "threshold_um": 122.83333333333333,
+    "populations": {
+      "MCF7": {
+        "target": true,
+        "displacement_um": 179.57020710199393,
+        "satisfied": true
+      },
+      "PBMC": {
+        "target": false,
+        "displacement_um": 76.08272805318978,
+        "satisfied": true
+      }
+    },
+    "satisfied": true
+  },
+  "figures": {
+    "fig2a": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig2a_T3.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig2a_T3.png"
+    },
+    "fig2b": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig2b_T1.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig2b_T1.png"
+    },
+    "fig2c": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig2c_V1.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig2c_V1.png"
+    },
+    "fig4": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig4_flow.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig4_flow.png"
+    },
+    "table1": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/table1.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/table1.png"
+    },
+    "counterfactual": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/counterfactual.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/counterfactual.png"
+    },
+    "fig8a": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8a_trajectories.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8a_trajectories.png"
+    },
+    "fig8b": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8b_trajectories.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8b_trajectories.png"
+    },
+    "fig8c": {
+      "html": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8c_forces.html",
+      "png": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8c_forces.png"
+    },
+    "animation": "/Users/arf/biosim-lab/benchmarks/benchmark_02_alternating_baw/results/figures/fig8b_trajectories.gif"
+  },
+  "runtime_s": 333.71250200271606,
+  "checks": [
+    {
+      "case": "cal",
+      "quantity": "E_1MHz in config.yaml vs design-rule calibration",
+      "kind": "calibration",
+      "ours": 41.06,
+      "paper": 41.06,
+      "unit": "J/m^3",
+      "tolerance": null,
+      "note": "geometric mean of the W/6-rule interval [25.2, 66.9] J/m^3",
+      "cause": "",
+      "status": "CALIBRATION",
+      "passed": null,
+      "deviation": null
+    },
+    {
+      "case": "cal",
+      "quantity": "E_3MHz in config.yaml vs return-time calibration",
+      "kind": "calibration",
+      "ours": 19.94,
+      "paper": 19.94,
+      "unit": "J/m^3",
+      "tolerance": null,
+      "note": "mean PBMC from 90 % to 10 % of node-antinode distance in 1.0 s",
+      "cause": "",
+      "status": "CALIBRATION",
+      "passed": null,
+      "deviation": null
+    },
+    {
+      "case": "2a",
+      "quantity": "capture changes little with the 3 MHz duration",
+      "kind": "trend",
+      "ours": "99-100 % over 0.2-3 s",
+      "paper": "spread <= 10 points",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2a",
+      "quantity": "contamination falls with the 3 MHz duration",
+      "kind": "trend",
+      "ours": "100.0 -> 12.0 %",
+      "paper": "decreasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2a",
+      "quantity": "contamination minimum lies beyond T3 = 1 s",
+      "kind": "trend",
+      "ours": "min 12.0 % at 3 s; 18.8 % worst beyond 1 s vs 31.0 % best before",
+      "paper": "minimum at T3 > 1 s",
+      "unit": "",
+      "tolerance": null,
+      "note": "calibration-informed: E_3MHz was derived from this statement",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2a",
+      "quantity": "contamination is FLAT beyond 1 s (plateau reading)",
+      "kind": "claim",
+      "ours": "18.8 -> 12.0 % over 1.2-3 s",
+      "paper": "plateau (within 3 points)",
+      "unit": "",
+      "tolerance": null,
+      "note": "the model keeps improving: a longer 3 MHz phase gives more of the PBMCs near the W/3 edge of the stream a full return to W/6 before their first 1 MHz push, and that fraction keeps growing past 1 s",
+      "cause": "",
+      "status": "NOT REPRODUCED",
+      "passed": false,
+      "deviation": null
+    },
+    {
+      "case": "2b",
+      "quantity": "both metrics rise with 1 MHz T1",
+      "kind": "trend",
+      "ours": "capture 3->100 %, contamination 3.5->83.2 %",
+      "paper": "increasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2b",
+      "quantity": "contamination rises much less than capture (up to the best T1)",
+      "kind": "trend",
+      "ours": "+93 vs +8.2 points (to 0.7 s)",
+      "paper": "d(contamination) <= d(capture)/3",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2b",
+      "quantity": "a high-capture / low-contamination window in T1",
+      "kind": "claim",
+      "ours": "none (best J = 84 % at 0.7 s: 96 % / 11.8 %)",
+      "paper": "capture >= 90 %, contamination <= 5 %",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "NOT REPRODUCED",
+      "passed": false,
+      "deviation": null
+    },
+    {
+      "case": "2c",
+      "quantity": "both metrics rise with 1 MHz V1",
+      "kind": "trend",
+      "ours": "capture 6->100 %, contamination 5.2->100.0 %",
+      "paper": "increasing",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2c",
+      "quantity": "contamination rises much less than capture (up to the best V1)",
+      "kind": "trend",
+      "ours": "+93 vs +12.0 points (to 9 Vpp)",
+      "paper": "d(contamination) <= d(capture)/3",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "2c",
+      "quantity": "a high-capture / low-contamination window in V1",
+      "kind": "claim",
+      "ours": "none (best J = 82 % at 9 Vpp: 100 % / 17.2 %)",
+      "paper": "capture >= 90 %, contamination <= 5 %",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "NOT REPRODUCED",
+      "passed": false,
+      "deviation": null
+    },
+    {
+      "case": "8b",
+      "quantity": "entering at the end of 3 MHz: complete separation after 2 cycles",
+      "kind": "claim",
+      "ours": "MCF7 at midline 100 %, PBMC at midline 17 %",
+      "paper": "100 % / 0 %",
+      "unit": "",
+      "tolerance": null,
+      "note": "a PBMC that enters just below the W/3 antinode in the last 15 % of the 3 MHz phase is not pulled back before the next 1 MHz phase with the calibrated E_3MHz; the paper does not state which y0 it simulated",
+      "cause": "",
+      "status": "NOT REPRODUCED",
+      "passed": false,
+      "deviation": null
+    },
+    {
+      "case": "8",
+      "quantity": "after 2 cycles most PBMCs sit around the W/6 node",
+      "kind": "claim",
+      "ours": "67 % (entry at 1 MHz start), 83 % (entry at 3 MHz end)",
+      "paper": "most",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "REPRODUCED",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "8a",
+      "quantity": "entering at the start of 1 MHz: some PBMCs reach the midline",
+      "kind": "claim",
+      "ours": "33 % of PBMCs at midline",
+      "paper": "a small portion",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "REPRODUCED",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "8",
+      "quantity": "entry at the start of 1 MHz is the worse case for contamination",
+      "kind": "trend",
+      "ours": "33 % vs 17 %",
+      "paper": "a > b",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "4",
+      "quantity": "A549 capture at 150 uL/h",
+      "kind": "quantity",
+      "ours": 99.0,
+      "paper": 94.6,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "durations 0.80 s / 1.40 s (x1.00 of stated)",
+      "cause": "E_1MHz is calibrated to give the MCF7/PBMC rule a symmetric margin; A549 is larger than MCF7 here, so it clears the rule with room to spare",
+      "status": "PASS",
+      "passed": null,
+      "deviation": 4.400000000000006
+    },
+    {
+      "case": "4",
+      "quantity": "PBMC contamination at 150 uL/h",
+      "kind": "quantity",
+      "ours": 19.25,
+      "paper": 1.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "PBMCs that start in the upper part of the sample stream, near its W/3 edge, and meet a 1 MHz phase before a full 3 MHz phase has pulled them back to W/6, cross W/3; the paper's 1:2 ratio puts that edge exactly on the 3 MHz antinode, an unstable point. Confining the inlet to y0 < W/6, as the paper says would be ideal, removes most of it (contamination-sensitivity table)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 18.25
+    },
+    {
+      "case": "4",
+      "quantity": "A549 capture at 300 uL/h",
+      "kind": "quantity",
+      "ours": 99.0,
+      "paper": 95.8,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "durations 0.80 s / 1.40 s (x1.00 of stated)",
+      "cause": "E_1MHz is calibrated to give the MCF7/PBMC rule a symmetric margin; A549 is larger than MCF7 here, so it clears the rule with room to spare",
+      "status": "PASS",
+      "passed": null,
+      "deviation": 3.200000000000003
+    },
+    {
+      "case": "4",
+      "quantity": "PBMC contamination at 300 uL/h",
+      "kind": "quantity",
+      "ours": 19.0,
+      "paper": 1.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "PBMCs that start in the upper part of the sample stream, near its W/3 edge, and meet a 1 MHz phase before a full 3 MHz phase has pulled them back to W/6, cross W/3; the paper's 1:2 ratio puts that edge exactly on the 3 MHz antinode, an unstable point. Confining the inlet to y0 < W/6, as the paper says would be ideal, removes most of it (contamination-sensitivity table)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 18.0
+    },
+    {
+      "case": "4",
+      "quantity": "A549 capture at 900 uL/h",
+      "kind": "quantity",
+      "ours": 21.0,
+      "paper": 84.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "durations 0.34 s / 0.59 s (x0.43 of stated)",
+      "cause": "the acoustic region length and the reduced durations used at 900 uL/h are both unstated; with the least duration cut the two-cycle rule allows, the result depends strongly on the assumed length (see the length sweep)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": -63.0
+    },
+    {
+      "case": "4",
+      "quantity": "PBMC contamination at 900 uL/h",
+      "kind": "quantity",
+      "ours": 9.5,
+      "paper": 1.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "",
+      "cause": "PBMCs that start in the upper part of the sample stream, near its W/3 edge, and meet a 1 MHz phase before a full 3 MHz phase has pulled them back to W/6, cross W/3; the paper's 1:2 ratio puts that edge exactly on the 3 MHz antinode, an unstable point. Confining the inlet to y0 < W/6, as the paper says would be ideal, removes most of it (contamination-sensitivity table)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 8.5
+    },
+    {
+      "case": "4",
+      "quantity": "capture holds from 150 to 300 uL/h, then drops at 900",
+      "kind": "trend",
+      "ours": "99 -> 99 -> 21 %",
+      "paper": "flat, then lower",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "Table 1",
+      "quantity": "MCF7 capture",
+      "kind": "quantity",
+      "ours": 96.5,
+      "paper": 95.0,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "at the Youden-best 1 MHz amplitude, 9 Vpp",
+      "cause": "capture at the Youden optimum is pulled up by the high contamination penalty elsewhere; see contamination",
+      "status": "PASS",
+      "passed": null,
+      "deviation": 1.5
+    },
+    {
+      "case": "Table 1",
+      "quantity": "MCF7 PBMC contamination",
+      "kind": "quantity",
+      "ours": 17.25,
+      "paper": 1.3,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "at the Youden-best 1 MHz amplitude, 9 Vpp",
+      "cause": "PBMCs that start in the upper part of the sample stream, near its W/3 edge, and meet a 1 MHz phase before a full 3 MHz phase has pulled them back to W/6, cross W/3; the paper's 1:2 ratio puts that edge exactly on the 3 MHz antinode, an unstable point. Confining the inlet to y0 < W/6, as the paper says would be ideal, removes most of it (contamination-sensitivity table)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 15.95
+    },
+    {
+      "case": "Table 1",
+      "quantity": "HCT116 capture",
+      "kind": "quantity",
+      "ours": 93.5,
+      "paper": 94.4,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "at the Youden-best 1 MHz amplitude, 10 Vpp",
+      "cause": "capture at the Youden optimum is pulled up by the high contamination penalty elsewhere; see contamination",
+      "status": "PASS",
+      "passed": null,
+      "deviation": -0.9000000000000057
+    },
+    {
+      "case": "Table 1",
+      "quantity": "HCT116 PBMC contamination",
+      "kind": "quantity",
+      "ours": 31.25,
+      "paper": 1.7,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "at the Youden-best 1 MHz amplitude, 10 Vpp",
+      "cause": "PBMCs that start in the upper part of the sample stream, near its W/3 edge, and meet a 1 MHz phase before a full 3 MHz phase has pulled them back to W/6, cross W/3; the paper's 1:2 ratio puts that edge exactly on the 3 MHz antinode, an unstable point. Confining the inlet to y0 < W/6, as the paper says would be ideal, removes most of it (contamination-sensitivity table)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 29.55
+    },
+    {
+      "case": "Table 1",
+      "quantity": "A549 capture",
+      "kind": "quantity",
+      "ours": 96.0,
+      "paper": 94.6,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "at the Youden-best 1 MHz amplitude, 9 Vpp",
+      "cause": "capture at the Youden optimum is pulled up by the high contamination penalty elsewhere; see contamination",
+      "status": "PASS",
+      "passed": null,
+      "deviation": 1.4000000000000057
+    },
+    {
+      "case": "Table 1",
+      "quantity": "A549 PBMC contamination",
+      "kind": "quantity",
+      "ours": 21.25,
+      "paper": 1.5,
+      "unit": "%",
+      "tolerance": 5.0,
+      "note": "at the Youden-best 1 MHz amplitude, 9 Vpp",
+      "cause": "PBMCs that start in the upper part of the sample stream, near its W/3 edge, and meet a 1 MHz phase before a full 3 MHz phase has pulled them back to W/6, cross W/3; the paper's 1:2 ratio puts that edge exactly on the 3 MHz antinode, an unstable point. Confining the inlet to y0 < W/6, as the paper says would be ideal, removes most of it (contamination-sensitivity table)",
+      "status": "DEVIATION",
+      "passed": null,
+      "deviation": 19.75
+    },
+    {
+      "case": "f",
+      "quantity": "design rule: MCF7 moves > W/6, PBMC < W/6 in the 1 MHz phase",
+      "kind": "claim",
+      "ours": "MCF7 180 um, PBMC 76 um (W/6 = 123 um)",
+      "paper": "satisfied",
+      "unit": "",
+      "tolerance": null,
+      "note": "satisfied by construction of E_1MHz; the integrator-level test is tests/test_baw.py::test_design_rule_holds_in_the_integrated_trajectory",
+      "cause": "",
+      "status": "REPRODUCED",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "CF",
+      "quantity": "size-only separation fails for < 2 um difference",
+      "kind": "claim",
+      "ours": "best J 36 % (68 % / 33.0 % at 8 Vpp)",
+      "paper": "fails",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "REPRODUCED",
+      "passed": true,
+      "deviation": null
+    },
+    {
+      "case": "CF",
+      "quantity": "adding the measured compressibility difference makes it succeed",
+      "kind": "claim",
+      "ours": "best J 1 % (4 % / 2.8 % at 3 Vpp)",
+      "paper": "succeeds",
+      "unit": "",
+      "tolerance": null,
+      "note": "the paper's central claim; see REPORT.md for why the model cannot support it with the Fig. 1 ordering",
+      "cause": "",
+      "status": "NOT REPRODUCED",
+      "passed": false,
+      "deviation": null
+    },
+    {
+      "case": "CF",
+      "quantity": "model follows Gor'kov: best J ordered reversed > size-only > measured",
+      "kind": "trend",
+      "ours": "70 > 36 > 1 %",
+      "paper": "reversed > size-only > measured",
+      "unit": "",
+      "tolerance": null,
+      "note": "",
+      "cause": "",
+      "status": "PASS",
+      "passed": true,
+      "deviation": null
+    }
+  ]
+}
