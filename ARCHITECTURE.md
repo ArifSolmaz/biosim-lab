@@ -93,7 +93,10 @@ biosim_lab/
       fem_model.py            # Gmsh + scikit-fem Helmholtz; sızıntılı SAW sınır koşulu
       simulate.py             # Lagrangian koşu, metrikler, parametre taraması
       instrument.py           # SAWSorter(Instrument)
-    impedance_rtca/  # AŞAMA 2 — iskelet + çalışan minimal örnek
+    impedance_rtca/  # AŞAMA 2 — çalışan minimal örnek
+      physics.py      # Giaever–Keese, CPE arayüzü, IDE hücre sabiti (Olthuis), Wagner sayısı
+      fem_model.py    # IDE birim hücresinde elektro-kuasistatik Poisson (Robin arayüz)
+      instrument.py   # plaka, Cell Index / NCI, IC50, ölçülmüş veri + plaka düzeni
     cell_counter/    # AŞAMA 3 — iskelet + sentetik demo
     cell_tracker/    # AŞAMA 3 — iskelet + sentetik demo
   pipeline.py    # Sample/Stage/Pipeline: cihazları zincirler, hata bütçesini taşır
@@ -232,6 +235,7 @@ ExperimentConfig ──► materials.py (MCF-7, RBC: ρ, β, r-dağılımı, DOI
 | Analitik ↔ FEM | `examples/04_validate_analytic_vs_fem.py`: aynı parametrelerle kuvvet profili RMS farkı; eşik %30, gözlenen %12.8. Ayrım metriklerinde iki mod yalnızca **sıralamada** uyuşur, sayılarda değil — bkz. sınırlama 3 |
 | Gor'kov ↔ kapalı form | Tam bir Helmholtz alanı üzerinde ızgara kuvveti vs 1-B yasa: RMS 7×10⁻⁶ |
 | Elektro-kuasistatik | Paralel plaka `Z = L/(σ*A)`: bağıl fark < 1e-9 |
+| İnterdijital elektrot | FEM ↔ Olthuis konform eşleme hücre sabiti %0.3; baskın arayüzde FEM ↔ toplu model %0.05; terminal akımı reaksiyondan |
 | Yakınsama | FEM kuvvet alanının antisimetri artığı çözünürlükle 0.118 → 0.009 |
 | Kütle korunumu | Parçacık sayısı korunur; kanal dışına kaçan parçacık yok |
 | Eklenti izolasyonu | OpenFOAM/Elmer kurulu değilken tüm paket geçer |
@@ -250,7 +254,7 @@ ExperimentConfig ──► materials.py (MCF-7, RBC: ρ, β, r-dağılımı, DOI
 |-------|--------|-------|
 | 1 | `saw_sorter` tam: analitik + FEM, üç kip (ssaw, tassaw, alternating_baw), metrikler, tarama, pano, testler | **Tam** |
 | 1B | Literatür doğrulaması: Li 2015 (taSSAW), Zhang 2023 (alternatif frekanslı BAW) | **Tam** — `benchmarks/REPORT.md` |
-| 2 | `impedance_rtca`: Giaever–Keese kabuk modeli, Cell Index, IC50, RTCA parser | **Minimal çalışır** |
+| 2 | `impedance_rtca`: interdijital elektrot + Giaever–Keese, elektro-kuasistatik FEM, Cell Index/NCI, IC50, RTCA parser (geniş/uzun, plaka düzeni) | **Minimal çalışır** |
 | 3 | `cell_counter`, `cell_tracker`: watershed + trackpy, sentetik veri üreteci | **İskelet + demo** |
 | 4 | `solver_openfoam`, `solver_elmer` | **Yalnızca iskelet + şablon** |
 

@@ -98,8 +98,10 @@ veya `biosim sweep config.yaml -p 'voltage_pp=5 V,15 V' -p 'flow_rate=5 uL/min,2
 
 ## `impedance_rtca` — Aşama 2, **minimal çalışır**
 
-xCELLigence benzeri gerçek zamanlı hücre analizi. Giaever–Keese elektrot modeli
-(`doi:10.1073/pnas.88.17.7896`).
+xCELLigence benzeri gerçek zamanlı hücre analizi: altın interdijital elektrot,
+Giaever–Keese hücre katmanı (`doi:10.1073/pnas.88.17.7896`), Olthuis hücre
+sabiti (`doi:10.1016/0925-4005(95)85053-8`), isteğe bağlı elektro-kuasistatik
+FEM.
 
 ### Ana parametreler
 
@@ -112,13 +114,22 @@ xCELLigence benzeri gerçek zamanlı hücre analizi. Giaever–Keese elektrot mo
 | `treatment_time` | 24 sa | İlaç ekleme anı |
 | `concentrations` / `replicates` | 8 doz / 3 | |
 | `true_ic50` / `hill_slope` | 1.0 / 1.3 | Sentetik plakayı üretmek için |
-| `source_file` | `None` | Gerçek RTCA CSV/XLSX dışa aktarımı |
+| `electrode` | `interdigitated` | `disc`: klasik ECIS diski |
+| `field_model` | `analytic` | `fem`: IDE üzerinde Poisson (yalnız interdigitated) |
+| `ide_finger_width` / `_spacing` / `_length` / `ide_n_fingers` | 50 µm / 50 µm / 3 mm / 30 | **ASSUMPTION**: E-Plate ölçüleri yayımlanmamıştır |
+| `permittivity_rel` / `fem_resolution` | 78 / 24 | |
+| `source_file` | `None` | Gerçek RTCA CSV/XLSX dışa aktarımı (geniş ya da uzun format) |
+| `plate_layout` / `plate_layout_file` | `None` | Ölçülmüş plaka için kuyu → konsantrasyon; IC50 bununla hesaplanır |
 
 ### Çıktılar
 
-Cell Index zaman serisi (`cell_index(time, well)`), üç örtü düzeyinde
-`|Z|(f)` spektrumu, kuyu başına endpoint tablosu, 4PL uydurmadan
-`ic50`, `ic50_stderr`, `hill_slope`, `fit_r_squared`.
+Cell Index zaman serisi (`cell_index(time, well)`), `treatment_time` varsa
+`normalized_cell_index`, üç örtü düzeyinde `|Z|(f)` spektrumu (FEM kipinde
+toplu model karşılaştırmasıyla birlikte), kuyu başına endpoint tablosu, 4PL
+uydurmadan `ic50`, `ic50_stderr`, `hill_slope`, `fit_r_squared`,
+`fit_bottom`/`fit_top`; elektrot sabitleri `cell_constant_1_per_m`,
+`solution_resistance_ohm`, `blank_impedance_ohm`, `wagner_number_blank`; FEM
+kipinde `readout_lumped_vs_fem_max_percent`, `spectrum_lumped_vs_fem_max_percent`.
 
 ### Bilmeniz gerekenler
 
@@ -127,6 +138,8 @@ Cell Index zaman serisi (`cell_index(time, well)`), üç örtü düzeyinde
   taşıma kapasitesine tam gevşemediği için uydurma ekilen değerin altında okur
   (0.75 × 1.0). Bu gerçek bir endpoint deneyinin davranışıdır.
 * `Z_referans = 15 Ω` **ASSUMPTION**'dır ve yalnızca y eksenini ölçekler.
+* **Cell Index için FEM gerekmez**: 10 kHz'te toplu IDE modeli FEM'e %0.4
+  yakındır. FEM, 50 kHz üstü spektrum için önemlidir.
 
 ### Gerçek veriyle
 
@@ -135,8 +148,16 @@ params:
   source_file: /path/to/RTCA_export.csv
 ```
 
-Okuyucu, başlık satırının üstündeki metadata satırlarını atlar ve düzensiz
-alan sayılarına dayanıklıdır.
+Okuyucu, başlık satırının üstündeki metadata satırlarını atlar, düzensiz alan
+sayılarına dayanıklıdır, uzun formatı (Well / Time / Cell Index) da okur ve
+`A01`'i `A1`'e normalleştirir. IC50 için doz düzeni verin:
+
+```yaml
+params:
+  source_file: /path/to/RTCA_export.xlsx
+  plate_layout_file: /path/to/layout.csv   # sütunlar: well, concentration (0 = kontrol)
+  treatment_time: 24 h                      # normalleştirilmiş CI için
+```
 
 ---
 

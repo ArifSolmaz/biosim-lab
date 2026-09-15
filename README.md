@@ -144,7 +144,7 @@ params:
 | Eklenti | Ticari karşılığı | Durum | Ne yapar |
 |---|---|---|---|
 | `saw_sorter` | Akustik hücre ayırıcı | **Tam** | CTC/kan hücresi ayrımı, üç kip: duran SAW (`ssaw`), eğik açılı SAW (`tassaw`), zaman-anahtarlamalı iki frekanslı hacim dalgası (`alternating_baw`). Gor'kov kuvveti, analitik + FEM, RK4/adaptif entegrasyon, makale metrikleri, parametre taraması, canlı pano, **iki makaleye karşı doğrulanmış** |
-| `impedance_rtca` | xCELLigence RTCA | **Minimal çalışır** | Giaever–Keese elektrot modeli, Cell Index eğrisi, \|Z\|(f) spektrumu, 4PL IC50 |
+| `impedance_rtca` | xCELLigence RTCA | **Minimal çalışır** | Altın interdijital elektrot (Olthuis hücre sabiti) + Giaever–Keese hücre katmanı; isteğe bağlı elektro-kuasistatik FEM; Cell Index ve normalleştirilmiş CI, \|Z\|(f) spektrumu, 4PL IC50; gerçek RTCA CSV/XLSX (geniş/uzun format) + plaka düzeniyle ölçülmüş veride IC50 |
 | `cell_counter` | Countess / Cellometer | **İskelet + demo** | Watershed segmentasyon, Neubauer geometrisiyle konsantrasyon, tripan mavisi canlılık |
 | `cell_tracker` | Incucyte / CellTracker | **İskelet + demo** | trackpy bağlama, hız / persistans / MSD |
 
@@ -249,6 +249,14 @@ integrasyonla bağımsız olarak doğrulanır (`verify_flow_rate()` bağıl hata
 
 **Giaever–Keese empedans modeli** `doi:10.1073/pnas.88.17.7896` — Bessel
 fonksiyonlu tam çözüm, Ω·cm² birim sisteminde.
+
+**İnterdijital elektrot** — iki eşit tarak, iki arayüz seri; hacim direnci
+Olthuis hücre sabiti `K = 2/((N−1)L)·K(k)/K(k')`, `k = cos(πw/2(w+s))`
+(`doi:10.1016/0925-4005(95)85053-8`). `field_model: fem` aynı elektrodu
+elektro-kuasistatik Poisson ile çözer; FEM hücre sabitini %0.3 içinde verir.
+10 kHz okuma frekansında toplu model FEM'e %0.4 yakındır (Cell Index modelden
+bağımsız); 100 kHz – 1 MHz'de akım parmak kenarlarına yığıldığı için %6'ya
+kadar düşük tahmin eder.
 
 **Hacim dalgası rezonansı (BAW)** — `p = p_a cos(nπy/W)`, kuvvet
 `F = 4πΦ_B a³ k_n E_ac sin(2k_n y)` (`doi:10.1039/c2lc21068a`); kapalı form
@@ -366,7 +374,7 @@ python examples/01_single_cell.py               # tek hücre kuvvet dengesi
 python examples/02_ctc_vs_rbc.py                # MCF-7 vs eritrosit + şekiller
 python examples/03_parameter_sweep.py --quick   # frekans × voltaj × debi taraması
 python examples/04_validate_analytic_vs_fem.py  # analitik ↔ FEM doğrulaması
-python examples/05_impedance_rtca.py            # Cell Index, Nyquist/Bode, IC50
+python examples/05_impedance_rtca.py            # IDE + FEM, Cell Index, Nyquist/Bode, IC50
 python examples/06_imaging_demo.py              # sayım + takip, sentetik veriyle
 python examples/07_assumption_sensitivity.py   # hangi kaynaksız sayı sonucu değiştiriyor?
 python examples/08_pipeline_sort_count_track.py # üç cihaz tek iş akışı + hata bütçesi

@@ -433,6 +433,109 @@ def idt_electrodes_2d(
     )
 
 
+def _graded(a: float, b: float, n: int, fine_at: str, spread: float) -> np.ndarray:
+    """``n`` cells on ``[a, b]`` in geometric progression, finest at one end.
+
+    ``spread`` is the ratio of the largest to the smallest cell. It is bounded
+    on purpose: a fixed growth ratio compounded over many cells produces
+    1e-13 m slivers whose round-off wrecks the solve.
+    """
+    ratio = float(spread) ** (1.0 / max(n - 1, 1))
+    widths = ratio ** np.arange(n)
+    widths = widths / widths.sum() * (b - a)
+    if fine_at == "b":
+        widths = widths[::-1]
+    return a + np.concatenate([[0.0], np.cumsum(widths)])
+
+
+def ide_unit_cell_2d(
+    finger_width: float,
+    finger_spacing: float,
+    *,
+    height: float | None = None,
+    resolution: int = 32,
+    spread: float = 50.0,
+) -> MeshBundle:
+    """Symmetry cell of an infinite coplanar interdigitated electrode (IDE).
+
+    Half a finger of one comb, one gap, half a finger of the other, and the
+    electrolyte above. In an infinite array the finger centre lines and the
+    gap centre line are symmetry planes, so ``left``/``right`` carry no normal
+    current and this cell holds exactly one gap's worth of current: the whole
+    device is ``(N - 1)`` of these in parallel over the finger length.
+
+    The mesh is graded toward the four electrode edges, where the current
+    density of a coplanar electrode is singular (``~ r^-1/2``), and toward the
+    electrode plane. Breakpoints are inserted exactly once; nearly coincident
+    nodes from separately generated segments are what produce degenerate
+    elements. ``tests/test_geometry.py`` and ``tests/test_impedance_rtca.py``
+    check the pure-conduction solution on this cell against the conformal-map
+    cell constant of Olthuis et al. (1995), doi:10.1016/0925-4005(95)85053-8.
+
+    Parameters
+    ----------
+    finger_width, finger_spacing:
+        Metal width ``w`` and gap ``s`` [m].
+    height:
+        Electrolyte height [m]; defaults to five periods ``5 (w + s)``, by
+        which the potential of an IDE has decayed to the semi-infinite limit
+        (the field falls off as ``exp(-pi y / (w + s))``).
+    resolution:
+        Cells per half-finger and per half-gap along ``x``; twice that along
+        ``y``.
+    spread:
+        Largest-to-smallest cell ratio of the grading.
+
+    Boundary groups
+    ---------------
+    ``electrode_a`` (left half-finger), ``electrode_b`` (right half-finger),
+    ``substrate`` (the insulating gap floor), ``top``, ``left``, ``right``.
+    """
+    if finger_width <= 0 or finger_spacing <= 0:
+        raise ValueError("finger_width and finger_spacing must be positive")
+    from skfem import MeshTri
+
+    w, s = float(finger_width), float(finger_spacing)
+    period = w + s
+    height = 5.0 * period if height is None else float(height)
+    h = 0.5 * w
+    n = max(int(resolution), 4)
+    ends = (h, h + 0.5 * s, h + s, w + s)
+    segments = (
+        _graded(0.0, h, n, "b", spread),
+        _graded(h, h + 0.5 * s, n, "a", spread),
+        _graded(h + 0.5 * s, h + s, n, "b", spread),
+        _graded(h + s, w + s, n, "a", spread),
+    )
+    x = np.concatenate([[0.0]] + [np.r_[seg[1:-1], end] for seg, end in zip(segments, ends)])
+    y = _graded(0.0, height, 2 * n, "a", 4.0 * spread)
+    mesh = MeshTri.init_tensor(x, y)
+
+    tol = 1e-9 * min(w, s)
+    bottom = lambda m: m[1] < tol  # noqa: E731 - small predicates read best inline
+    boundaries = {
+        "electrode_a": _facets_where(mesh, lambda m: bottom(m) & (m[0] < h)),
+        "electrode_b": _facets_where(mesh, lambda m: bottom(m) & (m[0] > h + s)),
+        "substrate": _facets_where(mesh, lambda m: bottom(m) & (m[0] > h) & (m[0] < h + s)),
+        "top": _facets_where(mesh, lambda m: m[1] > height - tol),
+        "left": _facets_where(mesh, lambda m: m[0] < tol),
+        "right": _facets_where(mesh, lambda m: m[0] > period - tol),
+    }
+    return MeshBundle(
+        mesh=mesh,
+        boundaries=boundaries,
+        subdomains={"electrolyte": np.arange(mesh.t.shape[1])},
+        meta={
+            "template": "ide_unit_cell_2d",
+            "finger_width_m": w,
+            "finger_spacing_m": s,
+            "height_m": height,
+            "metallisation_ratio": w / period,
+            "resolution": n,
+        },
+    )
+
+
 #: SBS-standard microplate geometry. Well pitch is the only dimension that is
 #: standardised across vendors (ANSI/SLAS 4-2004); diameters vary by supplier.
 WELL_PLATE_FORMATS: dict[int, dict[str, Any]] = {
@@ -483,6 +586,7 @@ __all__ = [
     "gmsh_available",
     "straight_channel_2d",
     "idt_electrodes_2d",
+    "ide_unit_cell_2d",
     "well_plate",
     "WELL_PLATE_FORMATS",
     "MissingBackendWarning",

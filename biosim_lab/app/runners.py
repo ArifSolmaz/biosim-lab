@@ -114,6 +114,8 @@ def run_rtca(
     noise_cv: float,
     doubling_h: float,
     seed: int,
+    electrode: str = "interdigitated",
+    fem: bool = False,
 ) -> dict[str, Any]:
     from biosim_lab.instruments.impedance_rtca import ImpedanceRTCA
 
@@ -129,6 +131,8 @@ def run_rtca(
             "noise_cv": noise_cv,
             "doubling_time": doubling_h * 3600.0,
             "seed": seed,
+            "electrode": electrode,
+            "field_model": "fem" if fem and electrode == "interdigitated" else "analytic",
         },
     )
     result = ImpedanceRTCA(cfg).run()

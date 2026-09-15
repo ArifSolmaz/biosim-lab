@@ -1,9 +1,11 @@
 """Example 5 — impedance-based real-time cell analysis (Stage 2).
 
-Simulates a 96-well impedance plate: cells attach and proliferate, a drug is
-added at 24 h, and the endpoint Cell Index gives a dose-response curve from
-which an IC50 is fitted.  Also shows the |Z|(f) spectrum of a blank versus a
-confluent electrode, which is what the Giaever-Keese model actually predicts.
+Simulates a 96-well impedance plate on gold interdigitated electrodes: cells
+attach and proliferate, a drug is added at 24 h, and the endpoint Cell Index
+gives a dose-response curve from which an IC50 is fitted.  Also shows the
+|Z|(f) spectrum of a blank versus a confluent electrode, and --- solving the
+electrode by electro-quasistatic FEM --- where the lumped series model of an
+interdigitated electrode stops being exact.
 
 Run::
 
@@ -22,11 +24,13 @@ from biosim_lab.core.viz.curves import (
     bode_magnitude_figure,
     bode_phase_figure,
     dose_response_figure,
+    field_heatmap_figure,
     nyquist_figure,
     timeseries_figure,
     well_plate_heatmap,
 )
 from biosim_lab.instruments.impedance_rtca import ImpedanceRTCA
+from biosim_lab.instruments.impedance_rtca.dashboard import lumped_error_figure
 from biosim_lab.instruments.impedance_rtca.physics import four_parameter_logistic
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets"
@@ -34,6 +38,7 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "assets"
 
 def main() -> None:
     cfg = ExperimentConfig.model_validate(ImpedanceRTCA.example_config())
+    cfg = cfg.model_copy(update={"params": {**cfg.params, "field_model": "fem"}})
     instrument = ImpedanceRTCA(cfg)
     result = instrument.run()
     m = result.metrics
@@ -45,6 +50,14 @@ def main() -> None:
     print(f"  duration              {m['duration_h']:8.1f} h")
     print(f"  readout frequency     {m['readout_frequency_Hz'] / 1e3:8.1f} kHz")
     print(f"  peak Cell Index       {m['max_cell_index']:8.2f}")
+    print()
+    print(f"  electrode             {m['electrode']}, solved by {m['field_model']}")
+    print(f"  cell constant         {m['cell_constant_1_per_m']:8.3g} /m  (Olthuis 1995)")
+    print(f"  bulk resistance       {m['solution_resistance_ohm']:8.2f} Ohm")
+    print(f"  blank |Z| at readout  {m['blank_impedance_ohm']:8.2f} Ohm")
+    print(f"  lumped vs FEM         {m['readout_lumped_vs_fem_max_percent']:8.2f} % at the "
+          f"readout, up to {m['spectrum_lumped_vs_fem_max_percent']:.1f} % across the "
+          f"spectrum (near {m['spectrum_worst_frequency_Hz'] / 1e3:.0f} kHz)")
     print()
     print(f"  fitted IC50           {m['ic50']:8.4f} +/- {m['ic50_stderr']:.4f}")
     print(f"  Hill slope            {m['hill_slope']:8.3f}")
@@ -80,12 +93,8 @@ def main() -> None:
     z_full = z_real[:, -1] + 1j * z_imag[:, -1]
 
     grid = np.logspace(-2.5, 2, 200)
-    fitted = four_parameter_logistic(
-        grid,
-        float(table["normalised_response"].min()),
-        float(table["normalised_response"].max()),
-        m["ic50"], m["hill_slope"],
-    )
+    fitted = four_parameter_logistic(grid, m["fit_bottom"], m["fit_top"], m["ic50"],
+                                     m["hill_slope"])
     treated = table[(table["kind"] == "treated") & (table["concentration"] > 0)]
     grouped = treated.groupby("concentration")["normalised_response"].mean()
 
@@ -107,6 +116,17 @@ def main() -> None:
         "05_plate_map": well_plate_heatmap(
             dict(zip(table["well"], table["endpoint_cell_index"])),
             title="Endpoint Cell Index by well", colorbar_title="CI",
+        ),
+        "05_lumped_vs_fem": lumped_error_figure(
+            freq, z_real + 1j * z_imag,
+            fields["impedance_lumped_real"].values
+            + 1j * fields["impedance_lumped_imag"].values,
+            [float(c) for c in fields["coverage"].values],
+        ),
+        "05_ide_potential": field_heatmap_figure(
+            instrument._potential_map, "phi_abs",
+            title="|φ| in the IDE unit cell (1 V on the left comb, last solve)",
+            colorbar_title="V",
         ),
     }
     png_ok = True

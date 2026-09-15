@@ -464,9 +464,15 @@ override `diameter`, `diameter_cv`, `density`, `compressibility` — with a mand
 | `conductivity` | `1.4 S/m` | medium |
 | `junction_resistance` | `2.0` | `R_b`, Ω·cm² |
 | `membrane_capacitance` | `1e-6` | F/cm² |
-| `electrode_area_cm2` | `0.008` | |
+| `electrode_area_cm2` | `0.008` | disc electrode only |
 | `cell_radius` / `gap_height` | `8 um` / `100 nm` | shell-model geometry |
-| `source_file` | `null` | path to a real RTCA export |
+| `electrode` | `interdigitated` | `disc`: the classic ECIS working disc |
+| `field_model` | `analytic` | `fem`: electro-quasistatic Poisson on the IDE (interdigitated only) |
+| `ide_finger_width` / `ide_finger_spacing` | `50 um` / `50 um` | interdigitated electrode — **ASSUMPTION**, E-Plate dimensions are unpublished |
+| `ide_finger_length` / `ide_n_fingers` | `3 mm` / `30` | |
+| `permittivity_rel` / `fem_resolution` | `78` / `24` | medium permittivity; FEM cells per half-finger |
+| `source_file` | `null` | path to a real RTCA export (wide or long format) |
+| `plate_layout` / `plate_layout_file` | `null` | measured plates: well → concentration, needed for an IC50 |
 
 ### `cell_counter`
 
@@ -509,7 +515,16 @@ params:
 
 The reader skips metadata rows above the header, tolerates rows with different
 field counts, sniffs the delimiter, and locates the header by finding the first
-row containing well labels (`A1` … `H12`). CSV and XLSX both work.
+row containing well labels (`A1` … `P24`). CSV and XLSX both work, in the wide
+layout or the long one (Well / Time / Cell Index columns), and `A01` reads as
+`A1`. For an IC50 on a measured plate, say which well got which dose:
+
+```yaml
+params:
+  source_file: /path/to/RTCA_export.xlsx
+  plate_layout_file: /path/to/layout.csv   # columns: well, concentration (0 = control)
+  treatment_time: 24 h                      # adds the normalised Cell Index
+```
 
 Or drop the file into the web app's uploader.
 

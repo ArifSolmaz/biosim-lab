@@ -37,6 +37,17 @@ def page_rtca() -> None:
     with st.sidebar:
         st.subheader("Measurement")
         frequency_khz = st.slider("Readout frequency (kHz)", 1.0, 100.0, 10.0, 1.0)
+        electrode = st.selectbox(
+            "Electrode", ["interdigitated", "disc"],
+            help="interdigitated: two equal gold combs, as on an RTCA plate. "
+            "disc: the classic ECIS working disc against a large counter electrode.",
+        )
+        fem = st.checkbox(
+            "Solve the electrode by FEM", value=False, disabled=electrode != "interdigitated",
+            help="Electro-quasistatic Poisson on the finger pattern instead of the lumped "
+            "series model. A few seconds; changes the spectra above ~50 kHz, not the Cell "
+            "Index.",
+        )
         duration_h = st.slider("Experiment duration (h)", 12.0, 120.0, 48.0, 6.0)
         st.subheader("Biology")
         doubling_h = st.slider("Doubling time (h)", 8.0, 48.0, 20.0, 1.0)
@@ -58,7 +69,7 @@ def page_rtca() -> None:
 
     out = run_rtca(
         frequency_khz, duration_h, treatment_h, true_ic50, hill, replicates,
-        noise_cv, doubling_h, int(seed),
+        noise_cv, doubling_h, int(seed), electrode, bool(fem),
     )
     m, table = out["metrics"], out["table"]
 
@@ -69,6 +80,16 @@ def page_rtca() -> None:
     cols[2].metric("Hill slope", f"{m.get('hill_slope', float('nan')):.2f}")
     cols[3].metric("Fit R²", f"{m.get('fit_r_squared', float('nan')):.4f}")
     cols[4].metric("Peak Cell Index", f"{m['max_cell_index']:.2f}")
+
+    if m.get("field_model") == "fem":
+        st.caption(
+            f"Electrode solved by FEM ({m['fem_mesh_nodes']} nodes). At the readout "
+            f"frequency the lumped model is within "
+            f"{m['readout_lumped_vs_fem_max_percent']:.2f} % of it; across the spectrum "
+            f"it is off by up to {m['spectrum_lumped_vs_fem_max_percent']:.1f} % "
+            f"(worst near {m['spectrum_worst_frequency_Hz'] / 1e3:.0f} kHz), where "
+            "current crowds onto the finger edges."
+        )
 
     if "ic50" in m and abs(m["ic50"] / true_ic50 - 1) > 0.15:
         st.info(
@@ -117,8 +138,8 @@ def page_rtca() -> None:
                 np.log10(grouped.index.max()) + 0.5, 200,
             )
             fitted = four_parameter_logistic(
-                grid, float(grouped.min()), float(grouped.max()),
-                m["ic50"], m["hill_slope"],
+                grid, m.get("fit_bottom", float(grouped.min())),
+                m.get("fit_top", float(grouped.max())), m["ic50"], m["hill_slope"],
             )
             st.plotly_chart(
                 dose_response_figure(

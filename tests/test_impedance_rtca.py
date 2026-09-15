@@ -135,3 +135,82 @@ def test_instrument_reads_a_real_rtca_export(tmp_path):
     assert result.metrics["n_wells"] == 2
     assert result.meta["source"] == str(path)
     assert result.metrics["duration_h"] == pytest.approx(5.5)
+
+
+def _config(**params):
+    cfg = ExperimentConfig.model_validate(ImpedanceRTCA.example_config())
+    return cfg.model_copy(update={"params": {**cfg.params, **params}})
+
+
+def test_the_default_electrode_is_interdigitated_and_reports_its_constants():
+    m = ImpedanceRTCA(_config()).run().metrics
+    assert m["electrode"] == "interdigitated"
+    assert m["cell_constant_1_per_m"] > 0
+    assert m["solution_resistance_ohm"] < m["blank_impedance_ohm"]
+
+
+def test_fem_and_lumped_agree_at_the_readout_frequency():
+    """At 10 kHz the interface dominates, so the Cell Index is model-independent."""
+    lumped = ImpedanceRTCA(_config(spectrum_frequencies=12)).run()
+    fem = ImpedanceRTCA(_config(field_model="fem", spectrum_frequencies=12)).run()
+    assert fem.metrics["readout_lumped_vs_fem_max_percent"] < 1.0
+    assert fem.metrics["max_cell_index"] == pytest.approx(
+        lumped.metrics["max_cell_index"], rel=0.02)
+    assert "impedance_lumped_real" in fem.fields
+    assert fem.metrics["spectrum_lumped_vs_fem_max_percent"] > 1.0
+
+
+def test_fem_needs_the_interdigitated_electrode():
+    with pytest.raises(ValueError, match="interdigitated"):
+        ImpedanceRTCA(_config(field_model="fem", electrode="disc")).run()
+
+
+def test_disc_electrode_path_matches_the_scalar_model():
+    """The vectorised coverage path reproduces well_impedance exactly."""
+    inst = ImpedanceRTCA(_config(electrode="disc"))
+    inst.setup()
+    cov = np.array([0.0, 0.3, 0.9])
+    fast = np.abs(inst._lumped(np.array([1e4]), cov))
+    slow = [abs(well_impedance(np.array([1e4]), coverage=c, geometry=inst.params.geometry)[0])
+            for c in cov]
+    np.testing.assert_allclose(fast, slow, rtol=1e-12)
+
+
+def test_normalized_cell_index_is_one_at_the_normalisation_time():
+    result = ImpedanceRTCA(_config()).run()
+    nci = result.fields["normalized_cell_index"]
+    t_norm = nci.attrs["normalised_at_s"]
+    np.testing.assert_allclose(nci.sel(time=t_norm).values, 1.0)
+
+
+def test_a_measured_plate_with_a_layout_gets_an_ic50(tmp_path):
+    """Export a simulated plate the way an instrument would, read it back, fit it."""
+    sim = ImpedanceRTCA(_config(noise_cv=0.0)).run()
+    ci = sim.fields["cell_index"]
+    wells = [str(w) for w in ci["well"].values]
+    export = tmp_path / "plate.csv"
+    header = "Time (Hour)," + ",".join(f"{w[0]}{int(w[1:]):02d}" for w in wells)  # A01 style
+    rows = [header] + [
+        f"{t / 3600:.4f}," + ",".join(f"{v:.6f}" for v in ci.sel(time=t).values)
+        for t in ci["time"].values
+    ]
+    export.write_text("\n".join(rows), encoding="utf-8")
+    layout = tmp_path / "layout.csv"
+    table = sim.table[["well", "concentration"]]
+    table.to_csv(layout, index=False)
+
+    measured = ImpedanceRTCA(ExperimentConfig(
+        name="measured", instrument="impedance_rtca",
+        params={"source_file": str(export), "plate_layout_file": str(layout),
+                "treatment_time": "24 h"},
+    )).run()
+    assert measured.metrics["ic50"] == pytest.approx(sim.metrics["ic50"], rel=1e-3)
+    assert "normalized_cell_index" in measured.fields
+
+
+def test_a_measured_plate_without_a_layout_has_no_ic50(tmp_path):
+    path = tmp_path / "export.csv"
+    path.write_text("Time (h),A1,A2\n0,0.1,0.1\n1,0.5,0.4\n2,1.0,0.8\n", encoding="utf-8")
+    m = ImpedanceRTCA(ExperimentConfig(
+        name="m", instrument="impedance_rtca", params={"source_file": str(path)})).run().metrics
+    assert "ic50" not in m

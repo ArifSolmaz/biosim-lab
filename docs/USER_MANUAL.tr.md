@@ -408,8 +408,13 @@ zorunlu `override_source` ile (makaleyse `override_doi` de).
 | `true_ic50` / `hill_slope` | `1.0` / `1.3` | sentetik plakayı üretmek için |
 | `noise_cv` | `0.02` | ölçüm gürültüsü |
 | `conductivity` / `junction_resistance` / `membrane_capacitance` | `1.4` / `2.0` / `1e-6` | elektriksel model |
-| `electrode_area_cm2` / `cell_radius` / `gap_height` | `0.008` / `8 um` / `100 nm` | kabuk modeli geometrisi |
-| `source_file` | `null` | gerçek RTCA dışa aktarımının yolu |
+| `electrode_area_cm2` / `cell_radius` / `gap_height` | `0.008` / `8 um` / `100 nm` | disk alanı; kabuk modeli geometrisi |
+| `electrode` | `interdigitated` | `disc`: klasik ECIS çalışma diski |
+| `field_model` | `analytic` | `fem`: IDE üzerinde elektro-kuasistatik Poisson (yalnız interdigitated) |
+| `ide_finger_width` / `ide_finger_spacing` / `ide_finger_length` / `ide_n_fingers` | `50 um` / `50 um` / `3 mm` / `30` | interdijital elektrot — **ASSUMPTION**, E-Plate ölçüleri yayımlanmamıştır |
+| `permittivity_rel` / `fem_resolution` | `78` / `24` | ortam geçirgenliği; yarım parmak başına FEM hücresi |
+| `source_file` | `null` | gerçek RTCA dışa aktarımının yolu (geniş ya da uzun format) |
+| `plate_layout` / `plate_layout_file` | `null` | ölçülmüş plaka için kuyu → konsantrasyon; IC50 için gerekli |
 
 ### `cell_counter`
 
@@ -449,7 +454,16 @@ params:
 
 Okuyucu başlık satırının üstündeki metadata satırlarını atlar, farklı alan
 sayısına sahip satırlara dayanıklıdır, ayracı sezer ve başlığı kuyu etiketlerini
-(`A1` … `H12`) içeren ilk satırı bularak yerleştirir. CSV ve XLSX çalışır.
+(`A1` … `P24`) içeren ilk satırı bularak yerleştirir. CSV ve XLSX, geniş ya da
+uzun formatta (Well / Time / Cell Index sütunları) çalışır; `A01`, `A1` olarak
+okunur. Ölçülmüş bir plakada IC50 için hangi kuyunun hangi dozu aldığını verin:
+
+```yaml
+params:
+  source_file: /yol/RTCA_export.xlsx
+  plate_layout_file: /yol/layout.csv   # sütunlar: well, concentration (0 = kontrol)
+  treatment_time: 24 h                  # normalleştirilmiş Cell Index'i ekler
+```
 
 Ya da dosyayı web arayüzündeki yükleyiciye bırakın.
 
