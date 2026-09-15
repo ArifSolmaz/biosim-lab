@@ -955,6 +955,128 @@ def dose_response_figure(
     )
 
 
+# ---------------------------------------------------------------------------
+# time-switched drives
+# ---------------------------------------------------------------------------
+
+#: Neutral tints for drive phases: never a categorical hue, so a shaded band
+#: cannot be mistaken for a population.
+_PHASE_TINTS_LIGHT = ("rgba(82,81,78,0.10)", "rgba(82,81,78,0.00)", "rgba(82,81,78,0.20)")
+_PHASE_TINTS_DARK = ("rgba(195,194,183,0.14)", "rgba(195,194,183,0.00)",
+                     "rgba(195,194,183,0.26)")
+
+
+def add_phase_bands(
+    fig: go.Figure, timeline: Sequence[dict[str, Any]], *, dark: bool = False,
+    t_max: float | None = None, label_bands: bool = True,
+) -> go.Figure:
+    """Shade the drive phases on a time axis, one tint per phase, labelled on top.
+
+    *timeline* is :meth:`~biosim_lab.instruments.saw_sorter.switching.Schedule.timeline`
+    output: ``{"start", "end", "phase", "label"}`` per interval [s].
+    """
+    tints = _PHASE_TINTS_DARK if dark else _PHASE_TINTS_LIGHT
+    for band in timeline:
+        a, b = float(band["start"]), float(band["end"])
+        if t_max is not None:
+            if a >= t_max:
+                continue
+            b = min(b, t_max)
+        fig.add_vrect(
+            x0=a, x1=b, fillcolor=tints[int(band["phase"]) % len(tints)], line_width=0,
+            layer="below",
+            annotation_text=str(band["label"]) if label_bands else None,
+            annotation_position="top left", annotation_font_size=10,
+        )
+    return fig
+
+
+def lateral_timeline_figure(
+    trajectories: xr.Dataset,
+    *,
+    channel_width: float,
+    timeline: Sequence[dict[str, Any]] = (),
+    reference_lines: Sequence[tuple[float, str]] = (),
+    t_max: float | None = None,
+    dark: bool = False,
+    title: str = "Lateral position against time",
+) -> go.Figure:
+    """Position across the channel (as a fraction of W) against time, phases shaded.
+
+    The layout of Zhang et al. (2023, doi:10.3390/ijms24043338) Fig. 8a,b, which
+    is the clearest way to see a time-switched sorter work: every switch moves
+    each population toward a different node.
+    """
+    pos = trajectories["position"].sel(axis="x").values / channel_width
+    t = trajectories["time"].values
+    keep = t <= (t_max if t_max is not None else t[-1])
+    labels = np.asarray(trajectories["label"].values, dtype=str)
+    fig = go.Figure()
+    for label in sorted(set(labels)):
+        idx = np.flatnonzero(labels == label)
+        for j, i in enumerate(idx):
+            fig.add_trace(go.Scatter(
+                x=t[keep], y=pos[i, keep], mode="lines",
+                line={"color": color_for(label, dark=dark), "width": 1.4},
+                name=f"{label} (n={len(idx)})", legendgroup=label, showlegend=j == 0,
+                hovertemplate=(f"<b>{label}</b><br>t %{{x:.2f}} s"
+                               "<br>y/W %{y:.3f}<extra></extra>"),
+            ))
+    for y, text in reference_lines:
+        fig.add_hline(y=y, line={"color": "#52514e" if not dark else "#c3c2b7",
+                                 "width": 1, "dash": "dot"},
+                      annotation_text=text, annotation_position="right",
+                      annotation_font_size=10)
+    add_phase_bands(fig, timeline, dark=dark, t_max=t_max)
+    fig.update_yaxes(range=[0, 1])
+    fig = _finish(fig, title=title, xaxis_title="time since entry (s)",
+                  yaxis_title="lateral position y / W", dark=dark)
+    if reference_lines:  # room for the right-hand line labels
+        fig.update_layout(margin={"r": 60})
+    return fig
+
+
+def force_timeline_figure(
+    forces: xr.Dataset,
+    *,
+    particles: Sequence[int],
+    timeline: Sequence[dict[str, Any]] = (),
+    axis: str = "x",
+    t_max: float | None = None,
+    dark: bool = False,
+    title: str = "Acoustic radiation and Stokes drag force",
+) -> go.Figure:
+    """``F_acoustic`` and ``F_Stokes`` along chosen trajectories, phases shaded.
+
+    One colour per population, solid for the radiation force and dashed for the
+    drag, on one axis (both are newtons across the channel). In the overdamped
+    limit the two are mirror images --- the drag *is* the force balance --- which
+    is exactly what Zhang et al. 2023 Fig. 8c shows.
+    """
+    t = forces["time"].values
+    keep = t <= (t_max if t_max is not None else t[-1])
+    labels = np.asarray(forces["label"].values, dtype=str)
+    fig = go.Figure()
+    styles = {"acoustic_radiation": ("solid", "acoustic radiation"),
+              "stokes_drag": ("dash", "Stokes drag")}
+    for i in particles:
+        label = labels[i]
+        for name, (dash, text) in styles.items():
+            if name not in forces["force"].values:
+                continue
+            f = forces["F"].sel(force=name, axis=axis).values[i]
+            fig.add_trace(go.Scatter(
+                x=t[keep], y=f[keep] * 1e12, mode="lines",
+                line={"color": color_for(label, dark=dark), "width": 1.6, "dash": dash},
+                name=f"{label}: {text}",
+                hovertemplate=f"<b>{label}</b> {text}<br>t %{{x:.2f}} s<br>%{{y:.2f}} pN"
+                              "<extra></extra>",
+            ))
+    add_phase_bands(fig, timeline, dark=dark, t_max=t_max)
+    return _finish(fig, title=title, xaxis_title="time since entry (s)",
+                   yaxis_title="force across the channel (pN)", dark=dark)
+
+
 __all__ = [
     "trajectory_figure",
     "live_view_figure",
@@ -971,4 +1093,7 @@ __all__ = [
     "bode_phase_figure",
     "well_plate_heatmap",
     "dose_response_figure",
+    "add_phase_bands",
+    "lateral_timeline_figure",
+    "force_timeline_figure",
 ]

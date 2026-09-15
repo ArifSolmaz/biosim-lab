@@ -52,10 +52,18 @@ def li_2015_tassaw(
     * the **inlet**, taken as one sheath-focused side stream, which is what a
       2.5:1 sheath-to-sample ratio implies.
 
-    A 800 um channel at 19.573 MHz holds about eight pressure nodes, so the
-    multi-node warning fires. That is correct and is the point of the design:
-    a tilted device works by carrying cells ACROSS many nodes, not by parking
-    them on one.
+    A 800 um channel at 19.573 MHz holds about eight pressure nodes. That is
+    the point of the design: a tilted device works by carrying cells ACROSS
+    many nodes, not by parking them on one.
+
+    This is a quick-start protocol: it runs the device at the 20 uL/min
+    *sample* flow alone and drives it through the generic voltage calibration.
+    The full reproduction --- 75 uL/min gross flow with the 2.5:1 sheath, the RF
+    drive in dBm, a pressure calibrated to the paper's Fig. 2A optimum, and a
+    comparison against every number the paper states --- is
+    ``benchmarks/benchmark_01_tassaw`` (see ``benchmarks/REPORT.md``). The two
+    pressure figures quoted by each are for different flows and are not in
+    conflict.
     """
     lysed = rbc_lysis(whole_blood_with_ctc(cancer_cell, ctc_per_ml=ctc_per_ml))
 
@@ -74,7 +82,7 @@ def li_2015_tassaw(
         outlet_layout="lateral_split",
         split_position=0.5,
         collect_side="right",
-        mode="analytic",
+        field_model="analytic",
         seed=20260907,
         populations=[
             {

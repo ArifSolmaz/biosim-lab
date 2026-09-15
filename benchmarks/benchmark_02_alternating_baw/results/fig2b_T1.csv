@@ -1,0 +1,10 @@
+T1,capture_efficiency_percent,contamination_rate_percent,all_cells_exited
+0.2,3.0,3.5000000000000004,True
+0.4,24.5,5.5,True
+0.6,77.0,8.75,True
+0.7,96.0,11.75,True
+0.8,99.5,17.25,True
+0.9,100.0,23.25,True
+1.0,100.0,34.5,True
+1.2,100.0,59.0,True
+1.4,100.0,83.25,True

@@ -77,6 +77,10 @@ _FIXED_SLOTS: dict[str, int] = {
     "a549": 2,
     "rbc": 1,
     "wbc": 3,
+    "pbmc": 3,  # a leukocyte fraction: shares the leukocyte hue
+    "hct116": 6,
+    "lncap": 6,
+    "uacc903m": 2,
     "platelet": 4,
     "ps_bead": 5,
     "lipid": 7,
@@ -99,7 +103,11 @@ def color_for(label: str, *, dark: bool = False) -> str:
         return ramp[_FIXED_SLOTS[key] % len(ramp)]
     if key not in _dynamic:
         used = set(_FIXED_SLOTS.values()) | set(_dynamic.values())
-        free = next((i for i in range(len(ramp)) if i not in used), len(_dynamic))
+        # Every slot is spoken for by the fixed table, so an unknown label must
+        # not simply take slot 0 (it would share the first population's hue).
+        # Cycle through the slots instead, starting from the second.
+        free = next((i for i in range(len(ramp)) if i not in used),
+                    (1 + len(_dynamic)) % len(ramp))
         _dynamic[key] = free
     return ramp[_dynamic[key] % len(ramp)]
 
@@ -144,7 +152,10 @@ def plotly_layout(
         "title": {"font": {"color": muted, "size": 12}},
     }
     return {
-        "title": {"text": title, "font": {"color": text, "size": 15}},
+        # Title pinned to the top edge and the horizontal legend just above the
+        # plot: with the title at plotly's default height the two overlap.
+        "title": {"text": title, "font": {"color": text, "size": 15},
+                  "y": 0.985, "yanchor": "top", "x": 0.01, "xanchor": "left"},
         "paper_bgcolor": surface,
         "plot_bgcolor": surface,
         "font": {"color": text, "family": "system-ui, -apple-system, sans-serif", "size": 12},
@@ -160,7 +171,8 @@ def plotly_layout(
             "font": {"color": muted, "size": 11},
             "bgcolor": "rgba(0,0,0,0)",
         },
-        "margin": {"l": 64, "r": 20, "t": 56 if title else 36, "b": 52},
+        "margin": {"l": 64, "r": 20, "t": (88 if showlegend else 56) if title else 36,
+                   "b": 52},
         "hovermode": "closest",
     }
 

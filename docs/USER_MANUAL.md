@@ -228,7 +228,7 @@ close to the actual step size.
 
 ### Material provenance
 
-All 65 physical constants with their source: 27 with a published DOI, 38 flagged
+All 95 physical constants with their source: 37 with a published DOI, 58 flagged
 as assumptions with the reason. Downloadable as CSV. This is the list a methods
 section should disclose.
 
@@ -412,7 +412,7 @@ Unit-bearing values are written as strings and checked with `pint`. Writing
 | `inlet_viability` | `0.95` | fraction of the sample already alive before the device |
 | `track_viability` | `true` | compute thermal, shear and cavitation damage per cell |
 | `populations` | MCF-7 + RBC | list of `{cell_type, count, target}` |
-| `tilt_angle_deg` | `0.0` | IDT tilt. 0 = conventional SSAW; non-zero = **tilted-angle SSAW, a different mechanism**. Positive deflects towards −x. Not available with `mode: fem` |
+| `tilt_angle_deg` | `0.0` | IDT tilt. 0 = conventional SSAW; non-zero = **tilted-angle SSAW, a different mechanism**. Positive deflects towards −x. Not available with `field_model: fem` |
 | `inlet` | `sheath_sides` | `sheath_sides`, `uniform`, `centre`, `side` |
 | `inlet_side` | `left` | which wall the sample enters on, for `inlet: side` |
 | `inlet_band` | `0.15` | inlet stream width, as a fraction of the channel |
@@ -420,7 +420,14 @@ Unit-bearing values are written as strings and checked with `pint`. Writing
 | `collection_fraction` | `0.333` | central outlet width / channel width — `centre_band` only |
 | `split_position` | `0.5` | divider position / channel width — `lateral_split` only |
 | `collect_side` | `right` | which side of the divider is collected — `lateral_split` only |
-| `mode` | `analytic` | `analytic` or `fem` |
+| `mode` | `ssaw` | operating mode: `ssaw`, `tassaw` (needs `tilt_angle_deg ≠ 0`), `alternating_baw` (needs `switching`). Omitted → inferred from the tilt |
+| `field_model` | `analytic` | `analytic` or `fem` (FEM for `ssaw` only). Pre-0.2 configs wrote this as `mode:` and still load |
+| `power_drive` | `null` | drive as RF power: `{power_dbm, reference_pressure, reference_power_dbm, reference_idt_length, reference_source}` → `p₀ = p_ref √((P/P_ref)(L_ref/L))` |
+| `switching` | `null` | `alternating_baw` only: `{phases: [{frequency, duration, voltage_pp, reference_energy_density, reference_voltage_pp, energy_source}, …], min_cycles: 2, entry: random\|fixed, entry_time_in_cycle, integrator: rk4\|solve_ivp, time_step}` |
+| `sheath_ratio` | `null` | sheath:sample flow ratio; when set the inlet band is **derived** from the Poiseuille flux |
+| `inlet_weighting` | `uniform` | `flux` weights inlet positions by the local velocity (cells per second, as an outlet counts them) |
+| `inlet_x` | `null` | explicit inlet positions (fractions of W), for trajectory figures |
+| `record_forces` | `false` | keep every force and the Stokes drag along each trajectory (`outcome.forces`) |
 | `integration` | `overdamped` | `overdamped` or `inertial` |
 | `enable_vertical_arf` | `false` | FEM vertical force — see [§11](#11-reading-results-honestly) |
 | `enable_gravity` | `false` | sedimentation |
@@ -431,7 +438,10 @@ Unit-bearing values are written as strings and checked with `pint`. Writing
 | `n_time_samples` | `101` | trajectory sample points |
 | `seed` | `12345` | |
 
-Cell types: `mcf7`, `hela`, `a549`, `rbc`, `wbc`, `platelet`, `ps_bead`, `lipid`.
+Cell types: `mcf7`, `hela`, `a549`, `hct116`, `lncap`, `uacc903m`, `rbc`, `wbc`, `pbmc`,
+`platelet`, `ps_bead`, `ps_10um`, `ps_9p9um`, `ps_7p3um`, `lipid`. Any population can
+override `diameter`, `diameter_cv`, `density`, `compressibility` — with a mandatory
+`override_source` (and `override_doi` when it is a paper).
 
 ### `impedance_rtca`
 
@@ -783,7 +793,7 @@ haemocytometer actually said.
 ### Check the provenance before quoting a number
 
 ```bash
-biosim materials            # the 38 assumptions, with reasons
+biosim materials            # the 58 assumptions, with reasons
 ```
 
 The largest single one: nothing here predicts acoustic pressure from drive
@@ -972,7 +982,46 @@ it started against, which the model warns about.
 buys: in a 600 µm channel one wavelength wide, a straight device cannot reach
 90 % recovery at any divider, while −10° gives 100 % recovery at 100 % purity.
 
-### Which of the 38 assumptions actually matter
+### Alternating-frequency BAW: sorting in time
+
+`mode: alternating_baw` models one piezoceramic switched between two bulk
+resonances of a hard-walled channel (Zhang et al. 2023,
+doi:10.3390/ijms24043338): 1 MHz puts one node on the midline, 3 MHz puts
+three at W/6, W/2, 5W/6. During the low-mode phase large, stiff cells get more
+than W/6 off the W/6 node and are then pulled to W/2 by the high mode; small
+cells fall back to W/6. Every phase has its own duration and amplitude, each
+cell enters at its own point of the cycle, and a configuration in which the
+fastest cell sees fewer than two cycles is refused with the three ways to fix
+it.
+
+Things to know before trusting a number:
+
+* **`E_ac` is a device property you must supply.** `reference_energy_density`
+  at `reference_voltage_pp` per phase, scaled as `U²`. If you have not
+  measured it, `biosim_lab.instruments.saw_sorter.design.separation_rule_energy`
+  turns the paper's W/6 rule into an interval and picks its geometric middle;
+  say so in `energy_source`.
+* **The sample stream edge is where contamination comes from.** With a 1:2
+  sample:sheath ratio the stream reaches the W/3 antinode of the 3 MHz mode, an
+  unstable point; PBMCs that start there leak into the collection outlet. The
+  paper's own remedy, `y₀ < W/6`, is `sheath_ratio: 5`.
+* **Read the `W/6 rule` line in `diagnostics["switching"]`.** It says, per
+  population, how far a mean-sized cell moves during the low-mode phase and
+  whether the rule holds.
+* `design.operating_window(df, "V1")` finds the high-capture / low-contamination
+  window in a sweep automatically, and the Youden-best setting when the window
+  is empty.
+
+### Literature benchmarks
+
+`benchmarks/REPORT.md` compares this model with Li et al. 2015 (taSSAW) and
+Zhang et al. 2023 (alternating BAW): ours / paper / deviation for every number
+the papers state in their text, figures reproducing their curves, and a likely
+cause for every deviation. `biosim benchmark all` re-runs it (~12 min on 8
+cores); `pytest tests/test_benchmarks.py` asserts the stated trends and warns —
+never fails — on quantitative deviations.
+
+### Which of the 58 assumptions actually matter
 
 The Material provenance page lists every number that could not be traced to a
 DOI. That is an honest disclosure but not an actionable one: it says what is

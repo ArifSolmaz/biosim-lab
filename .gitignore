@@ -7,6 +7,10 @@ __pycache__/
 .mypy_cache/
 results/
 configs/results/
+# The literature benchmark results ARE committed: benchmarks/REPORT.md shows their
+# figures and tests/test_benchmarks.py reads their comparison tables.
+!benchmarks/*/results/
+benchmarks/*/runs/
 assets/*.nc
 assets/*.parquet
 .DS_Store

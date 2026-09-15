@@ -1,10 +1,10 @@
 """Which unsourced numbers actually change the answer?
 
-The material library flags 38 values as ASSUMPTION: numbers that could not be
+The material library flags 58 values as ASSUMPTION: numbers that could not be
 traced to a primary source. Disclosing them is necessary but not useful on its
 own --- it tells a user what is unknown, not what to do about it. This script
 ranks them by how much each one actually moves the sorting result, so the answer
-to "what should I measure first?" is a short list rather than 38 items.
+to "what should I measure first?" is a short list rather than 58 items.
 
 It scans **two operating points**, because the answer is different at each:
 
@@ -20,11 +20,13 @@ the first, which is the practical result: a sensitivity ranking is a property of
 the operating point, not of the model, and quoting one without the other is
 meaningless. Run this at the operating point you actually use.
 
-What it finds: of the 38 flagged assumptions, exactly one moves the answer ---
+What it finds: of the 58 flagged assumptions, exactly one moves the answer ---
 the **MCF7 cell density** (elasticity 0.94, so a 5 % error in it costs ~5 % of
 your yield). Cell radius spread is a distant second at -0.16. Everything else is
 either unused by the acoustic model or below the resolution of the scan. So the
-answer to "what should I measure first?" is one item, not thirty-eight.
+answer to "what should I measure first?" is one item, not fifty-eight. (The 20
+added for the Stage 1B benchmark cells --- PBMC, HCT116, LNCaP, UACC903M, beads ---
+describe cells this example does not simulate, so they land in the "unused" group.)
 
 Each assumption is perturbed by +/-5 %, paired within each of five ensembles so
 the sampling noise cancels, and the result is the normalised elasticity
@@ -64,7 +66,7 @@ BASE = dict(
     substrate="linbo3_128yx",
     inlet="sheath_sides",
     collection_fraction=1 / 3,
-    mode="analytic",
+    field_model="analytic",
     populations=[
         {"cell_type": "mcf7", "count": 300, "target": True},
         {"cell_type": "rbc", "count": 300, "target": False},

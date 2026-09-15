@@ -207,10 +207,27 @@ Bunlar bozulursa PR birleştirilmez:
 5. **Sessiz yanlış sonuç yok.** Model geçerlilik dışına çıkarsa `RegimeWarning`.
 6. `setup()` idempotent, `run()` yeniden çalıştırılabilir olmalı.
 
+## Literatür benchmark'ı eklemek / Adding a literature benchmark
+
+Bir cihazın bir makaleye karşı doğrulanması `benchmarks/` altında yaşar:
+
+1. `benchmarks/benchmark_NN_<ad>/config.yaml` — `biosim run` ile tek başına
+   çalışan cihaz. Her değerin yanında `STATED` / `ASSUMPTION` / `CALIBRATED`.
+2. `reference.yaml` — makaleden **yalnızca metin ve tablolarda açıkça yazan**
+   sayılar, her biri alıntı cümlesi ve sayfasıyla. Grafikten değer okunmaz.
+3. `cases.py` — her karşılaştırma bir `benchmarks.common.Check`: `quantity`,
+   `range`, `trend`, `claim` ya da `calibration`. DEVIATION olası nedenini
+   yazmadan oluşturulamaz.
+4. En fazla bir büyüklük kalibre edin ve onu karşılaştırdığınız bir sonuca
+   değil, makalede sözle belirtilen bir koşula dayandırın.
+5. `run.py` (`--quick` destekli) sonuçları `results/summary.json`'a yazsın;
+   `make_report.py`'ye bir bölüm, `biosim benchmark`'a bir anahtar ekleyin,
+   `tests/test_benchmarks.py`'ye eğilimleri hızlı kipte zorunlu kılan testler.
+
 ## Kod stili
 
 ```bash
-ruff check biosim_lab tests
+ruff check biosim_lab tests examples benchmarks
 ruff format biosim_lab tests
 mypy biosim_lab            # tavsiye edilir, zorunlu değil
 ```

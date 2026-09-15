@@ -5,7 +5,7 @@ A plugin architecture for simulating what commercial bio-instruments do
 using only free and open-source Python tooling.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 from biosim_lab.core.units import Q_, ureg  # noqa: F401
 

@@ -63,7 +63,8 @@ biosim_lab/
       electroquasistatic.py  # ∇·(σ + iωε)∇φ = 0  (empedans)
       stokes.py          # Stokes akışı (düşük Re)
     solver.py      # Solver(ABC): setup/run/fields; SolverResult; registry + doctor
-    particles.py   # ForceRegistry, ParticleState, LagrangianTracker (solve_ivp, vektörize)
+    particles.py   # ForceRegistry, ParticleState, LagrangianTracker (solve_ivp veya
+                   # sabit adımlı RK4; süreksizlik kırılma noktaları; kuvvet geçmişi)
     io.py          # save/load NetCDF+Parquet; RTCA CSV/xlsx, TIFF yığını okuyucuları
     viz/
       fields3d.py   # PyVista
@@ -74,11 +75,18 @@ biosim_lab/
     statistics.py  # Wilson aralığı, tekrar özeti (Student t)
     plugin.py      # Instrument(ABC), optional_import, discover_instruments
   instruments/
-    saw_sorter/    # AŞAMA 1 — tam
+    saw_sorter/    # AŞAMA 1 — tam; üç çalışma kipi: ssaw | tassaw | alternating_baw
       viability.py            # CEM43 termal doz, kayma, kavitasyon; canlı/ölü
       calibration.py          # boncuk yörüngesinden akustik enerji yoğunluğu (Barnkob 2010)
       physics/acoustics.py    # Gor'kov, ARF, kontrast faktörü, SAW alanı,
-                              # eğik açılı SSAW tutulma sınırı ve kesme boyutu
+                              # eğik açılı SSAW tutulma sınırı ve kesme boyutu,
+                              # dBm → p0 dönüşümü
+      physics/baw.py          # hacim (BAW) rezonansları: mod numarası, düğümler,
+                              # kuvvet, kapalı-form yörünge (Barnkob 2010)
+      switching.py            # zaman-anahtarlamalı sürüş takvimi (hücre başına saat)
+      metrics.py              # makalelerin birebir tanımları: capture efficiency,
+                              # contamination, recovery, removal, ΔY
+      design.py               # tasarım kuralından E_ac, çalışma penceresi (Youden J)
       physics/drag.py         # Stokes sürüklenme, Re denetimi
       physics/secondary.py    # Bjerknes, yerçekimi/kaldırma, duvar itme (varsayılan kapalı)
       flow.py                 # Dikdörtgen kanal Poiseuille (Fourier serisi)
@@ -98,6 +106,13 @@ biosim_lab/
     solver_openfoam/ # AŞAMA 4 — yalnızca iskelet + C++/controlDict şablonları
     solver_elmer/    # AŞAMA 4 — yalnızca iskelet + .sif şablonu
   cli.py
+benchmarks/      # AŞAMA 1B — literatür doğrulaması (kaynak ağacında, pakette değil)
+  common.py        # Check kaydı: PASS / DEVIATION / FAIL / (NOT) REPRODUCED / CALIBRATION
+  benchmark_01_tassaw/            # Li et al. 2015, doi:10.1073/pnas.1504484112
+  benchmark_02_alternating_baw/   # Zhang et al. 2023, doi:10.3390/ijms24043338
+    config.yaml  reference.yaml  cases.py  run.py  results/
+  make_report.py   # results/*/summary.json → REPORT.md
+  REPORT.md
 ```
 
 ---
@@ -176,17 +191,19 @@ config.yaml
    ▼
 ExperimentConfig ──► materials.py (MCF-7, RBC: ρ, β, r-dağılımı, DOI)
    │
-   ├─ mode="analytic" ─► acoustics.standing_wave_pressure(x)  ─┐
-   │                                                           │
-   └─ mode="fem" ─► geometry.straight_channel (Gmsh)           │
+   ├─ mode="ssaw"   + field_model="analytic" ─► 1-B SSAW yasası ─┐
+   ├─ mode="tassaw" ─► eğik izdüşümlü 1-B yasa (düğüm düzlemi θ)  ─┤
+   ├─ mode="alternating_baw" ─► baw.radiation_force(n(t), E(t))   ─┤
+   │      switching.Schedule: hücre başına giriş fazı, RK4          │
+   └─ field_model="fem" ─► geometry.straight_channel (Gmsh)      │
                      └► fem/helmholtz.py (scikit-fem)          │
                         └► p(x,y) ─► ∇ ile Gor'kov kuvveti ────┤
                                                                ▼
                                           ForceRegistry: ARF + drag + (opsiyonel)
                                                                │
-                                              particles.py  solve_ivp (vektörize)
+                              particles.py  solve_ivp | RK4 (vektörize, kırılma noktalı)
                                                                ▼
-                                     trajectories → metrics (verim, saflık, histogram)
+                     trajectories → metrics.py (capture, contamination, recovery, ΔY)
                                                                ▼
                                      io.py → results.nc / .parquet / .csv
                                                                ▼
@@ -219,6 +236,11 @@ ExperimentConfig ──► materials.py (MCF-7, RBC: ρ, β, r-dağılımı, DOI
 | Kütle korunumu | Parçacık sayısı korunur; kanal dışına kaçan parçacık yok |
 | Eklenti izolasyonu | OpenFOAM/Elmer kurulu değilken tüm paket geçer |
 | Streaming (opsiyonel) | Kurulu ise 2D Rayleigh streaming analitik çözümü ile karşılaştırma |
+| RK4 ↔ kapalı form | Tek modlu BAW yörüngesi (Barnkob 2010): 5 ms adımda < 1 nm |
+| RK4 ↔ solve_ivp | Anahtarlamalı koşu: ortak örnek zamanlarında < 1 µm, aynı çıkış ataması |
+| Adım yakınsaması | dt = 1 ms ve 5 ms aynı metrikleri verir |
+| BAW ↔ spesifikasyon formülü | `4πΦ_B a³kE sin 2ky` ≡ `−(πp₀²Vβ/2λ)Φ sin 2k(y−y_düğüm)`, rtol 1e-10 |
+| **Literatür (Aşama 1B)** | `benchmarks/REPORT.md`: iki makale; eğilimler zorunlu test, nicel sapmalar DEVIATION olarak raporlanır (`tests/test_benchmarks.py`) |
 
 ---
 
@@ -226,7 +248,8 @@ ExperimentConfig ──► materials.py (MCF-7, RBC: ρ, β, r-dağılımı, DOI
 
 | Aşama | Kapsam | Durum |
 |-------|--------|-------|
-| 1 | `saw_sorter` tam: analitik + FEM, metrikler, tarama, pano, testler | **Tam** |
+| 1 | `saw_sorter` tam: analitik + FEM, üç kip (ssaw, tassaw, alternating_baw), metrikler, tarama, pano, testler | **Tam** |
+| 1B | Literatür doğrulaması: Li 2015 (taSSAW), Zhang 2023 (alternatif frekanslı BAW) | **Tam** — `benchmarks/REPORT.md` |
 | 2 | `impedance_rtca`: Giaever–Keese kabuk modeli, Cell Index, IC50, RTCA parser | **Minimal çalışır** |
 | 3 | `cell_counter`, `cell_tracker`: watershed + trackpy, sentetik veri üreteci | **İskelet + demo** |
 | 4 | `solver_openfoam`, `solver_elmer` | **Yalnızca iskelet + şablon** |
@@ -292,3 +315,20 @@ Bunların hepsi kodda da belgelidir; buradaki liste tam kümedir.
    şablonu tam olarak eşdeğer bir yapılandırılmış üçgenlemeye düşer; yalnızca PDMS duvar
    katmanı Gmsh gerektirir. Bazı platformlarda (linux/arm64) Gmsh wheel'i yoktur, bu
    yüzden çekirdek bağımlılığı değildir.
+
+12. **dBm → basınç dönüşümü kalibrasyondur, ölçüm değildir** (`mode="tassaw"`).
+   `p₀ ∝ √P` enerji korunumudur; `p₀² ∝ 1/L_IDT` makalenin sözel ifadesinin en basit
+   okumasıdır (**ASSUMPTION**). Referans basınç benchmark_01'de tek bir belirtilmiş koşula
+   (optimum eğim 5°) kalibre edilir; kendi cihazınız için ölçün.
+
+13. **BAW enerji yoğunlukları kalibrasyondur** (`mode="alternating_baw"`). Zhang 2023 E_ac
+   vermez; iki modun E_ac'si makalenin sözel tasarım kurallarından türetilir
+   (`design.py`). Kanal ekseni boyunca genlik düzgün kabul edilir; piezo kenar etkileri,
+   akustik streaming ve atalet kaldırma kuvveti yoktur. Bu yüzden örnek akışının W/3
+   antinoduna değen kenarındaki hücreler gerçekte olduğundan kolay karşıya geçer
+   (benchmark_02'deki yüksek kontaminasyonun başlıca nedeni).
+
+14. **Sıkıştırılabilirlik yönü.** Gor'kov teorisinde daha sıkıştırılabilir hücrenin
+   kontrast faktörü küçüktür. Zhang 2023 Şekil 1'deki sıralamayla (kanser > PBMC)
+   sıkıştırılabilirlik farkı ayrışmaya yardım etmez, zarar verir; benzer boyutlu
+   CTC/PBMC ayrışması iddiası bu modelle yeniden üretilemez (REPORT.md, karşıt-olgu).

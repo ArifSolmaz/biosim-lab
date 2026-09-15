@@ -51,7 +51,7 @@ jobs:
           pip install -e ".[mesh,dev]"
 
       - name: Lint
-        run: ruff check biosim_lab tests examples streamlit_app.py
+        run: ruff check biosim_lab tests examples benchmarks streamlit_app.py
 
       - name: Tests
         run: pytest --cov=biosim_lab --cov-report=term-missing --cov-report=xml

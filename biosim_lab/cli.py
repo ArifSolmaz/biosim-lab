@@ -9,6 +9,7 @@ Commands
 ``biosim sweep <config.yaml>``   parameter sweep, writes a long table + NetCDF
 ``biosim dashboard <target>``    serve the interactive dashboard in a browser
 ``biosim materials``            the material library with its DOIs and ASSUMPTIONs
+``biosim benchmark [01|02|all]`` Stage 1B literature benchmarks and benchmarks/REPORT.md
 """
 
 from __future__ import annotations
@@ -280,6 +281,40 @@ def sweep(
     df.to_csv(csv_path, index=False)
     for kind, path in (("table", table_path), ("netcdf", nc_path), ("csv", csv_path)):
         console.print(f"[green]wrote[/green] {kind}: {path}")
+
+
+@app.command()
+def benchmark(
+    which: str = typer.Argument("all", help="01 (Li 2015 taSSAW), 02 (Zhang 2023 BAW) or all"),
+    quick: bool = typer.Option(False, "--quick", help="coarse grids, for a smoke test"),
+    report: bool = typer.Option(True, "--report/--no-report",
+                                help="regenerate benchmarks/REPORT.md afterwards"),
+) -> None:
+    """Re-run the literature benchmarks (Stage 1B) and rebuild their report.
+
+    The benchmarks are part of the source tree, not the installed package: run
+    this from a checkout (``git clone``), where ``benchmarks/`` sits next to
+    ``biosim_lab/``.
+    """
+    import importlib
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    if not (root / "benchmarks" / "common.py").exists():
+        raise typer.BadParameter(
+            "benchmarks/ not found next to the package; run from a source checkout"
+        )
+    sys.path.insert(0, str(root))
+    targets = {"01": "benchmarks.benchmark_01_tassaw.run",
+               "02": "benchmarks.benchmark_02_alternating_baw.run"}
+    chosen = list(targets) if which == "all" else [which]
+    for key in chosen:
+        if key not in targets:
+            raise typer.BadParameter(f"unknown benchmark {key!r}; choose 01, 02 or all")
+        console.print(f"[bold]benchmark {key}[/bold] …")
+        importlib.import_module(targets[key]).main(["--quick"] if quick else [])
+    if report:
+        importlib.import_module("benchmarks.make_report").main()
 
 
 @app.command()

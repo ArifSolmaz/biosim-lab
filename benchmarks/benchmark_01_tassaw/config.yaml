@@ -1,0 +1,56 @@
+# benchmark_01 — tilted-angle SSAW CTC separator of Li et al. (2015),
+# PNAS 112:4970, doi:10.1073/pnas.1504484112.
+#
+# Runnable on its own:   biosim run benchmarks/benchmark_01_tassaw/config.yaml
+# Full benchmark:        python -m benchmarks.benchmark_01_tassaw.run
+#
+# Values marked STATED come from the paper's text (see reference.yaml for the
+# quotes). Values marked ASSUMPTION are not in the paper. The one CALIBRATED
+# value, reference_pressure, is fitted by run.py to ONE stated condition (the
+# optimum tilt of Fig. 2A); every other paper number is then a prediction.
+name: li2015_tassaw_rare_cells
+instrument: saw_sorter
+seed: 20150421
+description: >-
+  Li et al. 2015 taSSAW device at the rare-cell operating point
+  (37.5 dBm, 5 deg, 10 mm IDTs, 75 uL/min gross), MCF-7 against leukocytes.
+output_dir: runs/   # where `biosim run` writes; results/ holds the benchmark run
+params:
+  mode: tassaw
+  frequency: 19.573 MHz               # STATED (p. 4973)
+  tilt_angle_deg: -5.0                # STATED magnitude (p. 4972); sign: drift toward +x, away from the inlet wall
+  channel_width: 800 um               # STATED (p. 4972)
+  channel_height: 110 um              # STATED (p. 4972)
+  channel_length: 10 mm               # STATED IDT length (p. 4972) = acoustically active length
+  flow_rate: 75 uL/min                # STATED gross flow (p. 4971)
+  sheath_ratio: 2.5                   # STATED 2.5:1 sheath-to-sample (p. 4971); sets the sample stream width
+  inlet: side                         # ASSUMPTION: one sheath-focused sample stream along one wall
+  inlet_side: left
+  inlet_weighting: flux
+  fluid: pbs                          # STATED: cells resuspended in PBS (p. 4973)
+  substrate: linbo3_128yx             # STATED LiNbO3 (p. 4972); 128 deg YX cut is an ASSUMPTION
+  temperature: 25 degC                # ASSUMPTION: room temperature
+  outlet_layout: lateral_split
+  split_position: 0.5                 # ASSUMPTION: divider on the channel midline; the paper gives no outlet geometry
+  collect_side: right
+  power_drive:
+    power_dbm: 37.5                   # STATED (p. 4972, "~37.5 dBm")
+    reference_power_dbm: 35.0         # STATED simulation power (p. 4971)
+    reference_idt_length: 10 mm
+    reference_pressure: 0.4414 MPa    # CALIBRATED by run.py; see REPORT.md
+    reference_source: >-
+      CALIBRATED: the pressure at 35 dBm and 10 mm IDTs for which the optimum
+      tilt at 75 uL/min is 5 deg (Li 2015 p. 4971). Not a measured value; the
+      dBm-to-pressure conversion is this benchmark's largest assumption.
+  track_viability: false
+  populations:
+    - cell_type: mcf7                 # library: 18 um (Hartono 2011, doi:10.1039/c1lc20241b)
+      count: 300
+      target: true
+      label: MCF-7
+    - cell_type: wbc
+      count: 300
+      label: WBC
+      diameter: 12 um
+      override_doi: 10.1073/pnas.1504484112
+      override_source: "Li et al. 2015, p. 4975: 'WBCs (diameter ~12 um)'"

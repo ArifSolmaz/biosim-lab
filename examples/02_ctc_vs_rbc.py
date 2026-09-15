@@ -55,7 +55,7 @@ def build_params() -> SAWSorterParams:
         substrate="linbo3_128yx",
         inlet="sheath_sides",
         collection_fraction=1 / 3,
-        mode="analytic",
+        field_model="analytic",
         populations=[
             {"cell_type": "mcf7", "count": 400, "target": True},
             {"cell_type": "rbc", "count": 400, "target": False},
@@ -115,7 +115,7 @@ def main() -> None:
     for label, phi in outcome.diagnostics["contrast_factors"].items():
         cell = get_cell(label)
         print(f"  {label:10s} Phi = {phi['phi_classical']:.4f} (classical), "
-              f"{phi['phi_effective_ssaw']:.4f} (SSAW effective), r = {cell.r * 1e6:.2f} um")
+              f"{phi['phi_effective']:.4f} (SSAW effective), r = {cell.r * 1e6:.2f} um")
     for w in caught:
         print(f"\n  [{w.category.__name__}] {w.message}")
 

@@ -52,6 +52,7 @@ pyvista>=0.43          # off-screen 3-D field rendering; imports without system
                        # OpenGL, and the web app uses Plotly rather than VTK
 panel>=1.4             # the desktop dashboards, importable here for completeness
 bokeh>=3.4             # Panel's rendering back-end
+tornado>=6.2,<6.5.9    # 6.5.9 breaks bokeh's static handler (see pyproject.toml)
 
 # --- result files ----------------------------------------------------------
 pyarrow>=15            # Parquet

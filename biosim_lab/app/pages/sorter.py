@@ -363,7 +363,7 @@ def page_sorter() -> None:
         contrast = pd.DataFrame(
             [
                 {"population": k, "Φ (classical)": v["phi_classical"],
-                 "Φ effective (this device)": v["phi_effective_ssaw"]}
+                 "Φ effective (this device)": v["phi_effective"]}
                 for k, v in d["contrast_factors"].items()
             ]
         )

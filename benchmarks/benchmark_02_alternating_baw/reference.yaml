@@ -1,0 +1,138 @@
+# Reference values for benchmark_02 — Zhang et al. (2023), Int J Mol Sci
+# 24(4):3338, doi:10.3390/ijms24043338 (open access, CC BY 4.0).
+#
+# RULE: only numbers stated in the paper's TEXT or TABLES are reference values.
+# Nothing is read off a plot. Sections refer to the published article.
+
+paper:
+  doi: 10.3390/ijms24043338
+  citation: "Zhang Y, Zhang Z, Zheng D, Huang T, Fu Q, Liu Y (2023) Label-Free Separation of Circulating Tumor Cells and Clusters by Alternating Frequency Acoustic Field in a Microfluidic Chip. Int J Mol Sci 24(4):3338"
+
+device:
+  channel:
+    quote: "A microchannel with a rectangular cross-section (737 μm wide and 50 μm deep) was fabricated on a silicon wafer by reactive ion etching."
+    section: "4.1"
+    width_um: 737.0
+    depth_um: 50.0
+  outlets:
+    quote: "The microfluidic chip channel has two inlets and three outlets"
+    section: "4.1"
+  lid_and_transducer:
+    quote: "The top of the channel was sealed with a piece of transparent Pyrex and the bottom of the channel was attached with a piezoceramic"
+    section: "4.1"
+  frequencies:
+    quote: "The piezoceramic operated in alternating frequency mode with a fundamental frequency of 1 MHz and a harmonic of 3 MHz."
+    section: "4.1"
+    value_mhz: [1.0, 3.0]
+  nodes:
+    quote: "for the 1 MHz mode, only one node was formed at the midline of the microchannel (i.e., y = W/2). For the 3 MHz mode, three nodes were formed at y = W/6, y = W/2, and y = 5W/6."
+    section: "4.2"
+  flows:
+    quote: "The flow rate of the cell channel was fixed at 50 μL/h while the flow rate of the sheath flow was fixed at 100 μL/h."
+    section: "2.2"
+    sample_ul_h: 50.0
+    sheath_ul_h: 100.0
+  inlet:
+    quote: "the initial position of the cells in y direction were limited to y0 < W/3 region by setting the ratio of the sample inlet flow to that of the sheath flow to 1:2."
+    section: "4.2"
+  drive_3mhz:
+    quote: "the duration of the 3 MHz sine signal with a fixed amplitude of 110 Vpp. The duration and amplitude of the 1 MHz sine signal were set to 0.8 s and 9 Vpp, respectively."
+    section: "2.2"
+    voltage_vpp: 110.0
+  drive_1mhz: {duration_s: 0.8, voltage_vpp: 9.0, section: "2.2"}
+  drive_fig2bc:
+    quote: "while the duration and amplitude of the 3 MHz sine signal were set to 1.4 s and 110 Vpp."
+    section: "2.2"
+    duration_3mhz_s: 1.4
+  energy_density:
+    value: null
+    note: >-
+      Not stated. "the separation effect depends on the acoustic energy densities
+      and durations of the acoustic field" (Sec. 4.2) — but no E_ac or pressure is
+      given for either mode. This benchmark calibrates both; see config.yaml.
+  acoustic_length:
+    value: null
+    note: Not stated. ASSUMED in config.yaml, with a sensitivity sweep in case (d).
+  integrator:
+    quote: "the trajectories of the cells in the microchannel can be simulated by numerical solution using fourth-order Runge–Kutta method"
+    section: "4.2"
+
+rules:
+  design_rule:
+    quote: "During 1 MHz mode, the displacement of MCF7 cells in the y direction should be greater than W/6, while that of PBMCs should be less than W/6, thus ensuring that they are pulled to different nodes after switching to 3 MHz mode."
+    section: "4.2"
+  min_cycles:
+    quote: "Cells must undergo at least two switching cycles in the acoustic field."
+    section: "4.2"
+    value: 2
+  return_quickly:
+    quote: "During 3 MHz mode, the cells should be pulled back to the nodes as quickly as possible."
+    section: "4.2"
+  theory_best_inlet:
+    quote: "In theory, best separation can be achieved by limiting the initial position to y0 < W/6, but the throughput will be greatly reduced."
+    section: "4.2"
+
+cells:
+  line_diameter_range_um:
+    quote: "The diameter of the cells from cancer cell lines was 14.8–19.6 μm, which was significantly larger than that of the PBMCs from a healthy volunteer."
+    section: "2.1"
+    value: [14.8, 19.6]
+  compressibility_unit:
+    quote: "The unit of cell compressibility was 10−10 Pa−1."
+    note: Per-cell values appear only as box plots (Fig. 1); they are not reference values.
+  wbc_healthy_range_um:
+    quote: "even WBCs from healthy donors shows a wide range in size (8–15 μm)"
+    section: "3"
+    value: [8.0, 15.0]
+
+definitions:
+  capture_efficiency: {quote: "Capture efficiency = CCs_captured/CCs_in", equation: 1}
+  contamination_rate: {quote: "PBMCs contamination rate = PBMCs_captured/PBMCs_in", equation: 2}
+  captured:
+    quote: "the captured cancer cells or PBMCs were counted as the ones that converged to the midline of the microchannel as observed in the microscope"
+    section: "4.6"
+
+results:
+  fig2a_trend:
+    quote: "As the duration increased, the capture efficiency changed little, while the contamination rate decreased significantly and reached a minimum value when the duration was greater than 1 s"
+    section: "2.2"
+  fig2bc_trend:
+    quote: "As the duration or amplitude of the 1 MHz sine wave signal increased, more cancer cells and PBMCs moved to the midline of the channel, increasing both the capture efficiency and contamination rate. However, the increase in contamination rate was much smaller than the increase in capture efficiency"
+    section: "2.2"
+  fig2bc_window:
+    quote: "Therefore, there is a window in which high separation efficiency can be achieved with low contamination rate."
+    section: "2.2"
+  fig8_entry:
+    quote: "When cells enter the acoustic field during the 3 MHz mode or at the end of the 1 MHz mode (Figure 8b and Figure S3), the MCF7 cells and PBMCs can be completely separated. Only when cells enter the acoustic field at the beginning of the 1 MHz mode (Figure 8a), a small portion of PBMCs will be concentrated to the midline, which increases the contamination rate."
+    section: "4.2"
+  fig8_two_cycles:
+    quote: "After two switching cycles, the MCF7 cells were pushed to concentrate at the midline of the channel and flowed downstream, while most of the PBMCs were confined to flow around the node (y = W/6) of 3 MHz acoustic field"
+    section: "4.2"
+  fig4_flow:     # A549 + PBMCs (Sec. 2.3)
+    cell_line: A549
+    capture_percent:
+      "150": {mean: 94.6, sd: 2.7}
+      "300": {mean: 95.8, sd: 1.5}
+      "900": {mean: 84.0, sd: 1.0}
+    contamination_percent: 1.0
+    quote: "the capture efficiency did not change at flow rates of 150 μL/h (capture efficiency was 94.6 ± 2.7%) and 300 μL/h (capture efficiency was 95.8 ± 1.5%). When the flow rate increased to 900 μL/h, the cell capture efficiency decreased to 84.0 ± 1.0%. However, the PBMCs contamination rate did not change significantly with the increase in the flow rate, maintaining at about 1%"
+    section: "2.3"
+  fig4_durations:
+    quote: "As the flow rate increased, the time for the cell to flow through the microchannel becomes shorter, so the durations of the acoustic field should be reduced correspondingly."
+    section: "2.3"
+    note: The reduced durations actually used are not stated.
+  table1:
+    quote: "With appropriate parameters, the separation efficiency can be as high as 95%, while the contamination rate is about 1%."
+    lines:
+      MCF7: {capture: [95.0, 2.8], contamination: [1.3, 1.4]}
+      HCT116: {capture: [94.4, 0.5], contamination: [1.7, 0.3]}
+      A549: {capture: [94.6, 2.7], contamination: [1.5, 0.5]}
+  table1_parameters:
+    quote: "Although the three cell lines differed in size and compressibility (Figure 1), a window for high efficiency and low contamination rate could be obtained with different parameters (Figure S1)."
+    section: "2.2"
+  similar_size_claim:
+    quote: "Effective separation was achieved even when the size of CTCs is similar to that of PBMCs"
+    section: Abstract
+  similar_size_claim_2:
+    quote: "In the existing acoustic separation methods, our device was the first to successfully separate CTCs from PBMCs with similar sizes."
+    section: "3"
