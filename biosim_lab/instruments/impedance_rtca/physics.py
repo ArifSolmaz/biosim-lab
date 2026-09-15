@@ -44,7 +44,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.optimize import curve_fit
-from scipy.special import iv
+from scipy.special import ellipk, iv
 
 EPS0 = 8.8541878128e-12
 """Vacuum permittivity [F/m], CODATA 2018 (doi:10.1103/RevModPhys.93.025010)."""
@@ -269,6 +269,184 @@ def well_impedance(
     )
 
 
+# ---------------------------------------------------------------------------
+# interdigitated electrodes
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class IDEGeometry:
+    """Coplanar gold interdigitated electrode (IDE): two combs of N fingers in total.
+
+    RTCA plates measure between two interdigitated combs of equal size, not
+    between a small working electrode and a large counter electrode as classic
+    ECIS does. Two things follow, and both are in :func:`ide_well_impedance`:
+    the two interfaces sit **in series**, and the bulk resistance is set by the
+    finger pattern, not by the spreading resistance of a disc.
+
+    Attributes
+    ----------
+    finger_width, finger_spacing:
+        Metal width ``w`` and gap ``s`` [m].
+    finger_length:
+        Length of each finger [m].
+    n_fingers:
+        Total fingers, both combs together (``N``; ``N - 1`` gaps).
+
+    **ASSUMPTION** in the defaults: a generic 50/50 um gold IDE filling a
+    3 x 3 mm patch, the scale of a 96-well plate bottom. The dimensions of the
+    commercial E-Plate electrodes are not published; replace these with your
+    own chip's before comparing absolute impedances.
+    """
+
+    finger_width: float = 50e-6
+    finger_spacing: float = 50e-6
+    finger_length: float = 3e-3
+    n_fingers: int = 30
+
+    @property
+    def period(self) -> float:
+        """Distance between neighbouring fingers of opposite combs, ``w + s`` [m]."""
+        return self.finger_width + self.finger_spacing
+
+    @property
+    def metallisation_ratio(self) -> float:
+        """``eta = w / (w + s)``."""
+        return self.finger_width / self.period
+
+    @property
+    def comb_area_cm2(self) -> float:
+        """Metal area of ONE comb [cm^2] (half the fingers)."""
+        return 0.5 * self.n_fingers * self.finger_width * self.finger_length * 1e4
+
+    @property
+    def active_comb_area_cm2(self) -> float:
+        """Metal area of one comb that faces the other across a gap [cm^2].
+
+        ``(N - 1) w L / 2``: the outer halves of the two end fingers have no
+        neighbour. The same ``N - 1`` convention the cell constant uses, so the
+        interface and bulk terms describe the same electrode; the difference
+        from :attr:`comb_area_cm2` is ``1/N`` (3 % for 30 fingers).
+        """
+        return 0.5 * (self.n_fingers - 1) * self.finger_width * self.finger_length * 1e4
+
+    @property
+    def footprint_cm2(self) -> float:
+        """Area the finger pattern spans [cm^2]."""
+        return self.n_fingers * self.period * self.finger_length * 1e4
+
+
+def ide_cell_constant(geometry: IDEGeometry) -> float:
+    """Cell constant ``K_cell`` [1/m] of a coplanar IDE under a deep electrolyte.
+
+    ``K_cell = 2 / ((N - 1) L) * K(k) / K(k')``,
+    ``k = cos(pi/2 * w / (w + s))``, ``k' = sqrt(1 - k^2)``,
+
+    with ``K`` the complete elliptic integral of the first kind, from the
+    conformal map of the periodic finger pattern (Olthuis et al. 1995,
+    *Theoretical and experimental determination of cell constants of
+    planar-interdigitated electrolyte conductivity sensors*, Sens. Actuators B
+    24-25:252, doi:10.1016/0925-4005(95)85053-8). The bulk resistance is
+    ``R = K_cell / sigma``. Valid when the electrolyte is several periods
+    deep, which a well of medium always is. The electro-quasistatic FEM on
+    :func:`~biosim_lab.core.geometry.ide_unit_cell_2d` reproduces it to 0.2 %.
+    """
+    g = geometry
+    if g.n_fingers < 2:
+        raise ValueError("an interdigitated electrode needs at least two fingers")
+    k = np.cos(0.5 * np.pi * g.metallisation_ratio)
+    k_prime = np.sqrt(1.0 - k**2)
+    # scipy's ellipk takes the parameter m = k^2, not the modulus k.
+    ratio = ellipk(k**2) / ellipk(k_prime**2)
+    return float(2.0 / ((g.n_fingers - 1) * g.finger_length) * ratio)
+
+
+def ide_solution_resistance(geometry: IDEGeometry, *, conductivity: float) -> float:
+    """Bulk electrolyte resistance between the two combs, ``K_cell / sigma`` [Ohm]."""
+    return ide_cell_constant(geometry) / float(conductivity)
+
+
+def ide_bulk_impedance(
+    frequency: np.ndarray, geometry: IDEGeometry, *, conductivity: float,
+    permittivity_rel: float = 78.0,
+) -> np.ndarray:
+    """``K_cell / sigma*`` [Ohm], with ``sigma* = sigma + i omega eps0 eps_r``.
+
+    The electrolyte is a leaky capacitor, and above a few MHz the displacement
+    current is no longer negligible (3 % of the conduction current at 10 MHz
+    in saline).
+    """
+    omega = 2.0 * np.pi * np.asarray(frequency, dtype=float)
+    sigma_star = float(conductivity) + 1j * omega * EPS0 * float(permittivity_rel)
+    return ide_cell_constant(geometry) / sigma_star
+
+
+def ide_well_impedance(
+    frequency: np.ndarray,
+    *,
+    coverage: float | np.ndarray,
+    geometry: IDEGeometry,
+    conductivity: float = 1.4,
+    rb: float = 2.0,
+    specific_capacitance: float = 1.0e-6,
+    cell_radius: float = 8.0e-6,
+    gap_height: float = 100e-9,
+    cpe_q: float = 3.0e-5,
+    cpe_n: float = 0.92,
+    permittivity_rel: float = 78.0,
+) -> np.ndarray:
+    """Impedance of a cell-covered IDE [Ohm], lumped (uniform-current) model.
+
+    ``Z = 2 z_c / A_comb + K_cell / sigma*``: each comb's interface --- the
+    CPE double layer, covered by the Giaever-Keese cell layer
+    (doi:10.1073/pnas.88.17.7896) at the given coverage --- in series with the
+    other comb's and with the bulk resistance of the finger pattern
+    (:func:`ide_cell_constant`).
+
+    It assumes current crosses each finger uniformly. That fails when the
+    interface impedance is small next to the electrolyte resistance across a
+    finger (a small :func:`wagner_number`), where current crowds onto the
+    finger edges; the FEM model (``fem_model.IDEFieldModel``) solves that
+    case, and the two agree when the Wagner number is large.
+    *coverage* may be an array (one impedance per coverage, broadcast against
+    *frequency*).
+    """
+    z_naked = electrode_specific_impedance(frequency, cpe_q=cpe_q, cpe_n=cpe_n)
+    alpha = alpha_parameter(cell_radius, gap_height, 1.0 / conductivity)
+    z_covered = giaever_keese_impedance(
+        frequency, z_naked_specific=z_naked, rb=rb, alpha=alpha,
+        specific_capacitance=specific_capacitance, coverage=1.0,
+    )
+    cov = np.asarray(coverage, dtype=float)
+    z_spec = _parallel_coverage(z_covered, z_naked, cov)
+    return 2.0 * z_spec / geometry.active_comb_area_cm2 + ide_bulk_impedance(
+        frequency, geometry, conductivity=conductivity, permittivity_rel=permittivity_rel
+    )
+
+
+def _parallel_coverage(z_covered: np.ndarray, z_naked: np.ndarray,
+                       coverage: np.ndarray) -> np.ndarray:
+    """Covered and bare patches in parallel, ``1/z = c/z_cov + (1-c)/z_bare``, vectorised."""
+    c = np.clip(coverage, 0.0, 1.0)
+    return 1.0 / (c / z_covered + (1.0 - c) / z_naked)
+
+
+def wagner_number(
+    specific_impedance_ohm_cm2: complex | np.ndarray, *, conductivity: float,
+    length: float,
+) -> np.ndarray:
+    """``Wa = |z_s| sigma / L``: interface against electrolyte resistance over *length*.
+
+    Large ``Wa`` means the interface dominates and current spreads uniformly
+    over the electrode (a lumped model is exact); small ``Wa`` means it crowds
+    at the edges. Newman, *Electrochemical Systems*, 3rd ed., section 18.3
+    (ISBN 978-0-471-47756-3; the Wagner number is the ratio of polarisation to
+    ohmic resistance).
+    """
+    z_si = np.abs(np.asarray(specific_impedance_ohm_cm2)) * 1e-4  # Ohm*m^2
+    return z_si * float(conductivity) / float(length)
+
+
 def shell_model_permittivity(
     frequency: np.ndarray,
     *,
@@ -404,6 +582,12 @@ __all__ = [
     "well_impedance",
     "giaever_keese_impedance",
     "shell_model_permittivity",
+    "IDEGeometry",
+    "ide_cell_constant",
+    "ide_solution_resistance",
+    "ide_bulk_impedance",
+    "ide_well_impedance",
+    "wagner_number",
     "cell_index",
     "four_parameter_logistic",
     "DoseResponseFit",

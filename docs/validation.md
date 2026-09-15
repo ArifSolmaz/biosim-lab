@@ -118,6 +118,23 @@ puanlanır:
 | Ölçülen hız | 0.1446 µm/dk (gerçek 0.1430 — **%1 hata**) |
 | MSD üsteli | 1.89 (kalıcı yürüyüş, beklendiği gibi süperdifüzif) |
 
+## İnterdijital elektrot / Interdigitated electrode (Aşama 2)
+
+`tests/test_ide_electrode.py`, iki bağımsız yolu karşılaştırır:
+
+| Karşılaştırma | Tolerans | Gözlenen |
+|---|---|---|
+| Saf iletimde FEM ↔ Olthuis konform eşleme hücre sabiti (η = 0.2, 0.5, 0.8) | %0.3 | %0.10–0.14 (n = 64) |
+| FEM iletkenliği ağ sıklaştıkça yukarıdan monoton yakınsar | — | ✓ |
+| Baskın arayüz (Wa > 100): FEM ↔ toplu seri model | %0.05 | %0.00 |
+| Yok olan arayüz: FEM ↔ hacim direnci | %0.5 | ✓ |
+| Wa ≈ 1'de toplu model düşük tahmin eder (akım yığılması) | −%2 … −%8 | ≈ −%5 |
+| Varsayılan çözünürlükte ağ yakınsaması | %0.5 | %0.2 |
+
+Aynı çalışma çekirdek çözücüdeki bir hatayı ortaya çıkardı: terminal akımı
+yüzey gradyan akısıyla hesaplanıyordu ve bu, eşdüzlemli elektrot kenarındaki
+tekillikte %2–7 hatada takılıyordu; artık reaksiyondan hesaplanıyor.
+
 ## Literatür doğrulaması / Literature benchmarks (Aşama 1B)
 
 İki yayımlanmış akustik CTC ayırıcısı referans vaka olarak yeniden üretilir;

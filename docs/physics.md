@@ -244,6 +244,45 @@ içinde; tam çözüm Aşama 4'tür ve arka uç kurulu değilken platform şunu 
 **Doğrulama:** paralel plaka geometrisinde `Z = L/(σ*A)` ile makine hassasiyeti
 düzeyinde (bağıl fark < 1e-9) uyuşur.
 
+**Terminal akımı reaksiyondan hesaplanır.** Potansiyeli sabit bir elektrodun
+akımı, ayrık sistemin artığı `(Aφ − b)`'nin o elektrodun serbestlik
+dereceleri üzerinden toplamıdır; empedans elektrotlarında `∫(φ_e − φ)/z_s dS`.
+Yüzeyde `σ*∇φ·n` integrali (önceki yöntem) eşdüzlemli bir elektrotta —
+kenarında akım yoğunluğu `r^-1/2` ile tekildir — tutarsızdır: interdijital
+hücrede her ağ yoğunluğunda konform eşleme çözümünden %2–7 uzakta takılıyordu;
+reaksiyon ise ona yukarıdan, monoton yakınsar.
+
+### 3.1b İnterdijital elektrot (IDE)
+
+RTCA plakası iki eşit altın tarak arasında ölçer, klasik ECIS gibi küçük bir
+çalışma diski ile büyük bir karşı elektrot arasında değil. Bundan iki şey çıkar:
+iki arayüz **seridir** ve hacim direnci disk yayılma direnci değil, parmak
+deseninin **hücre sabitidir**:
+
+```
+K_hücre = 2 / ((N − 1) L) · K(k) / K(k'),   k = cos(π/2 · w/(w + s)),  k' = √(1 − k²)
+Z = 2 z_c / A_tarak + K_hücre / σ*
+```
+
+`K` birinci tür tam eliptik integral. **Kaynak:** Olthuis et al. (1995),
+Sens. Actuators B 24–25:252, `doi:10.1016/0925-4005(95)85053-8`. `A_tarak`
+karşısında elektrot bulunan tarak alanıdır, `(N − 1) w L / 2` — hücre sabitiyle
+aynı `N − 1` sözleşmesi.
+
+**Toplu (seri) model akımın parmak boyunca düzgün olduğunu varsayar.** Arayüz
+empedansı, bir parmak boyunca elektrolit direncine göre küçükse (düşük Wagner
+sayısı `Wa = |z_s| σ / (w/2)`; Newman, *Electrochemical Systems*, 3. baskı,
+§18.3) akım parmak kenarlarına yığılır. `field_model: fem` bunu IDE simetri
+hücresinde (`core.geometry.ide_unit_cell_2d`) elektro-kuasistatik Poisson ile
+çözer; arayüz ve Giaever–Keese hücre katmanı Robin sınır koşuludur.
+
+**Doğrulama:** saf iletimde FEM, Olthuis hücre sabitini %0.3 içinde verir ve
+ona yukarıdan monoton yakınsar; baskın arayüzde (Wa ≫ 1) toplu modelle %0.05,
+yok olan arayüzde hacimle %0.5 içinde uyuşur. **Bulgu:** 10 kHz okuma
+frekansında toplu model FEM'e %0.4 yakındır — Cell Index modelden bağımsızdır;
+Wa ≈ 1 geçişinde (100 kHz – 1 MHz) toplu model |Z|'yi %6'ya kadar düşük
+tahmin eder ve hücre örtüsü bu tepeyi daha yüksek frekansa taşır.
+
 ### 3.2 Giaever–Keese hücre örtüsü modeli
 
 ```
@@ -266,6 +305,10 @@ CI(t) = (|Z_hücre(t)| − |Z_arka plan|) / Z_referans
 
 `Z_referans` cihaz firmware'ine ait bir sabittir; 15 Ω varsayılanı **ASSUMPTION**
 etiketlidir ve yalnızca y eksenini ölçekler.
+
+**Normalleştirilmiş Cell Index** `NCI(t) = CI(t) / CI(t_n)`, `t_n` ilaçtan önceki
+son zaman noktası — RTCA yazılımının standart görünümü; ekim yoğunluğu farkları
+düşer, yalnızca bileşiğe yanıt kalır.
 
 ### 3.4 Elektrot arayüzü
 

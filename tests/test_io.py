@@ -92,3 +92,36 @@ def test_image_stack_reader_handles_a_directory(tmp_path):
     assert stack.shape == (3, 8, 8)
     with pytest.raises(FileNotFoundError):
         read_image_stack(tmp_path, pattern="*.png")
+
+
+def test_rtca_reader_normalises_zero_padded_well_labels(tmp_path):
+    path = tmp_path / "padded.csv"
+    path.write_text("Time (Hour),A01,a02,H12\n0,1,2,3\n1,2,3,4\n", encoding="utf-8")
+    assert list(read_rtca_csv(path)["well"].values) == ["A1", "A2", "H12"]
+
+
+def test_rtca_reader_accepts_a_long_format_export(tmp_path):
+    path = tmp_path / "long.csv"
+    lines = ["Plate: demo", "Well,Time (Hour),Cell Index,Normalized Cell Index"]
+    for t in range(3):
+        for well, ci in (("B02", 1.0 + t), ("A1", 0.5 * t)):
+            lines.append(f"{well},{t},{ci},{ci / 2}")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    ds = read_rtca_csv(path)
+    assert ds.attrs["layout"] == "long"
+    assert list(ds["well"].values) == ["A1", "B2"]
+    assert ds["cell_index"].sel(well="B2").values.tolist() == [1.0, 2.0, 3.0]
+    assert ds["time"].values[-1] == pytest.approx(2 * 3600)
+
+
+def test_rtca_reader_reads_xlsx(tmp_path):
+    pytest.importorskip("openpyxl")
+    import pandas as pd
+
+    path = tmp_path / "export.xlsx"
+    frame = pd.DataFrame([["RTCA export", None, None], ["Time (Hour)", "A1", "B3"],
+                          [0.0, 0.1, 0.2], [0.5, 0.4, 0.6]])
+    frame.to_excel(path, header=False, index=False)
+    ds = read_rtca_csv(path)
+    assert list(ds["well"].values) == ["A1", "B3"]
+    assert ds["cell_index"].values[1, 1] == pytest.approx(0.6)

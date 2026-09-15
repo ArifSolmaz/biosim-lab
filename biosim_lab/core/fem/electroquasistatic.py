@@ -106,6 +106,8 @@ class ElectroQuasistaticSolver(Solver):
         self._dirichlet: dict[int, complex] = {}
         self._phi: np.ndarray | None = None
         self._drive: tuple[str, complex] | None = None
+        self._dirichlet_groups: dict[str, np.ndarray] = {}
+        self._robin_groups: dict[str, tuple[complex, complex]] = {}
 
     @property
     def omega(self) -> float:
@@ -136,6 +138,8 @@ class ElectroQuasistaticSolver(Solver):
         b = np.zeros(basis.N, dtype=complex)
         dirichlet: dict[int, complex] = {}
         drive: tuple[str, complex] | None = None
+        dirichlet_groups: dict[str, np.ndarray] = {}
+        robin_groups: dict[str, tuple[complex, complex]] = {}
 
         for cond in _as_bc_list(bc):
             facets = mesh.boundaries.get(cond.where)
@@ -152,6 +156,7 @@ class ElectroQuasistaticSolver(Solver):
                 value = complex(cond.value)
                 for dof in dofs:
                     dirichlet[int(dof)] = value
+                dirichlet_groups[cond.where] = np.asarray(dofs, dtype=int)
                 if value != 0 and drive is None:
                     drive = (cond.where, value)
             elif kind == "contact_impedance":
@@ -171,6 +176,7 @@ class ElectroQuasistaticSolver(Solver):
 
                 A = A + robin.assemble(fbasis)
                 b += load.assemble(fbasis)
+                robin_groups[cond.where] = (z_s, phi_e)
                 if phi_e != 0 and drive is None:
                     drive = (cond.where, phi_e)
             else:
@@ -180,6 +186,7 @@ class ElectroQuasistaticSolver(Solver):
                 )
 
         self._A, self._b, self._dirichlet, self._drive = A, b, dirichlet, drive
+        self._dirichlet_groups, self._robin_groups = dirichlet_groups, robin_groups
         self._phi = None
 
     def run(self) -> None:
@@ -222,24 +229,49 @@ class ElectroQuasistaticSolver(Solver):
 
     # -- post-processing --------------------------------------------------
     def terminal_current(self, electrode: str, depth: float = 1.0) -> complex:
-        """Total complex current [A] flowing out of *electrode*.
+        """Total complex current [A] flowing out of *electrode* into the electrolyte.
 
-        Computed as ``I = integral( sigma* grad(phi) . n ) dS`` over the
-        electrode facets, times *depth* (the out-of-plane electrode length,
-        because the mesh is a 2-D cross-section).
+        Times *depth*, the out-of-plane electrode length (the mesh is a 2-D
+        cross-section). Computed the way the discrete problem defines it:
+
+        * **potential (Dirichlet) electrode** --- the *reaction*: the residual
+          ``(A phi - b)`` summed over the electrode's degrees of freedom. This
+          is the current the discrete solution actually carries, and it
+          converges at the rate of the energy.
+        * **contact-impedance (Robin) electrode** --- ``integral (phi_e - phi)
+          / z_s dS``, a smooth integrand.
+
+        Integrating ``sigma* grad(phi) . n`` over the facets instead --- the
+        obvious formula, and what this method did before --- is inconsistent
+        at a coplanar electrode, whose edge current density is singular: on an
+        interdigitated cell it stalled 2-7 % off the conformal-map answer at
+        any mesh density, while the reaction converges to it
+        (``tests/test_impedance_rtca.py``).
         """
         if self._phi is None or self._basis is None or self._bundle is None:
             raise RuntimeError("call run() before terminal_current()")
-        facets = self._bundle.boundaries[electrode]
-        element = ElementTriP2() if self.element_order == 2 else ElementTriP1()
-        fbasis = FacetBasis(self._bundle.mesh, element, facets=facets)
+        if electrode in self._dirichlet_groups:
+            residual = self._A @ self._phi - self._b
+            current = residual[self._dirichlet_groups[electrode]].sum()
+            return complex(current) * float(depth)
+        if electrode in self._robin_groups:
+            z_s, phi_e = self._robin_groups[electrode]
+            element = ElementTriP2() if self.element_order == 2 else ElementTriP1()
+            fbasis = FacetBasis(self._bundle.mesh, element,
+                                facets=self._bundle.boundaries[electrode])
 
-        @LinearForm(dtype=complex)
-        def flux(v, w, _sigma=self.sigma_star):
-            return _sigma * dot(grad(w["phi"]), w.n) * v
+            @LinearForm(dtype=complex)
+            def through_interface(v, w, _g=1.0 / z_s, _phi_e=phi_e):
+                return _g * (_phi_e - w["phi"]) * v
 
-        current = flux.assemble(fbasis, phi=fbasis.interpolate(self._phi)).sum()
-        return complex(current) * float(depth)
+            current = through_interface.assemble(
+                fbasis, phi=fbasis.interpolate(self._phi)
+            ).sum()
+            return complex(current) * float(depth)
+        raise KeyError(
+            f"{electrode!r} is not a driven or grounded electrode "
+            f"(have: {sorted({*self._dirichlet_groups, *self._robin_groups})})"
+        )
 
     def impedance(self, depth: float = 1.0) -> complex:
         """Complex impedance ``Z = V / I`` [Ohm] seen by the drive electrode."""

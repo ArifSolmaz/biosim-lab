@@ -183,13 +183,60 @@ def _is_well(label: Any) -> bool:
     return bool(_WELL_RE.match(str(label).strip()))
 
 
+def normalise_well_label(label: Any) -> str:
+    """Canonical ``A1`` form: exports write ``A01``, ``a1`` or ``A1`` for the same well."""
+    m = _WELL_RE.match(str(label).strip())
+    if not m:
+        raise ValueError(f"not a well label: {label!r}")
+    return f"{m.group(1).upper()}{int(m.group(2))}"
+
+
+def _read_rtca_long(raw: pd.DataFrame, path: Path, scale: float) -> xr.Dataset | None:
+    """Long-format exports: one row per (well, time) with a Cell Index column.
+
+    Returns ``None`` when no such header is found, so the caller can report
+    the wide-format error instead.
+    """
+    for i in range(min(len(raw), 30)):
+        header = [str(v).strip() for v in raw.iloc[i].tolist()]
+        low = [h.lower() for h in header]
+        well = next((j for j, h in enumerate(low) if h in ("well", "well id", "kuyu")), None)
+        tcol = next((j for j, h in enumerate(low) if re.search(r"time|hour|saat", h)), None)
+        ccol = next((j for j, h in enumerate(low)
+                     if re.search(r"cell ?index|^ci$", h) and "normali" not in h), None)
+        if None in (well, tcol, ccol):
+            continue
+        body = raw.iloc[i + 1:, [well, tcol, ccol]].copy()
+        body.columns = ["well", "time", "ci"]
+        body = body[body["well"].map(_is_well)]
+        body["well"] = body["well"].map(normalise_well_label)
+        body["time"] = pd.to_numeric(body["time"], errors="coerce") * scale
+        body["ci"] = pd.to_numeric(body["ci"], errors="coerce")
+        body = body.dropna(subset=["time"])
+        wide = body.pivot_table(index="time", columns="well", values="ci", aggfunc="mean")
+        wide = wide[sorted(wide.columns, key=lambda w: (w[0], int(w[1:])))]
+        ds = xr.Dataset(
+            {"cell_index": (("time", "well"), wide.to_numpy(dtype=float))},
+            coords={"time": wide.index.to_numpy(dtype=float), "well": list(wide.columns)},
+        )
+        ds.attrs["layout"] = "long"
+        return ds
+    return None
+
+
 def read_rtca_csv(path: str | Path, *, time_unit: str = "hour") -> xr.Dataset:
     """Read an xCELLigence RTCA Cell Index export (CSV or XLSX).
 
-    The RTCA software exports a wide table: one time column (elapsed hours) and
-    one column per well, labelled ``A1`` ... ``H12``.  Some export profiles put
-    a few metadata lines above the header, so the header row is located by
-    looking for the first row whose cells parse as well labels.
+    Two layouts are accepted:
+
+    * **wide** --- one time column (elapsed hours) and one column per well,
+      ``A1`` ... ``P24``. Some export profiles put metadata lines above the
+      header, so the header row is found by looking for well labels.
+    * **long** --- one row per (well, time) with ``Well``, ``Time`` and
+      ``Cell Index`` columns (a Normalized Cell Index column is ignored).
+
+    Well labels are normalised to ``A1`` form (``A01`` and ``a1`` read the
+    same), so measured and simulated plates line up.
 
     Returns
     -------
@@ -202,6 +249,7 @@ def read_rtca_csv(path: str | Path, *, time_unit: str = "hour") -> xr.Dataset:
     else:
         raw = _read_ragged_csv(path)
 
+    scale = {"hour": 3600.0, "minute": 60.0, "second": 1.0}[time_unit]
     header_row = None
     for i in range(min(len(raw), 30)):
         row = raw.iloc[i].astype(str).str.strip()
@@ -209,9 +257,16 @@ def read_rtca_csv(path: str | Path, *, time_unit: str = "hour") -> xr.Dataset:
             header_row = i
             break
     if header_row is None:
-        raise ValueError(
-            f"{path}: no header row with well labels (A1, B2, ...) found in the first 30 rows"
-        )
+        long = _read_rtca_long(raw, path, scale)
+        if long is None:
+            raise ValueError(
+                f"{path}: no header row with well labels (A1, B2, ...) found in the first "
+                "30 rows, and no long-format header (Well / Time / Cell Index) either"
+            )
+        long["time"].attrs["units"] = "s"
+        long["cell_index"].attrs["units"] = "dimensionless"
+        long.attrs.update(source_file=str(path), reader="read_rtca_csv")
+        return long
 
     header = raw.iloc[header_row].astype(str).str.strip().tolist()
     body = raw.iloc[header_row + 1:].reset_index(drop=True)
@@ -228,18 +283,19 @@ def read_rtca_csv(path: str | Path, *, time_unit: str = "hour") -> xr.Dataset:
         time_col = non_well[0]
 
     time = pd.to_numeric(body[time_col], errors="coerce").to_numpy(dtype=float)
-    scale = {"hour": 3600.0, "minute": 60.0, "second": 1.0}[time_unit]
     values = body[well_cols].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=float)
     keep = ~np.isnan(time)
 
     ds = xr.Dataset(
         {"cell_index": (("time", "well"), values[keep])},
-        coords={"time": time[keep] * scale, "well": [str(w).upper() for w in well_cols]},
+        coords={"time": time[keep] * scale,
+                "well": [normalise_well_label(w) for w in well_cols]},
     )
     ds["time"].attrs["units"] = "s"
     ds["cell_index"].attrs["units"] = "dimensionless"
     ds.attrs["source_file"] = str(path)
     ds.attrs["reader"] = "read_rtca_csv"
+    ds.attrs["layout"] = "wide"
     return ds
 
 
@@ -295,6 +351,7 @@ __all__ = [
     "save_result",
     "load_result",
     "read_rtca_csv",
+    "normalise_well_label",
     "read_image_stack",
     "read_generic_timeseries",
 ]

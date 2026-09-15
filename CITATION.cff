@@ -133,3 +133,18 @@ references:
     start: 298
     year: 1996
     notes: "Linking algorithm behind cell_tracker (via trackpy)."
+  - type: article
+    title: "Theoretical and experimental determination of cell constants of planar-interdigitated electrolyte conductivity sensors"
+    authors:
+      - family-names: Olthuis
+        given-names: Wouter
+      - family-names: Streekstra
+        given-names: W.
+      - family-names: Bergveld
+        given-names: Piet
+    doi: "10.1016/0925-4005(95)85053-8"
+    journal: "Sensors and Actuators B: Chemical"
+    volume: 24
+    start: 252
+    year: 1995
+    notes: "Interdigitated-electrode cell constant used by impedance_rtca; reproduced by its FEM."
