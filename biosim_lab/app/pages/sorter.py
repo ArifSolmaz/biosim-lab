@@ -135,11 +135,22 @@ def page_sorter() -> None:
         )
 
         st.subheader("Model")
+        # The FEM field is solved on the cross-section and does not vary along
+        # the flow, which is exactly what a tilt does, so the model refuses the
+        # pair. Do not offer it rather than let it be chosen and then rejected.
+        tilted = tilt_angle_deg != 0.0
         mode = st.radio(
-            "Force field", ["analytic", "fem"], horizontal=True,
+            "Force field", ["analytic"] if tilted else ["analytic", "fem"],
+            horizontal=True,
             help="analytic = closed form, fast, optimistic. "
                  "fem = solves the wave equation, slower, realistic.",
         )
+        if tilted:
+            st.caption(
+                "FEM is unavailable at a non-zero tilt: it solves the channel "
+                "cross-section, which cannot represent a pattern that varies "
+                "along the flow. Set the tilt back to 0° to use it."
+            )
         fem_resolution = 40
         if mode == "fem":
             fem_resolution = st.slider("Mesh resolution", 16, 64, 40, 8)

@@ -12,6 +12,7 @@ from typing import Any
 
 import pandas as pd
 import streamlit as st
+from pydantic import ValidationError
 
 from biosim_lab.app.freshness import stale_modules
 from biosim_lab.core.plugin import ConfigurationError
@@ -92,15 +93,34 @@ def explained_settings() -> Iterator[None]:
     the assignment is ambiguous. Those are the user's to fix, and the model says
     how in the exception text.
 
-    Only :class:`ConfigurationError` is caught. A genuine bug still surfaces as
-    a real traceback, because hiding one behind a friendly message is how a
-    broken simulation gets published.
+    Two kinds are caught. :class:`ConfigurationError`, raised by the model
+    while it runs, and pydantic's ``ValidationError``, raised when the
+    parameters are built: a rule that spans two fields (a tilted pattern with
+    the cross-section FEM, say) can only fail once both are set, and a widget
+    for each means the user can set them independently. Its message says what
+    to change, so it belongs on the page --- and on a hosted app the raw
+    exception is redacted to a blank apology, which says nothing at all.
+
+    Nothing else is caught. A genuine bug still surfaces as a real traceback,
+    because hiding one behind a friendly message is how a broken simulation
+    gets published.
     """
     try:
         yield
     except ConfigurationError as exc:
         st.error(f"**These settings cannot be simulated** — {exc}", icon="🚫")
         st.stop()
+    except ValidationError as exc:
+        problems = "\n".join(f"- {_readable(err)}" for err in exc.errors())
+        st.error(f"**These settings cannot be simulated**\n{problems}", icon="🚫")
+        st.stop()
+
+
+def _readable(error: dict[str, Any]) -> str:
+    """One pydantic error as a sentence, without its machine-facing decoration."""
+    message = str(error.get("msg", "")).removeprefix("Value error, ")
+    field = ".".join(str(part) for part in error.get("loc", ()) if part != "__root__")
+    return f"{field}: {message}" if field else message
 
 
 def download_frame(df: pd.DataFrame, filename: str, label: str) -> None:

@@ -133,6 +133,64 @@ def test_impossible_settings_are_explained_not_crashed() -> None:
     assert "cannot be simulated" in at.error[0].value
 
 
+@pytest.mark.slow
+def test_a_tilted_device_never_offers_the_cross_section_fem() -> None:
+    """Two widgets, each harmless alone, described a device that cannot exist.
+
+    The hosted app crashed here with a pydantic ``ValidationError`` that
+    Streamlit Cloud redacts to a blank apology: the FEM field is solved on the
+    channel cross-section and cannot represent a pattern that varies along the
+    flow, which is what a tilt is. The single-widget sweep above cannot see it
+    because the tilt defaults to zero, so neither setting fails on its own.
+    """
+    at = AppTest.from_file(APP, default_timeout=900)
+    at.run()
+    at.sidebar.radio[0].set_value("SAW cell sorter").run()
+    tilt = next(i for i, w in enumerate(at.number_input) if "tilt" in w.label.lower())
+    at.number_input[tilt].set_value(2.6).run()
+
+    assert not at.exception, at.exception
+    field = next(w for w in at.radio if w.label == "Force field")
+    assert list(field.options) == ["analytic"], "the impossible pair is still reachable"
+
+
+def test_a_validation_error_reads_as_a_sentence() -> None:
+    """The guidance shown to the user must not carry pydantic's decoration."""
+    from pydantic import ValidationError
+
+    from biosim_lab.app.shared import _readable
+    from biosim_lab.instruments.saw_sorter.simulate import SAWSorterParams
+
+    try:
+        SAWSorterParams(tilt_angle_deg=5.0, field_model="fem",
+                        populations=[{"cell_type": "mcf7", "count": 10, "target": True}])
+    except ValidationError as exc:
+        text = " ".join(_readable(err) for err in exc.errors())
+    else:  # pragma: no cover - the pair must not become valid silently
+        raise AssertionError("a tilted FEM run is supposed to be refused")
+    assert "Value error," not in text
+    assert "field_model='analytic'" in text
+
+
+def test_explained_settings_catches_a_validation_error() -> None:
+    """The safety net behind the page fix: guidance, not a redacted crash."""
+    script = """
+import streamlit as st
+from biosim_lab.app.shared import explained_settings
+from biosim_lab.instruments.saw_sorter.simulate import SAWSorterParams
+
+with explained_settings():
+    SAWSorterParams(tilt_angle_deg=5.0, field_model="fem",
+                    populations=[{"cell_type": "mcf7", "count": 10, "target": True}])
+st.write("this line must not be reached")
+"""
+    at = AppTest.from_string(script, default_timeout=120)
+    at.run()
+    assert not at.exception, at.exception
+    assert at.error and "cannot be simulated" in at.error[0].value
+    assert not at.markdown or "must not be reached" not in at.markdown[0].value
+
+
 def test_a_stale_process_is_announced_on_the_page() -> None:
     """Running old bytecode against new source must be visible, not silent.
 
