@@ -267,8 +267,8 @@ def run_video(
     Expensive (rendering dominates), so the page runs it behind a button and
     this cache keyes it on every parameter above.
     """
-    from biosim_lab.video_readout import CameraSpec, count_film, film_sorter
     from biosim_lab.instruments.saw_sorter.simulate import SAWSorterParams
+    from biosim_lab.video_readout import CameraSpec, count_film, film_sorter
 
     params = SAWSorterParams(
         frequency=frequency_mhz * 1e6,

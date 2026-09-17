@@ -51,7 +51,6 @@ from biosim_lab.instruments.impedance_rtca.physics import (
     wagner_number,
 )
 
-
 # Defaults mirror ide_well_impedance, and both read the material library so
 # the FEM and the lumped model cannot drift apart or lose their provenance.
 _M = RTCA_MODEL

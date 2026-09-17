@@ -79,14 +79,12 @@ def test_no_scenario_asks_for_the_pair_the_model_refuses(name: str) -> None:
 @pytest.mark.parametrize("name", NAMES)
 def test_a_scenario_declares_what_it_could_not_express(name: str) -> None:
     """The sidebar carries one background; a reduced sample must say so."""
-    from biosim_lab.app.scenarios import SOURCES as sources
-
     loaded = scenario(name)
-    kind, ref = sources[name]
+    kind, ref = SOURCES[name]
     if kind != "config":
         return
-    from biosim_lab.core.config import ExperimentConfig
     from biosim_lab.app.scenarios import CONFIG_DIR
+    from biosim_lab.core.config import ExperimentConfig
     from biosim_lab.instruments.saw_sorter.simulate import SAWSorterParams
 
     params = ExperimentConfig.from_yaml(CONFIG_DIR / ref).validated_params(SAWSorterParams)

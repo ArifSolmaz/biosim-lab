@@ -60,7 +60,6 @@ from biosim_lab.instruments.saw_sorter.simulate import (
     SortingOutcome,
 )
 
-
 _O = IMAGING_MODEL
 
 

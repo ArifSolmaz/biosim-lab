@@ -35,7 +35,7 @@ control re-runs the real simulation, not a lookup table.
 | **Impedance (RTCA)** | xCELLigence | how fast are they growing, what dose kills half? |
 | **Cell counter** | Countess, Cellometer | how many cells per mL, how many alive? |
 | **Cell tracker** | Incucyte | how fast do they crawl, and in a direction or not? |
-| **Video readout** | what the papers actually did | what does *counting* the sort do to the number? |
+| **Video readout** | what the papers actually did | what does *counting* do to the number? |
 """
     )
 
