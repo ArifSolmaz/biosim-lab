@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # The widget sweep below runs here instead of on every push.
+  schedule:
+    - cron: "17 3 * * *"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,6 +17,15 @@ env:
   PYTHONUNBUFFERED: "1"
   MPLBACKEND: Agg
   PYVISTA_OFF_SCREEN: "true"
+  # One test sets every widget option on every page, one at a time, re-running
+  # the app for each: 38 minutes on a 14-core machine and longer on a hosted
+  # runner, against the 40-minute cap below. The push-triggered jobs deselect
+  # it by name and the nightly `sweep` job runs it on its own. Deselecting THIS
+  # test rather than filtering `-m "not slow"` is deliberate: 36 tests carry
+  # that marker, including 12 of the 14 in test_streamlit_app.py, and dropping
+  # all of them from every push would cost far more coverage than the one test
+  # that actually does not fit.
+  SWEEP: "tests/test_streamlit_app.py::test_every_widget_option_is_reachable_without_crashing"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -57,7 +69,9 @@ jobs:
         run: ruff check biosim_lab tests examples benchmarks streamlit_app.py
 
       - name: Tests
-        run: pytest --cov=biosim_lab --cov-report=term-missing --cov-report=xml
+        run: |
+          pytest --cov=biosim_lab --cov-report=term-missing --cov-report=xml \
+            --deselect "$SWEEP"
 
       - name: Upload coverage
         if: matrix.python == '3.11'
@@ -84,7 +98,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
       - name: Tests must still pass
-        run: pytest -q
+        run: pytest -q --deselect "$SWEEP"
       - name: doctor must report, not crash
         run: biosim doctor
 
@@ -155,6 +169,8 @@ jobs:
   # ---------------------------------------------------------------------------
   streamlit:
     name: hosted app imports and its manifests are valid
+    # Every page render, but not the sweep; a hang must fail in minutes.
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -176,7 +192,7 @@ jobs:
         # of scope gives a page that imports fine and raises at render time.
         run: |
           pip install pytest
-          pytest tests/test_streamlit_app.py -q
+          pytest tests/test_streamlit_app.py -q --deselect "$SWEEP"
       - name: Instruments must resolve from a bare checkout
         run: |
           python -c "
@@ -186,6 +202,33 @@ jobs:
           print('via:', discovery_source())
           assert len(found) == 4, found
           "
+
+  # ---------------------------------------------------------------------------
+  # The sweep the push-triggered jobs deselect. It sets every widget option on
+  # every page one at a time, which is the only thing that catches a pair of
+  # settings that are each harmless alone -- the tilt-plus-FEM crash that
+  # reached the hosted app was exactly that shape. Too slow for a push, too
+  # valuable to delete, so it runs nightly and on demand.
+  #
+  # Installs what the host installs, with no system libraries, for the same
+  # reason the `streamlit` job does: this is the environment the deployment has.
+  sweep:
+    name: every widget option (nightly)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install exactly what the host installs
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - name: Sweep
+        run: pytest "$SWEEP" -q
 
   # ---------------------------------------------------------------------------
   # Advisory only. There are 34 known errors as of this commit; the job exists so
