@@ -46,14 +46,20 @@ def page_rtca() -> None:
         # Streamlit keeps a disabled widget's value, so a box ticked under the
         # interdigitated electrode would stay ticked (and look active) after a
         # switch to the disc. Only offer it where it means something.
+        # Same control as the sorter's, so the choice between a closed form and
+        # a field solve is one idiom across the app rather than two.
         if electrode == "interdigitated":
-            fem = st.checkbox(
-                "Solve the electrode by FEM", value=False,
-                help="Electro-quasistatic Poisson on the finger pattern instead of the "
-                "lumped series model. 221 solves, cached per parameter set, so the first "
-                "view costs seconds and a return visit is instant. Changes the spectra "
+            field_model = st.radio(
+                "Electrode field", ["analytic", "fem"], horizontal=True,
+                key="rtca_field_model",
+                help="analytic = the lumped series model, which assumes the current "
+                "crosses every finger uniformly; instant. fem = electro-quasistatic "
+                "Poisson on the finger pattern, which resolves the crowding at the "
+                "finger edges: 221 solves, cached per parameter set, so the first view "
+                "costs seconds and a return visit is instant. It changes the spectra "
                 "above ~50 kHz, not the Cell Index.",
             )
+            fem = field_model == "fem"
         else:
             fem = False
             st.caption(

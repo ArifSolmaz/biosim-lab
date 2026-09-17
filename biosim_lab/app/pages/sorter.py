@@ -14,6 +14,8 @@ from biosim_lab.app.runners import (
     run_replicates,
     run_sorter,
 )
+from biosim_lab.app.scenarios import SOURCES as SCENARIOS
+from biosim_lab.app.scenarios import scenario
 from biosim_lab.app.shared import (
     PLOTLY_CONFIG,
     download_frame,
@@ -33,6 +35,21 @@ from biosim_lab.core.viz.curves import (
 )
 
 
+def _apply_scenario() -> None:
+    """Seed the sidebar from a named operating point.
+
+    Runs as a widget callback, i.e. before the script re-runs, so the values
+    are in session state by the time each widget is created and reads its own
+    key. The scenarios are read from ``configs/`` and from the protocol module,
+    never restated here.
+    """
+    chosen = scenario(st.session_state.get("sorter_scenario", ""))
+    if chosen is None:
+        return
+    for key, value in chosen["widgets"].items():
+        st.session_state[key] = value
+
+
 def page_sorter() -> None:
     st.title("SAW acoustophoretic cell sorter")
     note(
@@ -43,15 +60,34 @@ def page_sorter() -> None:
     )
 
     with st.sidebar:
+        st.subheader("Scenario")
+        st.selectbox(
+            "Load an operating point", list(SCENARIOS), key="sorter_scenario",
+            on_change=_apply_scenario,
+            help="Published devices and the project's own configurations, read "
+                 "from configs/ and from the protocol module. Selecting one "
+                 "fills the controls below; change anything afterwards.",
+        )
+        chosen = scenario(st.session_state.get("sorter_scenario", ""))
+        if chosen:
+            st.caption(f"From `{chosen['source']}`. {chosen['description']}")
+            for caveat in chosen["notes"]:
+                st.caption(f"⚠ {caveat}")
+
         st.subheader("Device")
         cell_keys = sorted(CELL_TYPES)
-        target = st.selectbox("Target (to collect)", cell_keys, index=cell_keys.index("mcf7"))
+        target = st.selectbox("Target (to collect)", cell_keys, index=cell_keys.index("mcf7"),
+                              key="sorter_target")
         background = st.selectbox(
-            "Background (to reject)", cell_keys, index=cell_keys.index("rbc")
+            "Background (to reject)", cell_keys, index=cell_keys.index("rbc"),
+            key="sorter_background",
         )
-        width_um = st.slider("Channel width (µm)", 100.0, 800.0, 300.0, 10.0)
-        height_um = st.slider("Channel height (µm)", 20.0, 200.0, 50.0, 5.0)
-        length_mm = st.slider("Active length (mm)", 0.2, 10.0, 2.0, 0.1)
+        width_um = st.slider("Channel width (µm)", 100.0, 800.0, 300.0, 10.0,
+                             key="sorter_width_um")
+        height_um = st.slider("Channel height (µm)", 20.0, 200.0, 50.0, 5.0,
+                              key="sorter_height_um")
+        length_mm = st.slider("Active length (mm)", 0.2, 10.0, 2.0, 0.1,
+                              key="sorter_length_mm")
 
         st.subheader("Drive")
         # The Rayleigh velocity carries a DOI in the material library; do not
@@ -60,26 +96,30 @@ def page_sorter() -> None:
         single_node = saw_velocity / (2 * width_um * 1e-6) / 1e6
         frequency_mhz = st.slider(
             "Frequency (MHz)", 1.0, 40.0, float(round(single_node, 3)), 0.001,
+            key="sorter_frequency_mhz",
             help=f"{single_node:.3f} MHz puts exactly one pressure node in a "
                  f"{width_um:.0f} µm channel.",
         )
-        voltage_pp = st.slider("Drive voltage (Vpp)", 1.0, 40.0, 15.0, 0.5)
-        flow_ul_min = st.slider("Flow rate (µL/min)", 0.5, 60.0, 5.0, 0.5)
+        voltage_pp = st.slider("Drive voltage (Vpp)", 1.0, 40.0, 15.0, 0.5,
+                               key="sorter_voltage_pp")
+        flow_ul_min = st.slider("Flow rate (µL/min)", 0.5, 60.0, 5.0, 0.5,
+                                key="sorter_flow_ul_min")
 
         st.subheader("Environment")
         temperature_c = st.slider(
-            "Temperature (°C)", 4.0, 45.0, 25.0, 0.5,
+            "Temperature (°C)", 4.0, 45.0, 25.0, 0.5, key="sorter_temperature_c",
             help="Changes viscosity by tens of percent, and migration speed is "
                  "inversely proportional to it. 25 °C is a bench, 37 °C an incubator.",
         )
         rf_power = st.slider(
-            "Applied RF power (W)", 0.0, 2.0, 0.0, 0.05,
+            "Applied RF power (W)", 0.0, 2.0, 0.0, 0.05, key="sorter_rf_power",
             help="Used only for the flagged transducer-heating estimate. 0 omits it.",
         )
 
         st.subheader("Sample and outlets")
         inlet_viability = st.slider(
             "Viability of the incoming sample", 0.50, 1.0, 0.95, 0.01,
+            key="sorter_inlet_viability",
             help="A freshly prepared suspension is typically 90-97 % viable, "
                  "so the honest baseline is not 100 %.",
         )
@@ -89,7 +129,7 @@ def page_sorter() -> None:
         # angle that tells them apart.
         tilt_angle_deg = st.number_input(
             "IDT tilt angle (°)", min_value=-89.0, max_value=89.0,
-            value=0.0, step=0.1, format="%.2f",
+            value=0.0, step=0.1, format="%.2f", key="sorter_tilt_angle_deg",
             help="0 = conventional SSAW: nodes run along the channel and cells "
                  "park on one. Non-zero = tilted-angle SSAW, a different "
                  "mechanism: the nodes cross the flow and drag held cells across "
@@ -100,16 +140,19 @@ def page_sorter() -> None:
         )
         inlet = st.selectbox(
             "Inlet focusing", ["sheath_sides", "uniform", "centre", "side"], index=0,
+            key="sorter_inlet",
             help="side = the whole sample enters along one wall, which is what a "
                  "two-outlet chip does; it gives every cell the full channel "
                  "width to migrate across.",
         )
         inlet_side = "left"
         if inlet == "side":
-            inlet_side = st.selectbox("Which wall the sample enters on", ["left", "right"])
+            inlet_side = st.selectbox("Which wall the sample enters on", ["left", "right"],
+                                      key="sorter_inlet_side")
 
         outlet_layout = st.selectbox(
             "Outlet layout", ["centre_band", "lateral_split"], index=0,
+            key="sorter_outlet_layout",
             help="centre_band = three outlets, the middle one collects at the "
                  "node. lateral_split = two outlets divided by one line, so "
                  "large cells leave on one side and everything else on the other.",
@@ -117,22 +160,25 @@ def page_sorter() -> None:
         collection_fraction, split_position, collect_side = 1 / 3, 0.5, "right"
         if outlet_layout == "centre_band":
             collection_fraction = st.slider(
-                "Collection outlet width (fraction of channel)", 0.05, 0.9, 1 / 3, 0.01
+                "Collection outlet width (fraction of channel)", 0.05, 0.9, 1 / 3, 0.01,
+                key="sorter_collection_fraction",
             )
         else:
             split_position = st.slider(
                 "Divider position (fraction of channel)", 0.05, 0.95, 0.40, 0.01,
+                key="sorter_split_position",
                 help="Put it BETWEEN where the two populations end up, not on "
                      "the node: cells stop a few microns short of the node, so "
                      "a divider on it collects nothing. Read the positions off "
                      "the outlet histogram.",
             )
-            collect_side = st.selectbox("Collection outlet side", ["right", "left"])
-        n_cells = st.slider("Cells per population", 50, 600, 300, 50)
+            collect_side = st.selectbox("Collection outlet side", ["right", "left"],
+                                        key="sorter_collect_side")
+        n_cells = st.slider("Cells per population", 50, 600, 300, 50, key="sorter_n_cells")
 
         st.subheader("Uncertainty")
         n_replicates = st.slider(
-            "Replicates", 1, 12, 1, 1,
+            "Replicates", 1, 12, 1, 1, key="sorter_n_replicates",
             help="Re-run on freshly drawn cells. 1 reports only the counting "
                  "error; more also measures sample-to-sample spread.",
         )
@@ -142,11 +188,20 @@ def page_sorter() -> None:
         # the flow, which is exactly what a tilt does, so the model refuses the
         # pair. Do not offer it rather than let it be chosen and then rejected.
         tilted = tilt_angle_deg != 0.0
+        # The radio carries a key so a scenario can seed it, which means a
+        # stale "fem" can outlive a newly typed tilt. Streamlit currently falls
+        # back to the first option, but say it rather than depend on it.
+        if tilted and st.session_state.get("sorter_mode") == "fem":
+            st.session_state["sorter_mode"] = "analytic"
         mode = st.radio(
             "Force field", ["analytic"] if tilted else ["analytic", "fem"],
-            horizontal=True,
-            help="analytic = closed form, fast, optimistic. "
-                 "fem = solves the wave equation, slower, realistic.",
+            horizontal=True, key="sorter_mode",
+            help="analytic = closed form, fast, optimistic, and instant. "
+                 "fem = solves the wave equation for the real vertical decay, "
+                 "so it predicts a lower recovery; it costs a few seconds at "
+                 "the default mesh and a minute or so at 64, and every result "
+                 "is cached per parameter set, so returning to a setting you "
+                 "have already seen is instant.",
         )
         if tilted:
             st.caption(
@@ -156,8 +211,13 @@ def page_sorter() -> None:
             )
         fem_resolution = 40
         if mode == "fem":
-            fem_resolution = st.slider("Mesh resolution", 16, 64, 40, 8)
-        seed = st.number_input("Random seed", 0, 999_999, 12345, 1)
+            fem_resolution = st.slider(
+                "Mesh resolution", 16, 64, 40, 8, key="sorter_fem_resolution",
+                help="Elements across the channel. Cost grows faster than "
+                     "linearly; 40 is converged for recovery to well under a "
+                     "point, and 64 is for checking that claim.",
+            )
+        seed = st.number_input("Random seed", 0, 999_999, 12345, 1, key="sorter_seed")
 
     with explained_settings():
         out = run_sorter(
@@ -270,11 +330,19 @@ def page_sorter() -> None:
             "separation as indicative and the absolute forces as approximate."
         )
 
-    tabs = st.tabs(
-        ["Live view", "Cross-section", "Live count", "Cell safety", "Trajectories",
-         "Outlet histogram", "Force profile", "Size distribution", "Per-population",
-         "Uncertainty", "Data"]
-    )
+    # Eleven tabs in one row wrap on a laptop and mix "what happened" with
+    # "do I believe it". Three groups, and the panels keep their original
+    # order so each block below still addresses its own tab.
+    groups = st.tabs(["See it", "Why it happens", "Do I believe it"])
+    with groups[0]:
+        seen = st.tabs(["Live view", "Cross-section", "Live count", "Trajectories"])
+    with groups[1]:
+        why = st.tabs(["Outlet histogram", "Force profile", "Size distribution",
+                       "Per-population"])
+    with groups[2]:
+        trust = st.tabs(["Cell safety", "Uncertainty", "Data"])
+    tabs = [seen[0], seen[1], seen[2], trust[0], seen[3],
+            why[0], why[1], why[2], why[3], trust[1], trust[2]]
     bounds = tuple(out["collection_bounds"])
 
     with tabs[0]:
