@@ -49,6 +49,7 @@ from scipy import ndimage
 
 from biosim_lab.core.imaging.segmentation import segment
 from biosim_lab.core.imaging.synthetic import SyntheticImageSpec
+from biosim_lab.core.materials import IMAGING_MODEL
 from biosim_lab.core.plugin import RegimeWarning
 from biosim_lab.core.statistics import wilson_interval
 from biosim_lab.instruments.cell_tracker.tracking import close_gaps, link_detections
@@ -58,6 +59,9 @@ from biosim_lab.instruments.saw_sorter.simulate import (
     SAWSorterSimulation,
     SortingOutcome,
 )
+
+
+_O = IMAGING_MODEL
 
 
 @dataclass
@@ -90,7 +94,10 @@ class CameraSpec:
         the calcein-AM stain of Li et al. 2015).
     """
 
-    pixel_size: float = 1.0e-6
+    # A chip-overview objective: the channel width has to fit the frame. The
+    # counter's synthetic images run at the higher magnification you would put
+    # on a counting chamber. Both are registered in the material library.
+    pixel_size: float = float(_O.chip_pixel_size)
     frame_rate: float | None = None
     window_length: float = 250e-6
     cells_in_view: float = 6.0
@@ -99,9 +106,9 @@ class CameraSpec:
         blur_sigma=1.0, illumination_amplitude=0.06, shot_noise_photons=900.0,
         read_noise=0.012,
     ))
-    fluorescence_contrast: float = 0.6
-    fluorescence_background: float = 0.05
-    fluorescence_noise: float = 0.015
+    fluorescence_contrast: float = float(_O.fluorescence_contrast)
+    fluorescence_background: float = float(_O.fluorescence_background)
+    fluorescence_noise: float = float(_O.fluorescence_noise)
 
 
 # ---------------------------------------------------------------------------

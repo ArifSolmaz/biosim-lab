@@ -39,6 +39,7 @@ import xarray as xr
 
 from biosim_lab.core.fem.electroquasistatic import ElectroQuasistaticSolver
 from biosim_lab.core.geometry import MeshBundle, ide_unit_cell_2d
+from biosim_lab.core.materials import RTCA_MODEL
 from biosim_lab.core.solver import BoundaryCondition
 from biosim_lab.instruments.impedance_rtca.physics import (
     IDEGeometry,
@@ -51,6 +52,11 @@ from biosim_lab.instruments.impedance_rtca.physics import (
 )
 
 
+# Defaults mirror ide_well_impedance, and both read the material library so
+# the FEM and the lumped model cannot drift apart or lose their provenance.
+_M = RTCA_MODEL
+
+
 @dataclass
 class IDEFieldModel:
     """Solve the IDE unit cell and scale it to the whole electrode.
@@ -60,15 +66,17 @@ class IDEFieldModel:
     """
 
     geometry: IDEGeometry
-    conductivity: float = 1.4
-    permittivity_rel: float = 78.0
-    rb: float = 2.0
-    specific_capacitance: float = 1.0e-6
-    cell_radius: float = 8.0e-6
-    gap_height: float = 100e-9
-    cpe_q: float = 3.0e-5
-    cpe_n: float = 0.92
-    resolution: int = 32
+    conductivity: float = float(_M.medium_conductivity)
+    permittivity_rel: float = float(_M.medium_permittivity_rel)
+    rb: float = float(_M.junctional_resistance)
+    specific_capacitance: float = float(_M.membrane_specific_capacitance)
+    cell_radius: float = float(_M.adherent_cell_radius)
+    gap_height: float = float(_M.ventral_gap_height)
+    cpe_q: float = float(_M.cpe_magnitude)
+    cpe_n: float = float(_M.cpe_exponent)
+    # Same default as ImpedanceRTCAParams.fem_resolution, so instantiating this
+    # directly gives the mesh the instrument and the app actually use.
+    resolution: int = 24
     _mesh: MeshBundle | None = field(default=None, init=False, repr=False)
     _last: ElectroQuasistaticSolver | None = field(default=None, init=False, repr=False)
 

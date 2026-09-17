@@ -24,6 +24,12 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
+from biosim_lab.core.materials import IMAGING_MODEL
+
+# Rendering parameters are assumptions, and the library is where they are
+# written down as such; reading them from there keeps them auditable.
+_O = IMAGING_MODEL
+
 
 @dataclass
 class SyntheticImageSpec:
@@ -50,16 +56,16 @@ class SyntheticImageSpec:
     """
 
     shape: tuple[int, int] = (512, 512)
-    pixel_size: float = 0.65e-6
+    pixel_size: float = float(_O.counter_pixel_size)
     n_cells: int = 120
     radius_mean_px: float = 9.0
     radius_cv: float = 0.18
     dead_fraction: float = 0.15
-    background_level: float = 0.25
-    cell_contrast: float = 0.45
-    dead_contrast_factor: float = -0.55
-    blur_sigma: float = 1.4
-    illumination_amplitude: float = 0.12
+    background_level: float = float(_O.background_level)
+    cell_contrast: float = float(_O.cell_contrast)
+    dead_contrast_factor: float = float(_O.dead_contrast_factor)
+    blur_sigma: float = float(_O.blur_sigma)
+    illumination_amplitude: float = float(_O.illumination_amplitude)
     shot_noise_photons: float = 900.0
     read_noise: float = 0.012
     allow_touching: bool = True

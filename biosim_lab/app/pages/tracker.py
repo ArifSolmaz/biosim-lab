@@ -63,9 +63,11 @@ def page_tracker() -> None:
     cols[0].metric("Tracks found", f"{m['n_tracks']}",
                    delta=f"{m['n_tracks'] - m['ground_truth_n_tracks']} vs truth")
     speed_delta = m["mean_speed_um_per_min"] - m["ground_truth_speed_um_per_min"]
-    cols[1].metric("Mean speed", f"{m['mean_speed_um_per_min']:.4f} µm/min",
+    # Three significant figures, as everywhere else on the app. A fourth
+    # decimal on a crawl speed implies a precision the tracking does not have.
+    cols[1].metric("Mean speed", f"{m['mean_speed_um_per_min']:#.3g} µm/min",
                    delta=f"{speed_delta:+.4f}")
-    cols[2].metric("Persistence", f"{m['median_persistence']:.3f}")
+    cols[2].metric("Persistence", f"{m['median_persistence']:#.3g}")
     cols[3].metric("MSD exponent α", f"{m['msd_alpha']:.2f}",
                    help="1 = random wandering, 2 = walking in a straight line")
     cols[4].metric("Mean track length", f"{m['mean_track_length_frames']:.1f} frames")

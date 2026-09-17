@@ -21,7 +21,7 @@ from biosim_lab.app.shared import (
     note,
     show_warnings,
 )
-from biosim_lab.core.materials import CELL_TYPES, get_cell
+from biosim_lab.core.materials import CELL_TYPES, get_cell, get_substrate
 from biosim_lab.core.viz.curves import (
     cross_section_figure,
     cumulative_count_figure,
@@ -54,7 +54,10 @@ def page_sorter() -> None:
         length_mm = st.slider("Active length (mm)", 0.2, 10.0, 2.0, 0.1)
 
         st.subheader("Drive")
-        single_node = 3979.0 / (2 * width_um * 1e-6) / 1e6
+        # The Rayleigh velocity carries a DOI in the material library; do not
+        # restate it here, or the default frequency drifts from the physics.
+        saw_velocity = get_substrate("linbo3_128yx").saw_velocity.magnitude
+        single_node = saw_velocity / (2 * width_um * 1e-6) / 1e6
         frequency_mhz = st.slider(
             "Frequency (MHz)", 1.0, 40.0, float(round(single_node, 3)), 0.001,
             help=f"{single_node:.3f} MHz puts exactly one pressure node in a "
@@ -232,6 +235,29 @@ def page_sorter() -> None:
         f"transit **{d['transit_time_s']:.2f} s** &nbsp;·&nbsp; "
         f"Re = **{m['channel_reynolds']:.3g}**"
     )
+    note(
+        "That pressure is <b>not measured</b>: it comes from a straight-line "
+        "voltage calibration (15 Vpp → 0.45 MPa) that stands in for the "
+        "piezoelectric solve this project has not implemented. Sweeping the drive "
+        "to reproduce the recovery published by Li et al. 2015 lands at "
+        "<b>0.24–0.30 MPa</b> instead, so the calibration reads roughly "
+        "<b>1.5× high</b> — the only external check on it in the package. Every "
+        "acoustic force above scales with it. If you build the device, measure the "
+        "pressure with calibration beads and drive the model from that."
+    )
+
+    # A warning is honest but not self-explanatory: at the default operating
+    # point one is expected, and a first-time reader should know it is the
+    # long-wavelength limit being stretched, not a broken run.
+    if any(w["category"] == "RegimeWarning" and "ka" in w["message"].replace("·", "")
+           for w in out["warnings"]):
+        note(
+            "The warning above is the Gor'kov long-wavelength condition "
+            "(<code>k·a &lt; 0.1</code>) being stretched, which happens at the "
+            "default operating point and at every higher frequency. The force law "
+            "stays the right shape and loses accuracy in magnitude; treat the "
+            "separation as indicative and the absolute forces as approximate."
+        )
 
     tabs = st.tabs(
         ["Live view", "Cross-section", "Live count", "Cell safety", "Trajectories",

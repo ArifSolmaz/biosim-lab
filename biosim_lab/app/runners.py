@@ -135,7 +135,11 @@ def run_rtca(
             "field_model": "fem" if fem and electrode == "interdigitated" else "analytic",
         },
     )
-    result = ImpedanceRTCA(cfg).run()
+    instrument = ImpedanceRTCA(cfg)
+    result = instrument.run()
+    # The FEM branch solves a potential map on the way to the impedance; carry
+    # it out as plain arrays so the page can show what it already paid for.
+    field = getattr(instrument, "_potential_map", None)
     return {
         "metrics": result.metrics,
         "table": result.table,
@@ -145,6 +149,12 @@ def run_rtca(
         "frequency": result.fields["frequency"].values,
         "z_real": result.fields["impedance_real"].values,
         "z_imag": result.fields["impedance_imag"].values,
+        "potential": None if field is None else {
+            "x": field["x"].values,
+            "y": field["y"].values,
+            "phi": field["phi_abs"].values,
+            "drive": field.attrs.get("drive", ""),
+        },
     }
 
 
@@ -235,3 +245,63 @@ def run_replicates(n_replicates: int, **kwargs: Any) -> Any:
     return replicate_sorting(params, n_replicates=n_replicates)["table"]
 
 
+@st.cache_data(show_spinner="Filming the outlet region and counting the cells…", max_entries=8)
+def run_video(
+    target: str,
+    background: str,
+    frequency_mhz: float,
+    voltage_pp: float,
+    flow_ul_min: float,
+    width_um: float,
+    height_um: float,
+    length_mm: float,
+    n_cells: int,
+    collection_fraction: float,
+    inlet: str,
+    cells_in_view: float,
+    pixel_size_um: float,
+    seed: int,
+) -> dict[str, Any]:
+    """Film one sort and count it from the images, both classifiers.
+
+    Expensive (rendering dominates), so the page runs it behind a button and
+    this cache keyes it on every parameter above.
+    """
+    from biosim_lab.video_readout import CameraSpec, count_film, film_sorter
+    from biosim_lab.instruments.saw_sorter.simulate import SAWSorterParams
+
+    params = SAWSorterParams(
+        frequency=frequency_mhz * 1e6,
+        voltage_pp=voltage_pp,
+        channel_width=width_um * 1e-6,
+        channel_height=height_um * 1e-6,
+        channel_length=length_mm * 1e-3,
+        flow_rate=flow_ul_min * UL_MIN,
+        inlet=inlet,
+        collection_fraction=collection_fraction,
+        populations=[
+            {"cell_type": target, "count": n_cells, "target": True},
+            {"cell_type": background, "count": n_cells, "target": False},
+        ],
+        seed=seed,
+    )
+    camera = CameraSpec(pixel_size=pixel_size_um * 1e-6, cells_in_view=cells_in_view)
+    film = film_sorter(params, camera=camera, seed=seed)
+    readouts = {by: count_film(film, by) for by in ("size", "fluorescence")}
+    any_readout = readouts["size"]
+    return {
+        "geometry": film.geometry,
+        "brightfield": np.asarray(film.sample_frames[0]) if len(film.sample_frames) else None,
+        "fluorescence": (np.asarray(film.sample_fluorescence[0])
+                         if len(film.sample_fluorescence) else None),
+        "truth_metrics": any_readout.truth_metrics,
+        "by": {
+            by: {
+                "video_metrics": r.video_metrics,
+                "error_budget": r.error_budget,
+                "tracks": r.tracks,
+                "summary": r.summary(),
+            }
+            for by, r in readouts.items()
+        },
+    }

@@ -11,6 +11,7 @@ from biosim_lab.app.runners import (
 from biosim_lab.app.shared import (
     PLOTLY_CONFIG,
     download_frame,
+    explained_settings,
     note,
 )
 from biosim_lab.core.viz.theme import color_for
@@ -36,8 +37,9 @@ def page_counter() -> None:
         min_radius_px = st.slider("Minimum object radius (px)", 2.0, 12.0, 4.0, 0.5)
         seed = st.number_input("Random seed", 0, 999_999, 0, 1, key="count_seed")
 
-    out = run_counter(n_cells, dead_fraction, image_size, pixel_size_um,
-                      min_radius_px, dilution, int(seed))
+    with explained_settings():
+        out = run_counter(n_cells, dead_fraction, image_size, pixel_size_um,
+                          min_radius_px, dilution, int(seed))
     m, table = out["metrics"], out["table"]
 
     cols = st.columns(5)
@@ -68,11 +70,28 @@ def page_counter() -> None:
         with right:
             st.image(_overlay(out["image"], out["labels"]),
                      caption="Detected outlines", width="stretch")
-        note(
-            f"{m['n_total']} of {m['ground_truth_n']} cells found. The misses are "
-            "cells touching the frame edge (discarded on purpose — a cell cut in "
-            "half has no measurable size) and a few genuinely merged pairs."
-        )
+        # Which way the count went decides which explanation is true, so say
+        # the one that applies rather than the one that usually applies.
+        found, truth = m["n_total"], m["ground_truth_n"]
+        if found < truth:
+            note(
+                f"{found} of {truth} cells found. The misses are cells touching "
+                "the frame edge (discarded on purpose — a cell cut in half has "
+                "no measurable size) and a few genuinely merged pairs."
+            )
+        elif found > truth:
+            note(
+                f"{found} objects found where {truth} cells were drawn. The "
+                "surplus is over-segmentation: at this minimum radius the "
+                "watershed splits single cells into two. Raise <i>Minimum "
+                "object radius</i> until the count settles."
+            )
+        else:
+            note(
+                f"All {truth} cells found. Edge contact and merged pairs are "
+                "the usual reasons this number falls short; at these settings "
+                "neither costs a cell."
+            )
     with tabs[1]:
         if len(table):
             counts, edges = np.histogram(table["diameter_um"], bins=28)

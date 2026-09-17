@@ -21,7 +21,10 @@ from typing import Any, Literal
 
 import numpy as np
 
+from biosim_lab.core.materials import IMAGING_MODEL
 from biosim_lab.core.plugin import optional_import
+
+_O = IMAGING_MODEL
 
 SegmentationBackend = Literal["classical", "cellpose", "stardist"]
 
@@ -65,9 +68,9 @@ def available_backends() -> dict[str, tuple[bool, str]]:
 def segment_classical(
     image: np.ndarray,
     *,
-    min_radius_px: float = 4.0,
-    smoothing_sigma: float = 1.0,
-    background_sigma: float = 30.0,
+    min_radius_px: float = float(_O.min_object_radius),
+    smoothing_sigma: float = float(_O.smoothing_sigma),
+    background_sigma: float = float(_O.background_estimate_sigma),
     min_distance: int | None = None,
     threshold: float | None = None,
     clear_border: bool = True,

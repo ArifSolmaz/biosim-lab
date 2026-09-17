@@ -46,10 +46,17 @@ import numpy as np
 from scipy.optimize import curve_fit
 from scipy.special import ellipk, iv
 
-EPS0 = 8.8541878128e-12
+from biosim_lab.core.materials import RTCA_MODEL
+
+# Every default below is read from the material library rather than written
+# here, so that audit() can see it and no number in this module has an
+# unstated origin. The library entry carries the DOI or the assumption.
+_M = RTCA_MODEL
+
+EPS0 = float(_M.vacuum_permittivity)
 """Vacuum permittivity [F/m], CODATA 2018 (doi:10.1103/RevModPhys.93.025010)."""
 
-RTCA_REFERENCE_IMPEDANCE_OHM = 15.0
+RTCA_REFERENCE_IMPEDANCE_OHM = float(_M.reference_impedance)
 """ASSUMPTION: the Cell Index normalisation constant.
 
 ACEA/Agilent describe the Cell Index as an impedance change divided by a fixed
@@ -77,13 +84,14 @@ class ElectrodeGeometry:
         is an ASSUMPTION unless fitted.
     """
 
-    area_cm2: float = 8.0e-3
-    cell_radius: float = 8.0e-6
-    gap_height: float = 100e-9
+    area_cm2: float = float(_M.disc_electrode_area)
+    cell_radius: float = float(_M.adherent_cell_radius)
+    gap_height: float = float(_M.ventral_gap_height)
 
 
 def electrode_specific_impedance(
-    frequency: np.ndarray, *, cpe_q: float = 3.0e-5, cpe_n: float = 0.92
+    frequency: np.ndarray, *, cpe_q: float = float(_M.cpe_magnitude),
+    cpe_n: float = float(_M.cpe_exponent)
 ) -> np.ndarray:
     """Specific impedance of the gold/electrolyte interface [Ohm*cm^2].
 
@@ -132,8 +140,8 @@ def naked_electrode_impedance(
     *,
     area_cm2: float,
     conductivity: float,
-    cpe_q: float = 3.0e-5,
-    cpe_n: float = 0.92,
+    cpe_q: float = float(_M.cpe_magnitude),
+    cpe_n: float = float(_M.cpe_exponent),
 ) -> np.ndarray:
     """Total impedance of a cell-free electrode [Ohm].
 
@@ -241,11 +249,11 @@ def well_impedance(
     *,
     coverage: float,
     geometry: ElectrodeGeometry,
-    conductivity: float = 1.4,
-    rb: float = 2.0,
-    specific_capacitance: float = 1.0e-6,
-    cpe_q: float = 3.0e-5,
-    cpe_n: float = 0.92,
+    conductivity: float = float(_M.medium_conductivity),
+    rb: float = float(_M.junctional_resistance),
+    specific_capacitance: float = float(_M.membrane_specific_capacitance),
+    cpe_q: float = float(_M.cpe_magnitude),
+    cpe_n: float = float(_M.cpe_exponent),
 ) -> np.ndarray:
     """Total measured impedance of one well [Ohm] at the given cell coverage.
 
@@ -299,10 +307,10 @@ class IDEGeometry:
     own chip's before comparing absolute impedances.
     """
 
-    finger_width: float = 50e-6
-    finger_spacing: float = 50e-6
-    finger_length: float = 3e-3
-    n_fingers: int = 30
+    finger_width: float = float(_M.ide_finger_width)
+    finger_spacing: float = float(_M.ide_finger_spacing)
+    finger_length: float = float(_M.ide_finger_length)
+    n_fingers: int = int(float(_M.ide_finger_count))
 
     @property
     def period(self) -> float:
@@ -368,7 +376,7 @@ def ide_solution_resistance(geometry: IDEGeometry, *, conductivity: float) -> fl
 
 def ide_bulk_impedance(
     frequency: np.ndarray, geometry: IDEGeometry, *, conductivity: float,
-    permittivity_rel: float = 78.0,
+    permittivity_rel: float = float(_M.medium_permittivity_rel),
 ) -> np.ndarray:
     """``K_cell / sigma*`` [Ohm], with ``sigma* = sigma + i omega eps0 eps_r``.
 
@@ -386,14 +394,14 @@ def ide_well_impedance(
     *,
     coverage: float | np.ndarray,
     geometry: IDEGeometry,
-    conductivity: float = 1.4,
-    rb: float = 2.0,
-    specific_capacitance: float = 1.0e-6,
-    cell_radius: float = 8.0e-6,
-    gap_height: float = 100e-9,
-    cpe_q: float = 3.0e-5,
-    cpe_n: float = 0.92,
-    permittivity_rel: float = 78.0,
+    conductivity: float = float(_M.medium_conductivity),
+    rb: float = float(_M.junctional_resistance),
+    specific_capacitance: float = float(_M.membrane_specific_capacitance),
+    cell_radius: float = float(_M.adherent_cell_radius),
+    gap_height: float = float(_M.ventral_gap_height),
+    cpe_q: float = float(_M.cpe_magnitude),
+    cpe_n: float = float(_M.cpe_exponent),
+    permittivity_rel: float = float(_M.medium_permittivity_rel),
 ) -> np.ndarray:
     """Impedance of a cell-covered IDE [Ohm], lumped (uniform-current) model.
 
@@ -453,10 +461,10 @@ def shell_model_permittivity(
     radius: float,
     membrane_capacitance: float,
     cytoplasm_conductivity: float,
-    cytoplasm_permittivity_rel: float = 60.0,
-    medium_conductivity: float = 1.5,
-    medium_permittivity_rel: float = 78.0,
-    volume_fraction: float = 0.1,
+    cytoplasm_permittivity_rel: float = float(_M.cytoplasm_permittivity_rel),
+    medium_conductivity: float = float(_M.suspension_medium_conductivity),
+    medium_permittivity_rel: float = float(_M.medium_permittivity_rel),
+    volume_fraction: float = float(_M.suspension_volume_fraction),
 ) -> np.ndarray:
     """Effective complex permittivity of a cell suspension (single-shell model).
 

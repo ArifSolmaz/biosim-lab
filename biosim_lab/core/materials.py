@@ -730,6 +730,220 @@ SUBSTRATES: dict[str, Substrate] = {
 
 
 # ---------------------------------------------------------------------------
+# instrument model parameters
+# ---------------------------------------------------------------------------
+#
+# These are not properties of a material but of the *models* the instruments
+# run: the electrolyte and interface numbers the impedance chain needs, the
+# electrode patterns it is evaluated on, and the optics the imaging
+# instruments render and segment with. They live here for the same reason the
+# fluids do --- so that `audit()` sees them and nothing in the package carries
+# a physical number with no stated origin. Most are assumptions, and saying so
+# is the point: the papers cited below justify the *model*, not the value.
+
+
+@dataclass(frozen=True)
+class ImpedanceModel:
+    """Electrolyte, interface and cell-layer parameters of the RTCA chain."""
+
+    key: str
+    name: str
+    vacuum_permittivity: Value
+    medium_conductivity: Value
+    medium_permittivity_rel: Value
+    junctional_resistance: Value
+    membrane_specific_capacitance: Value
+    cpe_magnitude: Value
+    cpe_exponent: Value
+    ventral_gap_height: Value
+    adherent_cell_radius: Value
+    cytoplasm_permittivity_rel: Value
+    suspension_medium_conductivity: Value
+    suspension_volume_fraction: Value
+    reference_impedance: Value
+    disc_electrode_area: Value
+    ide_finger_width: Value
+    ide_finger_spacing: Value
+    ide_finger_length: Value
+    ide_finger_count: Value
+
+
+RTCA_MODEL = ImpedanceModel(
+    key="rtca_default",
+    name="RTCA impedance chain, default parameters",
+    vacuum_permittivity=V(8.8541878128e-12, "F/m", Provenance(
+        doi="10.1103/RevModPhys.93.025010",
+        citation="Tiesinga et al. (2021), CODATA recommended values 2018",
+    )),
+    medium_conductivity=V(1.4, "S/m", Provenance(assumption=(
+        "conductivity of a PBS-like culture medium near 37 C. Not measured "
+        "here; it sets the bulk resistance of every well, so measure your own "
+        "medium with a conductivity probe before comparing absolute ohms"
+    ))),
+    medium_permittivity_rel=V(78.0, "dimensionless", Provenance(assumption=(
+        "relative permittivity of water near room temperature, used for the "
+        "electrolyte because it is mostly water. Only matters where the "
+        "displacement current competes with conduction (tens of MHz)"
+    ))),
+    junctional_resistance=V(2.0, "ohm*cm^2", Provenance(assumption=(
+        "cell-cell junctional resistance in the middle of the range Giaever "
+        "and Keese fit for adherent lines (doi:10.1073/pnas.88.17.7896). "
+        "Line-specific; fit it to your own confluent wells"
+    ))),
+    membrane_specific_capacitance=V(1.0e-6, "F/cm^2", Provenance(assumption=(
+        "1 uF/cm^2, the textbook specific capacitance of a lipid bilayer. "
+        "Real membranes exceed it in proportion to their folding"
+    ))),
+    cpe_magnitude=V(3.0e-5, "S*s^n/cm^2", Provenance(assumption=(
+        "constant-phase-element magnitude in the range Franks et al. (2005) "
+        "report for sputtered gold (doi:10.1109/TBME.2005.847523). It sets "
+        "the absolute impedance level and therefore the Cell Index scale --- "
+        "fit it to your own blank wells"
+    ))),
+    cpe_exponent=V(0.92, "dimensionless", Provenance(assumption=(
+        "constant-phase exponent for gold microelectrodes, reported as "
+        "0.85-0.95 by Franks et al. (2005) (doi:10.1109/TBME.2005.847523)"
+    ))),
+    ventral_gap_height=V(100e-9, "m", Provenance(assumption=(
+        "electrolyte gap between the ventral membrane and the gold. Values of "
+        "15-150 nm are reported for adherent lines; 100 nm is the midpoint and "
+        "is not fitted here"
+    ))),
+    adherent_cell_radius=V(8.0e-6, "m", Provenance(assumption=(
+        "radius of an adherent cell's footprint on the electrode, for a "
+        "typical epithelial line spread on gold"
+    ))),
+    cytoplasm_permittivity_rel=V(60.0, "dimensionless", Provenance(assumption=(
+        "cytoplasm relative permittivity, in the range Asami (2002) uses for "
+        "the single-shell model (doi:10.1016/S0022-3093(02)01110-9)"
+    ))),
+    suspension_medium_conductivity=V(1.5, "S/m", Provenance(assumption=(
+        "medium conductivity for the suspension (shell-model) path, which is "
+        "run on saline rather than on the well's culture medium"
+    ))),
+    suspension_volume_fraction=V(0.1, "dimensionless", Provenance(assumption=(
+        "cell volume fraction of the modelled suspension; the Maxwell-Wagner "
+        "mixture rule assumes the cells are dilute enough not to interact"
+    ))),
+    reference_impedance=V(15.0, "ohm", Provenance(assumption=(
+        "Cell Index normalisation constant. 15 ohm is the value commonly "
+        "quoted for an RTCA E-Plate at 10 kHz; it rescales the y-axis only"
+    ))),
+    disc_electrode_area=V(8.0e-3, "cm^2", Provenance(assumption=(
+        "active area of one well's gold electrode, the order of magnitude of "
+        "an E-Plate 96. The exact area is not published"
+    ))),
+    ide_finger_width=V(50e-6, "m", Provenance(assumption=(
+        "generic 50/50 um gold interdigitated comb. The dimensions of the "
+        "commercial E-Plate electrodes are not published; replace these with "
+        "your own chip's before comparing absolute impedances"
+    ))),
+    ide_finger_spacing=V(50e-6, "m", Provenance(assumption=(
+        "gap between fingers, equal to the finger width in the generic "
+        "50/50 um pattern; see ide_finger_width"
+    ))),
+    ide_finger_length=V(3e-3, "m", Provenance(assumption=(
+        "finger length, filling a 3 x 3 mm patch --- the scale of a 96-well "
+        "plate bottom; see ide_finger_width"
+    ))),
+    ide_finger_count=V(30.0, "dimensionless", Provenance(assumption=(
+        "fingers in both combs together, consistent with a 3 mm patch at a "
+        "100 um period; see ide_finger_width"
+    ))),
+)
+
+IMPEDANCE_MODELS: dict[str, ImpedanceModel] = {RTCA_MODEL.key: RTCA_MODEL}
+
+
+@dataclass(frozen=True)
+class ImagingModel:
+    """Optics and segmentation parameters of the imaging instruments.
+
+    Rendering parameters are assumptions by nature --- they describe a
+    microscope that does not exist. They are registered because they are not
+    free: contrast, blur and crowding decide how many cells a segmenter finds,
+    and therefore what the counted metrics come out as.
+    """
+
+    key: str
+    name: str
+    counter_pixel_size: Value
+    chip_pixel_size: Value
+    cell_contrast: Value
+    dead_contrast_factor: Value
+    background_level: Value
+    blur_sigma: Value
+    illumination_amplitude: Value
+    fluorescence_contrast: Value
+    fluorescence_background: Value
+    fluorescence_noise: Value
+    min_object_radius: Value
+    background_estimate_sigma: Value
+    smoothing_sigma: Value
+
+
+IMAGING_MODEL = ImagingModel(
+    key="brightfield_default",
+    name="Synthetic brightfield microscopy, default optics",
+    counter_pixel_size=V(0.65e-6, "m", Provenance(assumption=(
+        "object-plane pixel size of a counting chamber imaged at moderate "
+        "magnification; typical of a 10x objective on a sCMOS sensor"
+    ))),
+    chip_pixel_size=V(1.0e-6, "m", Provenance(assumption=(
+        "object-plane pixel size for a chip overview, which has to fit the "
+        "whole channel width in the frame and so runs coarser than the "
+        "counter's"
+    ))),
+    cell_contrast=V(0.45, "dimensionless", Provenance(assumption=(
+        "contrast of a live cell against background in brightfield, chosen so "
+        "that segmentation is neither trivial nor impossible"
+    ))),
+    dead_contrast_factor=V(-0.55, "dimensionless", Provenance(assumption=(
+        "contrast of a dye-stained dead cell relative to a live one; negative "
+        "because a trypan-blue-positive cell is darker than the background"
+    ))),
+    background_level=V(0.25, "dimensionless", Provenance(assumption=(
+        "mean background level of the rendered field, in normalised intensity"
+    ))),
+    blur_sigma=V(1.4, "pixel", Provenance(assumption=(
+        "Gaussian stand-in for the point-spread function, in pixels. A real "
+        "PSF is neither Gaussian nor shift-invariant"
+    ))),
+    illumination_amplitude=V(0.12, "dimensionless", Provenance(assumption=(
+        "peak-to-mean amplitude of the slow illumination gradient, which is "
+        "what makes a static global threshold insufficient"
+    ))),
+    fluorescence_contrast=V(0.6, "dimensionless", Provenance(assumption=(
+        "signal of a stained target cell over background in the second "
+        "channel, as with the calcein-AM stain of Li et al. 2015"
+    ))),
+    fluorescence_background=V(0.05, "dimensionless", Provenance(assumption=(
+        "background level of the stained channel: unbound dye and autofluor"
+        "escence"
+    ))),
+    fluorescence_noise=V(0.015, "dimensionless", Provenance(assumption=(
+        "noise standard deviation of the stained channel, in normalised "
+        "intensity"
+    ))),
+    min_object_radius=V(4.0, "pixel", Provenance(assumption=(
+        "smallest radius accepted as an object. Below it the watershed splits "
+        "single cells; above it small cells are dropped --- the trade-off is "
+        "exposed as a control rather than hidden"
+    ))),
+    background_estimate_sigma=V(30.0, "pixel", Provenance(assumption=(
+        "width of the Gaussian that estimates the illumination background, "
+        "which must exceed a cell radius and stay below the gradient's scale"
+    ))),
+    smoothing_sigma=V(1.0, "pixel", Provenance(assumption=(
+        "pre-segmentation smoothing, in pixels: enough to stop noise seeding "
+        "spurious watershed basins, not enough to merge touching cells"
+    ))),
+)
+
+IMAGING_MODELS: dict[str, ImagingModel] = {IMAGING_MODEL.key: IMAGING_MODEL}
+
+
+# ---------------------------------------------------------------------------
 # lookup helpers
 # ---------------------------------------------------------------------------
 
@@ -758,13 +972,36 @@ def get_substrate(key: str) -> Substrate:
         raise KeyError(f"unknown substrate {key!r}; available: {sorted(SUBSTRATES)}") from None
 
 
+def get_impedance_model(key: str = "rtca_default") -> ImpedanceModel:
+    """Look up an impedance-chain parameter set."""
+    try:
+        return IMPEDANCE_MODELS[key]
+    except KeyError:
+        raise KeyError(
+            f"unknown impedance model {key!r}; available: {sorted(IMPEDANCE_MODELS)}"
+        ) from None
+
+
+def get_imaging_model(key: str = "brightfield_default") -> ImagingModel:
+    """Look up an optics/segmentation parameter set."""
+    try:
+        return IMAGING_MODELS[key]
+    except KeyError:
+        raise KeyError(
+            f"unknown imaging model {key!r}; available: {sorted(IMAGING_MODELS)}"
+        ) from None
+
+
 _TABLES: dict[str, dict[str, Any]] = {}
 
 
 def _table(group: str) -> dict[str, Any]:
     """The lookup dict for a group name, resolved lazily."""
     if not _TABLES:
-        _TABLES.update({"fluid": FLUIDS, "cell": CELL_TYPES, "substrate": SUBSTRATES})
+        _TABLES.update({
+            "fluid": FLUIDS, "cell": CELL_TYPES, "substrate": SUBSTRATES,
+            "impedance": IMPEDANCE_MODELS, "imaging": IMAGING_MODELS,
+        })
     try:
         return _TABLES[group]
     except KeyError:
@@ -829,6 +1066,8 @@ def audit(only_assumptions: bool = True) -> list[dict[str, str]]:
         ("fluid", FLUIDS),
         ("cell", CELL_TYPES),
         ("substrate", SUBSTRATES),
+        ("impedance", IMPEDANCE_MODELS),
+        ("imaging", IMAGING_MODELS),
     ):
         for key, obj in table.items():
             for prop, val in _iter_values(obj):
@@ -849,7 +1088,11 @@ def audit(only_assumptions: bool = True) -> list[dict[str, str]]:
 def all_values() -> list[tuple[str, str, str, Value]]:
     """Yield ``(group, material_key, property_name, Value)`` for the whole library."""
     out = []
-    for group, table in (("fluid", FLUIDS), ("cell", CELL_TYPES), ("substrate", SUBSTRATES)):
+    groups = (
+        ("fluid", FLUIDS), ("cell", CELL_TYPES), ("substrate", SUBSTRATES),
+        ("impedance", IMPEDANCE_MODELS), ("imaging", IMAGING_MODELS),
+    )
+    for group, table in groups:
         for key, obj in table.items():
             for prop, val in _iter_values(obj):
                 out.append((group, key, prop, val))
@@ -862,9 +1105,15 @@ __all__ = [
     "Fluid",
     "CellType",
     "Substrate",
+    "ImpedanceModel",
+    "ImagingModel",
     "FLUIDS",
     "CELL_TYPES",
     "SUBSTRATES",
+    "IMPEDANCE_MODELS",
+    "IMAGING_MODELS",
+    "RTCA_MODEL",
+    "IMAGING_MODEL",
     "WATER",
     "PBS",
     "CELL_CULTURE_MEDIUM",
@@ -891,6 +1140,8 @@ __all__ = [
     "get_fluid",
     "get_cell",
     "get_substrate",
+    "get_impedance_model",
+    "get_imaging_model",
     "audit",
     "all_values",
 ]

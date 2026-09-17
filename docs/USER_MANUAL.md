@@ -399,6 +399,37 @@ are used only to score it. Rendering is the slow part (roughly 15 ms per
 frame, tens of thousands of frames for a few hundred cells), and counting is
 instant, so film once and count as many ways as you like.
 
+#### What the counting costs
+
+Filmed on the Zhang 2023 device (`benchmark_02`, 200 MCF-7 + 400 PBMC, the last
+250 µm before the outlets, 12 413 frames at 683 fps — reproduce with
+`examples/13_sorter_video_readout.py`):
+
+| | video, by size | video, by stain | simulation |
+|---|---|---|---|
+| capture efficiency | 99.5 % [97.2, 99.9] | 99.5 % | 99.5 % |
+| contamination | 15.8 % | 16.7 % | **18.5 %** |
+| cells counted | 94.3 % | 94.3 % | — |
+| classified correctly | 98.8 % | 99.5 % | — |
+| outlet agreement | 100 % | 100 % | — |
+
+**Capture efficiency survives the counting; contamination does not.** All 34
+uncounted cells were occluded — another cell in front of them in projection,
+which is what an acoustic node arranges by lining cells up while cells at
+different heights overtake one another. The misses are not spread evenly:
+PBMCs heading for the *collection* outlet were missed 17.6 % of the time
+against 3.7 % of those heading to waste, because a contaminant travels on the
+same line as the larger target cells and hides behind them. The cells that go
+uncounted are therefore exactly the ones contamination is about, so **a video
+count is biased low here, not merely noisy** (18.5 % → 15.8 %).
+
+That runs in the same direction as the gap between this model's 17–31 % and the
+~1.5 % Zhang et al. report, but it is nowhere near large enough to explain it.
+Treat it as one term in that discrepancy, not the answer to it.
+
+The same table, and the rest of the error budget, is in
+[`docs/validation.md`](validation.md).
+
 ---
 
 ## 7. Configuration file reference

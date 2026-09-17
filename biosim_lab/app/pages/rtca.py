@@ -14,6 +14,7 @@ from biosim_lab.app.runners import (
 from biosim_lab.app.shared import (
     PLOTLY_CONFIG,
     download_frame,
+    explained_settings,
     note,
 )
 from biosim_lab.core.viz.curves import (
@@ -42,12 +43,23 @@ def page_rtca() -> None:
             help="interdigitated: two equal gold combs, as on an RTCA plate. "
             "disc: the classic ECIS working disc against a large counter electrode.",
         )
-        fem = st.checkbox(
-            "Solve the electrode by FEM", value=False, disabled=electrode != "interdigitated",
-            help="Electro-quasistatic Poisson on the finger pattern instead of the lumped "
-            "series model. A few seconds; changes the spectra above ~50 kHz, not the Cell "
-            "Index.",
-        )
+        # Streamlit keeps a disabled widget's value, so a box ticked under the
+        # interdigitated electrode would stay ticked (and look active) after a
+        # switch to the disc. Only offer it where it means something.
+        if electrode == "interdigitated":
+            fem = st.checkbox(
+                "Solve the electrode by FEM", value=False,
+                help="Electro-quasistatic Poisson on the finger pattern instead of the "
+                "lumped series model. 221 solves, cached per parameter set, so the first "
+                "view costs seconds and a return visit is instant. Changes the spectra "
+                "above ~50 kHz, not the Cell Index.",
+            )
+        else:
+            fem = False
+            st.caption(
+                "FEM applies to the interdigitated electrode. A disc against a large "
+                "counter electrode has a closed-form spreading resistance already."
+            )
         duration_h = st.slider("Experiment duration (h)", 12.0, 120.0, 48.0, 6.0)
         st.subheader("Biology")
         doubling_h = st.slider("Doubling time (h)", 8.0, 48.0, 20.0, 1.0)
@@ -59,18 +71,36 @@ def page_rtca() -> None:
         noise_cv = st.slider("Measurement noise (CV)", 0.0, 0.10, 0.02, 0.005)
         seed = st.number_input("Random seed", 0, 999_999, 7, 1, key="rtca_seed")
 
+    note(
+        "The electrode geometry is an <b>assumption</b>: a generic 50/50 µm gold "
+        "interdigitated comb on a 3 × 3 mm patch. The dimensions of the commercial "
+        "E-Plate electrodes are not published, so the shape of these curves is right "
+        "and the absolute impedance is only as right as that guess. Measure your own "
+        "chip before comparing ohms."
+    )
+
     uploaded = st.file_uploader(
         "Optional: upload a real RTCA export (CSV or XLSX) to analyse instead",
         type=["csv", "xlsx", "xls"],
     )
     if uploaded is not None:
+        # The sidebar still shows the simulation's controls, and they now drive
+        # nothing at all. Saying so is cheaper than a user concluding the drug
+        # model is broken because moving IC50 changes no curve.
+        with st.sidebar:
+            st.info(
+                "Reading the uploaded file. The simulation controls above are "
+                "inactive until you remove it (press × on the file).",
+                icon="📄",
+            )
         _rtca_from_upload(uploaded)
         return
 
-    out = run_rtca(
-        frequency_khz, duration_h, treatment_h, true_ic50, hill, replicates,
-        noise_cv, doubling_h, int(seed), electrode, bool(fem),
-    )
+    with explained_settings():
+        out = run_rtca(
+            frequency_khz, duration_h, treatment_h, true_ic50, hill, replicates,
+            noise_cv, doubling_h, int(seed), electrode, bool(fem),
+        )
     m, table = out["metrics"], out["table"]
 
     cols = st.columns(5)
@@ -103,7 +133,10 @@ def page_rtca() -> None:
             icon="🧪",
         )
 
-    tabs = st.tabs(["Cell Index", "Dose–response", "Nyquist", "Bode", "Plate map", "Data"])
+    names = ["Cell Index", "Dose–response", "Nyquist", "Bode", "Plate map", "Data"]
+    if out["potential"] is not None:
+        names.append("Electrode field")
+    tabs = st.tabs(names)
 
     curves = pd.DataFrame({"time": out["time"]})
     for dose, group in table.groupby("concentration"):
@@ -201,6 +234,49 @@ def page_rtca() -> None:
     with tabs[5]:
         st.dataframe(table, width="stretch", hide_index=True)
         download_frame(table, "rtca_wells.csv", "Download well table (CSV)")
+
+    if out["potential"] is not None:
+        with tabs[6]:
+            _electrode_field(out["potential"], m)
+
+
+def _electrode_field(field: dict, metrics: dict) -> None:
+    """The FEM's potential map — the picture behind the lumped model's error.
+
+    The solve already produced this on the way to the impedance; showing it is
+    the difference between asserting that current crowds at the finger edges
+    and letting the reader see it.
+    """
+    import plotly.graph_objects as go
+
+    from biosim_lab.core.viz.theme import plotly_layout, sequential_colorscale
+
+    x_um = np.asarray(field["x"]) * 1e6
+    y_um = np.asarray(field["y"]) * 1e6
+    fig = go.Figure(go.Heatmap(
+        z=np.asarray(field["phi"]).T, x=x_um, y=y_um,
+        colorscale=sequential_colorscale(), colorbar={"title": "|φ| (V)"},
+        hovertemplate="x %{x:.1f} µm<br>y %{y:.1f} µm<br>|φ| %{z:.3f} V<extra></extra>",
+    ))
+    fig.update_yaxes(scaleanchor="x", scaleratio=1)
+    fig.update_layout(**plotly_layout(
+        "Potential in the electrolyte over one IDE unit cell",
+        xaxis_title="across the fingers (µm)", yaxis_title="height above the chip (µm)",
+        showlegend=False,
+    ))
+    st.plotly_chart(fig, width="stretch", config=PLOTLY_CONFIG)
+    note(
+        f"One symmetry cell of the comb, driven as: {field['drive']}. The whole "
+        "electrode is many of these in parallel. Where the contours crowd against "
+        "the metal edge, so does the current — which is why the lumped series "
+        "model, which assumes the current crosses every finger uniformly, is off "
+        f"by up to {metrics['spectrum_lumped_vs_fem_max_percent']:.1f} % across the "
+        "spectrum while staying within "
+        f"{metrics['readout_lumped_vs_fem_max_percent']:.2f} % at the readout "
+        "frequency. Wagner number at the readout frequency: "
+        f"{metrics['readout_wagner_number']:.2f} — of order one is exactly where "
+        "crowding bites."
+    )
 
 
 def _rtca_from_upload(uploaded: io.BytesIO) -> None:

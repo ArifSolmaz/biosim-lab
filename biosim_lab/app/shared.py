@@ -19,6 +19,21 @@ from biosim_lab.core.viz.theme import PALETTE
 
 UL_MIN = 1e-9 / 60.0  # m^3/s per uL/min
 
+#: The project's own addresses. A hosted app is the only copy most visitors
+#: will ever see, so the source, the manual and the citation have to be
+#: reachable from inside it rather than assumed.
+REPO_URL = "https://github.com/ArifSolmaz/biosim-lab"
+DOC_URLS = {
+    "manual": f"{REPO_URL}/blob/main/docs/USER_MANUAL.md",
+    "manual_tr": f"{REPO_URL}/blob/main/docs/USER_MANUAL.tr.md",
+    "validation": f"{REPO_URL}/blob/main/docs/validation.md",
+    "physics": f"{REPO_URL}/blob/main/docs/physics.md",
+    "instruments": f"{REPO_URL}/blob/main/docs/instruments.md",
+    "benchmarks": f"{REPO_URL}/blob/main/benchmarks/REPORT.md",
+    "architecture": f"{REPO_URL}/blob/main/ARCHITECTURE.md",
+    "citation": f"{REPO_URL}/blob/main/CITATION.cff",
+}
+
 PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
 
 CSS = f"""
@@ -31,6 +46,11 @@ CSS = f"""
         margin: 0.4rem 0 0.9rem 0;
       }}
       .biosim-doi {{ font-size: 0.76rem; color: {PALETTE['text_secondary_light']}; }}
+      .biosim-links {{
+        font-size: 0.78rem; line-height: 1.6;
+        color: {PALETTE['text_secondary_light']};
+      }}
+      .biosim-links a {{ color: {PALETTE['text_secondary_light']}; }}
     </style>
     """
 
@@ -103,6 +123,28 @@ def explained_settings() -> Iterator[None]:
         st.stop()
 
 
+def sidebar_links() -> None:
+    """Source, manual and citation, in the sidebar of every page.
+
+    Without this the deployment is a dead end: the DOIs are text, the manual
+    is a file in a repository the visitor has no address for, and a tool whose
+    argument is reproducibility cannot be reproduced from what is on screen.
+    """
+    st.markdown(
+        f"""
+<div class='biosim-links'>
+<a href="{REPO_URL}">Source code</a> ·
+<a href="{DOC_URLS['manual']}">User manual</a>
+(<a href="{DOC_URLS['manual_tr']}">TR</a>) ·
+<a href="{DOC_URLS['validation']}">Validation</a> ·
+<a href="{DOC_URLS['benchmarks']}">Benchmarks</a> ·
+<a href="{DOC_URLS['citation']}">How to cite</a>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 def download_frame(df: pd.DataFrame, filename: str, label: str) -> None:
     """CSV download button. CSV rather than Parquet/NetCDF so the hosted app
     needs neither pyarrow nor an HDF5 stack."""
@@ -114,11 +156,14 @@ def download_frame(df: pd.DataFrame, filename: str, label: str) -> None:
 
 __all__ = [
     "CSS",
+    "DOC_URLS",
     "PLOTLY_CONFIG",
+    "REPO_URL",
     "UL_MIN",
     "download_frame",
     "explained_settings",
     "note",
     "show_warnings",
+    "sidebar_links",
     "warn_if_stale",
 ]

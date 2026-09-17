@@ -51,14 +51,16 @@ from biosim_lab.app.pages import (  # noqa: E402
     rtca,
     sorter,
     tracker,
+    video,
 )
-from biosim_lab.app.shared import CSS, warn_if_stale  # noqa: E402
+from biosim_lab.app.shared import CSS, sidebar_links, warn_if_stale  # noqa: E402
 
 st.markdown(CSS, unsafe_allow_html=True)
 
 PAGES = {
     "Overview": overview.page_overview,
     "SAW cell sorter": sorter.page_sorter,
+    "Video readout": video.page_video,
     "Impedance (RTCA)": rtca.page_rtca,
     "Cell counter": counter.page_counter,
     "Cell tracker": tracker.page_tracker,
@@ -86,6 +88,7 @@ def main() -> None:
             "Every number on screen is computed live from the same code the "
             "command line runs. Nothing is pre-baked."
         )
+        sidebar_links()
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from biosim_lab.app.shared import (
+    DOC_URLS,
     download_frame,
     note,
 )
@@ -59,6 +60,15 @@ def page_materials() -> None:
         "device, measure the pressure by tracking calibration beads and enter that "
         "number instead of a voltage.",
         icon="⚠️",
+    )
+    st.info(
+        "**And the project's own evidence says that number is too high.** Sweeping "
+        "the drive to reproduce the cancer-cell recovery published by Li et al. 2015 "
+        f"(doi:10.1073/pnas.1504484112) lands at **0.24–0.30 MPa, not 0.45 MPa** — "
+        "the calibration reads about **1.5× high**, and this is the only external "
+        f"check on it in the package. The full comparison is in the "
+        f"[benchmark report]({DOC_URLS['benchmarks']}).",
+        icon="🔍",
     )
 
 

@@ -26,6 +26,7 @@ APP = str(pathlib.Path(__file__).resolve().parent.parent / "streamlit_app.py")
 PAGES = [
     "Overview",
     "SAW cell sorter",
+    "Video readout",
     "Impedance (RTCA)",
     "Cell counter",
     "Cell tracker",
